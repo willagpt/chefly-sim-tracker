@@ -153,7 +153,7 @@
         </div>
         <label for="fComments">Comments</label>
         <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
-        <label>Photos of the work (required to finish)</label>
+        <label>Photos of the work (please add before finishing)</label>
         <div id="photoStrip" class="photo-strip"></div>
         <input id="photoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'main')" style="padding:10px" />
         <button class="ghost" id="pauseBtn" onclick="togglePause('main')">⏸ Pause</button>
@@ -314,7 +314,7 @@
         </div>
         <label for="kComments">Comments</label>
         <textarea id="kComments" rows="2"></textarea>
-        <label>Photos of the work (required to finish)</label>
+        <label>Photos of the work (please add before finishing)</label>
         <div id="kPhotoStrip" class="photo-strip"></div>
         <input id="kPhotoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'kiosk')" style="padding:10px" />
         <button class="ghost" id="kPauseBtn" onclick="togglePause('kiosk')">⏸ Pause</button>
@@ -361,13 +361,16 @@ window.uploadPhotos=async function(ev,mode){
   const log=mode==='kiosk'?kActiveLog:activeLog
   if(!log){alert('Start the task first.');return}
   const files=[...(ev.target.files||[])]; ev.target.value=''
+  let ok=0
   for(const f of files){
     const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
     const path=`${log.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
-    const {error}=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
-    if(error){alert('Photo upload failed: '+error.message);continue}
+    const up=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
+    if(up.error){alert('Photo upload failed: '+up.error.message+'\n\nIf it keeps failing, you can still finish the task and add the photo later.');continue}
     log.photos=[...(log.photos||[]),path]
-    await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
+    const u=await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
+    if(u.error){alert('Saved photo but could not attach it: '+u.error.message);continue}
+    ok++
   }
   renderPhotoStrip(mode==='kiosk'?'kPhotoStrip':'photoStrip', log.photos)
 }
@@ -602,7 +605,7 @@ window.startTask=async function(){
 }
 window.stopTask=async function(){
   if(!activeLog) return
-  if(!(activeLog.photos&&activeLog.photos.length)){alert('Please add at least one photo of the work before finishing.');return}
+  if(!(activeLog.photos&&activeLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
@@ -781,7 +784,7 @@ window.kioskStart=async function(){
 }
 window.kioskStop=async function(){
   if(!kActiveLog) return
-  if(!(kActiveLog.photos&&kActiveLog.photos.length)){alert('Please add at least one photo of the work before finishing.');return}
+  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
