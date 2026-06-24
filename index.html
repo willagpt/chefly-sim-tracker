@@ -58,6 +58,10 @@
   .stat .n{font-size:26px;font-weight:800}.stat .l{font-size:12px;color:var(--muted);margin-top:2px}
   .feed-item{padding:12px 14px;border-left:3px solid var(--blue);background:var(--panel2);border-radius:8px;margin-bottom:8px;font-size:14px}
   .vs-good{color:var(--green);font-weight:700}.vs-bad{color:var(--amber);font-weight:700}
+  .photo-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .photo-strip img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .feed-thumbs{display:flex;gap:6px;margin-top:8px}
+  .feed-thumbs img{width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
   .center{text-align:center}
   .logo-big{font-size:30px;font-weight:900;letter-spacing:1px;margin-bottom:6px}
   .footnote{font-size:12px;color:var(--muted);text-align:center;margin-top:24px;line-height:1.5}
@@ -149,6 +153,9 @@
         </div>
         <label for="fComments">Comments</label>
         <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
+        <label>Photos of the work (optional)</label>
+        <div id="photoStrip" class="photo-strip"></div>
+        <input id="photoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'main')" style="padding:10px" />
         <button class="red" onclick="stopTask()">■ STOP &amp; FINISH TASK</button>
       </div>
       <div id="startCard" class="card">
@@ -270,6 +277,9 @@
         </div>
         <label for="kComments">Comments</label>
         <textarea id="kComments" rows="2"></textarea>
+        <label>Photos of the work (optional)</label>
+        <div id="kPhotoStrip" class="photo-strip"></div>
+        <input id="kPhotoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'kiosk')" style="padding:10px" />
         <button class="red" onclick="kioskStop()">■ STOP &amp; FINISH</button>
       </div>
       <div id="kStartCard" class="card">
@@ -305,6 +315,22 @@ function clearMsg(el){el.className='msg'}
 function fmtClock(s){s=Math.max(0,Math.floor(s));const h=String(Math.floor(s/3600)).padStart(2,'0'),m=String(Math.floor((s%3600)/60)).padStart(2,'0'),x=String(s%60).padStart(2,'0');return `${h}:${m}:${x}`}
 const mins=(a,b)=>((new Date(b)-new Date(a))/60000)
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
+function renderPhotoStrip(id,paths){const box=$(id);if(!box)return;box.innerHTML='';(paths||[]).forEach(p=>{const a=document.createElement('a');a.href=photoUrl(p);a.target='_blank';const img=document.createElement('img');img.src=photoUrl(p);img.loading='lazy';a.appendChild(img);box.appendChild(a)})}
+window.uploadPhotos=async function(ev,mode){
+  const log=mode==='kiosk'?kActiveLog:activeLog
+  if(!log){alert('Start the task first.');return}
+  const files=[...(ev.target.files||[])]; ev.target.value=''
+  for(const f of files){
+    const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
+    const path=`${log.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
+    const {error}=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
+    if(error){alert('Photo upload failed: '+error.message);continue}
+    log.photos=[...(log.photos||[]),path]
+    await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
+  }
+  renderPhotoStrip(mode==='kiosk'?'kPhotoStrip':'photoStrip', log.photos)
+}
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
 
@@ -488,7 +514,7 @@ async function loadActive(){
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)};tick();timerInt=setInterval(tick,1000)}
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog.photos);if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)};tick();timerInt=setInterval(tick,1000)}
   else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
 window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
@@ -511,7 +537,7 @@ async function refreshMyRecent(){
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
   const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' kg waste':''}</div></div>`;box.appendChild(d)})
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' kg waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
 }
 
 // ---------- DASHBOARD ----------
@@ -529,7 +555,7 @@ async function refreshDashboard(){
   else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameFor(l)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
-  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameFor(l)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
+  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameFor(l)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>${l.photos&&l.photos.length?'<div class="feed-thumbs">'+l.photos.slice(0,5).map(p=>'<a href="'+photoUrl(p)+'" target="_blank"><img loading="lazy" src="'+photoUrl(p)+'"></a>').join('')+'</div>':''}`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
 // ---------- MANAGE ----------
@@ -662,7 +688,7 @@ function kioskRenderActive(){
     $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
     $('kStaffCount').value=kActiveLog.staff_count||1
     const c=catalog.find(x=>x.id===kActiveLog.catalog_id); const tw=!!(c&&c.track_waste)
-    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw)
+    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog.photos)
     if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock((Date.now()-new Date(kActiveLog.start_time))/1000)}; tick(); kTimerInt=setInterval(tick,1000)
   } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
 }
