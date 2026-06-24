@@ -73,6 +73,7 @@
     <div class="logo-big">⏱️ SIM Tracker</div>
     <p class="muted">Short Interval Management · Chefly</p>
 
+    <!-- first-time admin setup -->
     <div id="bootstrapStep" class="hidden">
       <div class="msg ok show" style="text-align:left">First-time setup — create the admin account. (Shown only until the first account exists.)</div>
       <label for="bEmail">Admin email</label>
@@ -84,11 +85,13 @@
       <button class="green" onclick="createFirstAdmin()">Create admin account</button>
     </div>
 
+    <!-- log in / create account toggle -->
     <div id="authToggle" class="tabs hidden">
       <div class="tab active" id="authTabLogin" onclick="showAuth('login')">Log in</div>
       <div class="tab" id="authTabSignup" onclick="showAuth('signup')">Create account</div>
     </div>
 
+    <!-- log in -->
     <div id="loginStep" class="hidden">
       <label for="email">Email</label>
       <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" />
@@ -98,6 +101,7 @@
       <p style="margin-top:12px"><a class="link" onclick="forgotPassword()">Forgot password?</a></p>
     </div>
 
+    <!-- create account (join code) -->
     <div id="signupStep" class="hidden">
       <label for="suName">Your name</label>
       <input id="suName" type="text" placeholder="Full name" />
@@ -111,6 +115,7 @@
       <p class="muted" style="margin-top:10px">Don't have a join code? Ask your manager — it stops random sign-ups.</p>
     </div>
 
+    <!-- forced password change -->
     <div id="pwStep" class="hidden">
       <div class="msg ok show" style="text-align:left">Welcome! Please set your own password to continue.</div>
       <label for="np1">New password</label>
@@ -139,7 +144,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="activeName">Task</h2><span class="pill live">● RUNNING</span></div>
         <div class="muted" id="activeMeta"></div>
         <div class="timer" id="activeTimer">00:00:00</div>
-        <label for="fUnits">Units produced (e.g. kilos)</label>
+        <label for="fUnits">Kilograms produced (kg)</label>
         <input id="fUnits" type="number" inputmode="decimal" placeholder="e.g. 150" />
         <div class="row">
           <div><label for="fStaff">People on task</label><input id="fStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
@@ -169,7 +174,7 @@
         <div class="stat-grid">
           <div class="stat"><div class="n" id="stIn">0</div><div class="l">In progress</div></div>
           <div class="stat"><div class="n" id="stDone">0</div><div class="l">Completed</div></div>
-          <div class="stat"><div class="n" id="stUnits">0</div><div class="l">Units today</div></div>
+          <div class="stat"><div class="n" id="stUnits">0</div><div class="l">Kg today</div></div>
         </div>
       </div>
       <div class="card"><h2>Running now</h2><div id="dashRunning"><p class="muted">Nobody is on a task right now.</p></div></div>
@@ -210,7 +215,7 @@
         <input id="ntName" type="text" placeholder="e.g. Marinate" />
         <div class="row">
           <div><label for="ntStation">Station</label><input id="ntStation" type="text" placeholder="Line 1" /></div>
-          <div><label for="ntUnits">Expected units</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
+          <div><label for="ntUnits">Expected (kg)</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
         </div>
         <button class="ghost" onclick="addTask()">Add task</button>
         <div id="addMsg" class="msg"></div>
@@ -240,7 +245,7 @@ const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-dig
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
 
-function setAuthView(mode){
+function setAuthView(mode){ // bootstrap | login | signup | pw
   $('bootstrapStep').classList.toggle('hidden', mode!=='bootstrap')
   $('authToggle').classList.toggle('hidden', !(mode==='login'||mode==='signup'))
   $('loginStep').classList.toggle('hidden', mode!=='login')
@@ -303,7 +308,7 @@ window.signOut=async function(){await sb.auth.signOut();location.reload()}
 
 // ---------- BOOT (no DB awaits inside onAuthStateChange — avoids auth deadlock) ----------
 ;(async()=>{
-  try{ const {data:needs}=await sb.rpc('sim_needs_bootstrap'); setAuthView(needs?'bootstrap':'login') }
+  try{ const {data:needs}=await sb.rpc('sim_needs_bootstrap'); if(needs){ setAuthView('bootstrap') } else { setAuthView('login') } }
   catch(e){ setAuthView('login') }
   const {data}=await sb.auth.getSession()
   if(data.session){ me=data.session.user; await afterAuth() }
@@ -364,9 +369,43 @@ async function loadCatalog(){
   catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;sel.appendChild(o)})
   renderTaskList()
 }
-function renderTaskList(){
+window.renderTaskList=function(){
   const box=$('taskList'); if(!box) return; box.innerHTML=''
-  catalog.forEach(t=>{const d=document.createElement('div');d.className='task-item';d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} units</div></div>`;const b=document.createElement('button');b.className='ghost sm';b.textContent='Remove';b.onclick=async()=>{await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()};d.appendChild(b);box.appendChild(d)})
+  catalog.forEach(t=>{
+    const d=document.createElement('div'); d.className='task-item'; d.id='task_'+t.id
+    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl</div></div>`
+    const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
+    const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
+    const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
+    ctl.appendChild(e); ctl.appendChild(b); d.appendChild(ctl); box.appendChild(d)
+  })
+}
+function renderTaskList(){ window.renderTaskList() }
+window.editTask=function(id){
+  const t=catalog.find(c=>c.id===id); if(!t) return
+  const d=$('task_'+id); if(!d) return
+  d.style.flexDirection='column'; d.style.alignItems='stretch'
+  const esc=s=>(s||'').replace(/"/g,'&quot;')
+  d.innerHTML=`
+    <input id="et_name_${id}" value="${esc(t.name)}" placeholder="Task name" />
+    <div class="row" style="margin-top:8px">
+      <input id="et_station_${id}" value="${esc(t.station)}" placeholder="Station" />
+      <input id="et_units_${id}" type="number" value="${t.expected_units??''}" placeholder="Expected kg" />
+      <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="green sm" style="flex:1" onclick="saveTask('${id}')">Save</button>
+      <button class="ghost sm" style="flex:1" onclick="renderTaskList()">Cancel</button>
+    </div>`
+}
+window.saveTask=async function(id){
+  const name=$('et_name_'+id).value.trim(); if(!name){alert('Task name is required');return}
+  const station=$('et_station_'+id).value.trim()||null
+  const units=$('et_units_'+id).value?Number($('et_units_'+id).value):null
+  const staff=$('et_staff_'+id).value?Number($('et_staff_'+id).value):null
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff}).eq('id',id)
+  if(error){msg($('addMsg'),error.message,false);return}
+  await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
 window.addTask=async function(){
   const name=$('ntName').value.trim(); if(!name){msg($('addMsg'),'Enter a task name.',false);return}
@@ -404,7 +443,7 @@ async function refreshMyRecent(){
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
   const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour}/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} units · ${l.total_minutes??'–'} min · ${uph}</div></div>`;box.appendChild(d)})
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}</div></div>`;box.appendChild(d)})
 }
 
 // ---------- DASHBOARD ----------
@@ -421,7 +460,7 @@ async function refreshDashboard(){
   else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameOf(l.user_id)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
-  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} units in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+'/hr)':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
+  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
 // ---------- MANAGE ----------
@@ -481,7 +520,7 @@ async function loadAccess(){
 function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}}}
 function subscribeRealtime(){
   sb.channel('sim-logs').on('postgres_changes',{event:'*',schema:'public',table:'sim_task_logs'},(payload)=>{
-    if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){lastFinishIds.add(payload.new.id);if(isManagerUp()&&payload.new.user_id!==me.id)notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} units`)}
+    if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){lastFinishIds.add(payload.new.id);if(isManagerUp()&&payload.new.user_id!==me.id)notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} kg`)}
     if(isManagerUp())refreshDashboard()
     if(payload.new&&payload.new.user_id===me.id){loadActive();refreshMyRecent()}
   }).subscribe()
