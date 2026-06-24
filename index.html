@@ -73,7 +73,6 @@
     <div class="logo-big">⏱️ SIM Tracker</div>
     <p class="muted">Short Interval Management · Chefly</p>
 
-    <!-- first-time admin setup -->
     <div id="bootstrapStep" class="hidden">
       <div class="msg ok show" style="text-align:left">First-time setup — create the admin account. (Shown only until the first account exists.)</div>
       <label for="bEmail">Admin email</label>
@@ -85,13 +84,11 @@
       <button class="green" onclick="createFirstAdmin()">Create admin account</button>
     </div>
 
-    <!-- log in / create account toggle -->
     <div id="authToggle" class="tabs hidden">
       <div class="tab active" id="authTabLogin" onclick="showAuth('login')">Log in</div>
       <div class="tab" id="authTabSignup" onclick="showAuth('signup')">Create account</div>
     </div>
 
-    <!-- log in -->
     <div id="loginStep" class="hidden">
       <label for="email">Email</label>
       <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" />
@@ -101,7 +98,6 @@
       <p style="margin-top:12px"><a class="link" onclick="forgotPassword()">Forgot password?</a></p>
     </div>
 
-    <!-- create account (join code) -->
     <div id="signupStep" class="hidden">
       <label for="suName">Your name</label>
       <input id="suName" type="text" placeholder="Full name" />
@@ -115,7 +111,6 @@
       <p class="muted" style="margin-top:10px">Don't have a join code? Ask your manager — it stops random sign-ups.</p>
     </div>
 
-    <!-- forced password change -->
     <div id="pwStep" class="hidden">
       <div class="msg ok show" style="text-align:left">Welcome! Please set your own password to continue.</div>
       <label for="np1">New password</label>
@@ -134,7 +129,7 @@
 <div id="appView" class="hidden">
   <header class="app">
     <div class="brand"><span class="dot"></span> SIM Tracker</div>
-    <div class="who"><b id="whoName">—</b><span class="badge staff" id="whoRole">staff</span> · <a href="#" onclick="signOut();return false" style="color:var(--accent)">Sign out</a></div>
+    <div class="who"><b id="whoName">—</b><span class="badge staff" id="whoRole">staff</span> · <a href="#" id="kioskLink" class="hidden" onclick="enterKiosk();return false" style="color:var(--accent)">Kiosk</a> · <a href="#" onclick="signOut();return false" style="color:var(--accent)">Sign out</a></div>
   </header>
   <div class="wrap">
     <div class="tabs" id="tabBar"></div>
@@ -212,6 +207,19 @@
         <div id="memberMsg" class="msg"></div>
       </div>
       <div class="card">
+        <h2>Floor staff (PIN login)</h2>
+        <p class="muted" style="margin-top:-8px">For staff without email. They log time on a shared device in Kiosk mode — tap name + 4-digit PIN.</p>
+        <label for="fsName">Name</label>
+        <input id="fsName" type="text" placeholder="Full name" />
+        <div class="row">
+          <div><label for="fsStation">Station</label><input id="fsStation" type="text" placeholder="Line 1" /></div>
+          <div><label for="fsPin">4-digit PIN</label><input id="fsPin" type="text" inputmode="numeric" maxlength="4" placeholder="e.g. 1234" /></div>
+        </div>
+        <button class="green" onclick="addStaff()">Add floor staff</button>
+        <div id="fsMsg" class="msg"></div>
+        <div id="staffList" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
         <h2>Tasks</h2>
         <label for="ntName">New task name</label>
         <input id="ntName" type="text" placeholder="e.g. Marinate" />
@@ -228,6 +236,58 @@
   </div>
 </div>
 
+<!-- ============ KIOSK (shared device) ============ -->
+<div id="kioskView" class="hidden">
+  <header class="app">
+    <div class="brand"><span class="dot"></span> SIM Kiosk</div>
+    <a href="#" onclick="exitKiosk();return false" style="color:var(--accent);font-weight:700">Exit kiosk</a>
+  </header>
+  <div class="wrap">
+    <div id="kStaffStep">
+      <div class="card"><h2>Tap your name to log time</h2><div id="kGrid" class="stat-grid" style="grid-template-columns:repeat(2,1fr)"></div><div id="kStaffMsg" class="msg"></div></div>
+    </div>
+    <div id="kPinStep" class="hidden">
+      <div class="card center">
+        <h2 id="kPinName">Enter your PIN</h2>
+        <input id="kPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;font-size:30px;letter-spacing:12px" onkeydown="if(event.key==='Enter')kioskVerify()" />
+        <button class="green" onclick="kioskVerify()">Enter</button>
+        <button class="ghost" onclick="kioskBackToGrid()">Back</button>
+        <div id="kPinMsg" class="msg"></div>
+      </div>
+    </div>
+    <div id="kTaskStep" class="hidden">
+      <div id="kActiveCard" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="kActiveName">Task</h2><span class="pill live">● RUNNING</span></div>
+        <div class="muted" id="kActiveMeta"></div>
+        <div class="timer" id="kTimer">00:00:00</div>
+        <label for="kUnits">Kilograms produced (kg)</label>
+        <input id="kUnits" type="number" inputmode="decimal" placeholder="e.g. 150" />
+        <div id="kWasteWrap" class="hidden"><label for="kWaste">Waste (kg)</label><input id="kWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
+        <p id="kWasteToggleP" style="margin:10px 0 0"><a class="link" onclick="kioskShowWaste()">+ Record waste (kg)</a></p>
+        <div class="row">
+          <div><label for="kStaffCount">People on task</label><input id="kStaffCount" type="number" inputmode="numeric" min="1" value="1" /></div>
+          <div><label for="kChange">Change over (mins)</label><input id="kChange" type="number" inputmode="numeric" placeholder="0" /></div>
+        </div>
+        <label for="kComments">Comments</label>
+        <textarea id="kComments" rows="2"></textarea>
+        <button class="red" onclick="kioskStop()">■ STOP &amp; FINISH</button>
+      </div>
+      <div id="kStartCard" class="card">
+        <h2 id="kWho">Start a task</h2>
+        <label for="kSelTask">Task</label>
+        <select id="kSelTask"></select>
+        <div class="row">
+          <div><label for="kProduct">Product / recipe</label><input id="kProduct" type="text" placeholder="e.g. Bavette" /></div>
+          <div><label for="kCount">People on task</label><input id="kCount" type="number" inputmode="numeric" min="1" value="1" /></div>
+        </div>
+        <button class="green" onclick="kioskStart()">▶ START NOW</button>
+        <button class="ghost" onclick="kioskBackToGrid()">Switch person</button>
+        <div id="kTaskMsg" class="msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -236,7 +296,7 @@ const SUPABASE_KEY = 'sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let me=null, profile=null, catalog=[], activeLog=null, timerInt=null
-let lastFinishIds=new Set(), notifyReady=false, booting=false
+let lastFinishIds=new Set(), notifyReady=false, booting=false, kStaff=null, kActiveLog=null, kTimerInt=null
 
 const $ = id => document.getElementById(id)
 const show=el=>el.classList.remove('hidden'), hide=el=>el.classList.add('hidden')
@@ -341,6 +401,7 @@ async function showApp(){
   hide($('loginView')); show($('appView'))
   $('whoName').textContent=profile.full_name||me.email
   const r=profile.role||'staff'; const badge=$('whoRole'); badge.textContent=r; badge.className='badge '+r
+  $('kioskLink').classList.toggle('hidden',!isManagerUp())
   buildTabs()
   await loadCatalog(); await loadActive(); await refreshMyRecent()
   if(isManagerUp()) await refreshDashboard()
@@ -362,7 +423,7 @@ window.showTab=function(which){
   document.querySelectorAll('#tabBar .tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which));
   ['log','dash','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='dash') refreshDashboard()
-  if(which==='manage'){ loadJoinCode(); loadAccess(); renderTaskList() }
+  if(which==='manage'){ loadJoinCode(); loadAccess(); loadStaff(); renderTaskList() }
 }
 
 // ---------- CATALOG ----------
@@ -459,15 +520,16 @@ async function refreshDashboard(){
   const today=new Date().toISOString().slice(0,10)
   const {data:logs}=await sb.from('sim_task_logs').select('*').eq('log_date',today).order('start_time',{ascending:false})
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
-  const nameOf=id=>{const p=(profs||[]).find(x=>x.id===id);return p?(p.full_name||p.email):'Someone'}
+  const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
+  const nameFor=l=>{ if(l.user_id){const p=(profs||[]).find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=(staffs||[]).find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
   const all=logs||[], running=all.filter(l=>l.status==='in_progress'), done=all.filter(l=>l.status==='completed')
   $('stIn').textContent=running.length;$('stDone').textContent=done.length;$('stUnits').textContent=done.reduce((s,l)=>s+(Number(l.units)||0),0)
   const rb=$('dashRunning')
   if(!running.length){rb.innerHTML='<p class="muted">Nobody is on a task right now.</p>'}
-  else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameOf(l.user_id)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
+  else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameFor(l)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
-  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
+  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameFor(l)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
 // ---------- MANAGE ----------
@@ -523,11 +585,110 @@ async function loadAccess(){
   if(!allowed||!allowed.length) box.innerHTML='<p class="muted">No users yet.</p>'
 }
 
+// ---------- FLOOR STAFF (admin) ----------
+async function loadStaff(){
+  if(!isAdmin()) return
+  const box=$('staffList'); if(!box) return; box.innerHTML='<p class="muted">Loading…</p>'
+  const {data,error}=await sb.from('sim_staff').select('*').order('full_name')
+  if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
+  box.innerHTML=''
+  ;(data||[]).forEach(s=>{
+    const d=document.createElement('div'); d.className='member'
+    d.innerHTML=`<div><div class="name">${s.full_name}</div><div class="sub">${s.station||'—'} · ${s.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'} · ${s.pin_hash?'PIN set':'<span style="color:#fca5a5">no PIN</span>'}</div></div>`
+    const ctl=document.createElement('div'); ctl.className='ctl'
+    const pinB=document.createElement('button'); pinB.className='ghost sm'; pinB.textContent='Set PIN'
+    pinB.onclick=async()=>{const p=prompt('New 4-digit PIN for '+s.full_name+':');if(!p)return;if(!/^\d{4}$/.test(p)){alert('PIN must be 4 digits');return}const {error}=await sb.rpc('sim_save_staff',{p_id:s.id,p_name:s.full_name,p_station:s.station,p_pin:p});if(error){msg($('fsMsg'),error.message,false)}else{msg($('fsMsg'),'PIN updated for '+s.full_name,true);loadStaff()}}
+    const actB=document.createElement('button'); actB.className='ghost sm'; actB.textContent=s.active?'Deactivate':'Activate'
+    actB.onclick=async()=>{const {error}=await sb.rpc('sim_set_staff_active',{p_id:s.id,p_active:!s.active});if(error){msg($('fsMsg'),error.message,false)}else{loadStaff()}}
+    ctl.appendChild(pinB); ctl.appendChild(actB); d.appendChild(ctl); box.appendChild(d)
+  })
+  if(!data||!data.length) box.innerHTML='<p class="muted">No floor staff yet.</p>'
+}
+window.addStaff=async function(){
+  const name=$('fsName').value.trim(), station=$('fsStation').value.trim(), pin=$('fsPin').value.trim()
+  if(!name){msg($('fsMsg'),'Enter a name.',false);return}
+  if(pin && !/^\d{4}$/.test(pin)){msg($('fsMsg'),'PIN must be 4 digits.',false);return}
+  const {error}=await sb.rpc('sim_save_staff',{p_id:null,p_name:name,p_station:station,p_pin:pin||null})
+  if(error){msg($('fsMsg'),error.message,false);return}
+  $('fsName').value='';$('fsStation').value='';$('fsPin').value='';msg($('fsMsg'),'Staff added.'+(pin?'':' Set a PIN before they can log in.'),true);loadStaff()
+}
+
+// ---------- KIOSK (shared device, manager/admin) ----------
+window.enterKiosk=async function(){
+  hide($('appView')); hide($('loginView')); show($('kioskView'))
+  if(!catalog.length) await loadCatalog()
+  kioskBackToGrid()
+}
+window.exitKiosk=function(){ kStaff=null; kActiveLog=null; if(kTimerInt)clearInterval(kTimerInt); hide($('kioskView')); show($('appView')) }
+window.kioskBackToGrid=function(){
+  kStaff=null; kActiveLog=null; if(kTimerInt)clearInterval(kTimerInt)
+  $('kPin').value=''; clearMsg($('kPinMsg')); clearMsg($('kTaskMsg'))
+  $('kPinStep').classList.add('hidden'); $('kTaskStep').classList.add('hidden'); $('kStaffStep').classList.remove('hidden')
+  loadKioskStaff()
+}
+async function loadKioskStaff(){
+  const grid=$('kGrid'); grid.innerHTML='<p class="muted">Loading…</p>'
+  const {data,error}=await sb.from('sim_staff').select('id,full_name,station').eq('active',true).order('full_name')
+  if(error){grid.innerHTML='<p class="muted">'+error.message+'</p>';return}
+  grid.innerHTML=''
+  ;(data||[]).forEach(s=>{const b=document.createElement('button');b.className='ghost';b.style.margin='0';b.style.padding='22px 10px';b.textContent=s.full_name;b.onclick=()=>kioskSelect(s);grid.appendChild(b)})
+  if(!data||!data.length) grid.innerHTML='<p class="muted">No floor staff set up. Add them in Manage → Floor staff.</p>'
+}
+window.kioskSelect=function(s){
+  kStaff=s; $('kPinName').textContent=s.full_name+' — enter your PIN'
+  $('kStaffStep').classList.add('hidden'); $('kPinStep').classList.remove('hidden'); $('kPin').value=''; setTimeout(()=>$('kPin').focus(),50)
+}
+window.kioskVerify=async function(){
+  if(!kStaff) return
+  const pin=$('kPin').value.trim()
+  if(!/^\d{4}$/.test(pin)){msg($('kPinMsg'),'Enter your 4-digit PIN.',false);return}
+  const {data,error}=await sb.rpc('sim_verify_staff_pin',{p_staff_id:kStaff.id,p_pin:pin})
+  if(error){msg($('kPinMsg'),error.message,false);return}
+  if(!data){msg($('kPinMsg'),'Wrong PIN. Try again.',false);return}
+  clearMsg($('kPinMsg'))
+  $('kPinStep').classList.add('hidden'); $('kTaskStep').classList.remove('hidden')
+  $('kWho').textContent='Start a task — '+kStaff.full_name
+  const sel=$('kSelTask'); sel.innerHTML=''; catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;sel.appendChild(o)})
+  await kioskLoadActive()
+}
+async function kioskLoadActive(){
+  const {data}=await sb.from('sim_task_logs').select('*').eq('staff_id',kStaff.id).eq('status','in_progress').order('start_time',{ascending:false}).limit(1)
+  kActiveLog=(data&&data[0])||null; kioskRenderActive()
+}
+function kioskRenderActive(){
+  if(kActiveLog){
+    $('kStartCard').classList.add('hidden'); $('kActiveCard').classList.remove('hidden')
+    $('kActiveName').textContent=kActiveLog.task_name
+    $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
+    $('kStaffCount').value=kActiveLog.staff_count||1
+    const c=catalog.find(x=>x.id===kActiveLog.catalog_id); const tw=!!(c&&c.track_waste)
+    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw)
+    if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock((Date.now()-new Date(kActiveLog.start_time))/1000)}; tick(); kTimerInt=setInterval(tick,1000)
+  } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
+}
+window.kioskShowWaste=function(){$('kWasteWrap').classList.remove('hidden');$('kWasteToggleP').classList.add('hidden')}
+window.kioskStart=async function(){
+  const t=catalog.find(c=>c.id===$('kSelTask').value); if(!t){msg($('kTaskMsg'),'Pick a task.',false);return}
+  const {data,error}=await sb.from('sim_task_logs').insert({staff_id:kStaff.id,catalog_id:t.id,task_name:t.name,station:t.station,product:$('kProduct').value.trim()||null,staff_count:Number($('kCount').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
+  if(error){msg($('kTaskMsg'),error.message,false);return}
+  kActiveLog=data; $('kProduct').value=''; clearMsg($('kTaskMsg')); kioskRenderActive()
+}
+window.kioskStop=async function(){
+  if(!kActiveLog) return
+  const units=$('kUnits').value?Number($('kUnits').value):null
+  const waste=$('kWaste').value?Number($('kWaste').value):null
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
+  if(error){alert(error.message);return}
+  $('kUnits').value='';$('kWaste').value='';$('kChange').value='';$('kComments').value=''
+  alert('Logged — thanks '+kStaff.full_name+'!')
+  kioskBackToGrid()
+}
+
 // ---------- REALTIME ----------
 function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}}}
 function subscribeRealtime(){
   sb.channel('sim-logs').on('postgres_changes',{event:'*',schema:'public',table:'sim_task_logs'},(payload)=>{
-    if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){lastFinishIds.add(payload.new.id);if(isManagerUp()&&payload.new.user_id!==me.id)notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} kg`)}
+    if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){lastFinishIds.add(payload.new.id);if(isManagerUp())notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} kg`)}
     if(isManagerUp())refreshDashboard()
     if(payload.new&&payload.new.user_id===me.id){loadActive();refreshMyRecent()}
   }).subscribe()
