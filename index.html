@@ -56,12 +56,13 @@
   .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
   .pill.live{background:rgba(34,197,94,.18); color:#86efac}
   .pill.done{background:rgba(59,130,246,.18); color:#93c5fd}
+  .pill.off{background:rgba(148,163,184,.18); color:#cbd5e1}
   .timer{font-variant-numeric:tabular-nums; font-weight:800; font-size:40px; letter-spacing:1px; text-align:center; margin:8px 0}
   .task-item,.dash-row,.member{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px;
     border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:var(--panel2)}
-  .task-item .meta,.dash-row .sub{font-size:13px; color:var(--muted)}
+  .task-item .meta,.dash-row .sub,.member .sub{font-size:13px; color:var(--muted)}
   .dash-row .name,.member .name{font-weight:800}
-  .member .ctl{display:flex; gap:8px; align-items:center}
+  .member .ctl{display:flex; gap:8px; align-items:center; flex-shrink:0}
   .member select{width:auto; padding:8px 10px; font-size:14px}
   .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px}
   .stat{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center}
@@ -88,7 +89,7 @@
       <label for="email">Sign in with your work email</label>
       <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@chefly.com" />
       <button id="sendLinkBtn" onclick="sendLink()">Email me a login link</button>
-      <p class="muted" style="margin-top:14px">We'll send a one-tap link. You can also enter the 6-digit code from the email below.</p>
+      <p class="muted" style="margin-top:14px">Access is by invite. If your email isn't set up yet, ask your admin to add you.</p>
     </div>
     <div id="otpStep" class="hidden">
       <label for="otp">Enter the 6-digit code from your email</label>
@@ -98,7 +99,7 @@
     </div>
     <div id="loginMsg" class="msg"></div>
   </div>
-  <p class="footnote">First time? Just enter your email — your account is created automatically.</p>
+  <p class="footnote">Your account links to your email, so your performance record stays consistent over time.</p>
 </div>
 
 <!-- ============ APP ============ -->
@@ -167,9 +168,26 @@
     <!-- ===== MANAGE TAB (admin) ===== -->
     <div id="manageTab" class="hidden">
       <div class="card">
-        <h2>Team members &amp; roles</h2>
-        <p class="muted" style="margin-top:-8px">Staff = logging only · Manager = + dashboard · Admin = everything. Changes save instantly.</p>
-        <div id="memberList" style="margin-top:14px"><p class="muted">Loading…</p></div>
+        <h2>Set up a user</h2>
+        <p class="muted" style="margin-top:-8px">Only people you add here can log in. They sign in with this exact email.</p>
+        <label for="invEmail">Email</label>
+        <input id="invEmail" type="email" inputmode="email" placeholder="name@company.com" />
+        <div class="row">
+          <div><label for="invName">Name</label><input id="invName" type="text" placeholder="Full name" /></div>
+          <div><label for="invRole">Role</label>
+            <select id="invRole">
+              <option value="staff">Staff</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <button class="green" onclick="inviteUser()">Add user</button>
+        <div id="invMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <h2>People &amp; access</h2>
+        <div id="memberList"><p class="muted">Loading…</p></div>
         <div id="memberMsg" class="msg"></div>
       </div>
       <div class="card">
@@ -212,7 +230,11 @@ const isAdmin=()=> profile && profile.role==='admin'
 window.sendLink=async function(){
   const email=$('email').value.trim().toLowerCase(); const btn=$('sendLinkBtn')
   if(!email||!email.includes('@')){msg($('loginMsg'),'Please enter a valid email.',false);return}
-  btn.disabled=true; btn.textContent='Sending…'
+  btn.disabled=true; btn.textContent='Checking…'
+  const {data:allowed,error:chkErr}=await sb.rpc('sim_email_allowed',{p_email:email})
+  if(chkErr){btn.disabled=false;btn.textContent='Email me a login link';msg($('loginMsg'),chkErr.message,false);return}
+  if(!allowed){btn.disabled=false;btn.textContent='Email me a login link';msg($('loginMsg'),"This email isn't set up yet. Please ask your admin to add you.",false);return}
+  btn.textContent='Sending…'
   const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+window.location.pathname,shouldCreateUser:true}})
   btn.disabled=false; btn.textContent='Email me a login link'
   if(error){msg($('loginMsg'),error.message,false);return}
@@ -234,8 +256,14 @@ sb.auth.onAuthStateChange(async(_e,session)=>{if(session&&session.user){me=sessi
 
 async function enterApp(){
   if(!me) return
+  try{ await ensureProfile() }
+  catch(e){
+    await sb.auth.signOut()
+    show($('loginView')); hide($('appView')); backToEmail()
+    msg($('loginMsg'), (e&&e.message)? e.message : "You're not set up for access yet. Ask your admin.", false)
+    return
+  }
   hide($('loginView')); show($('appView'))
-  await ensureProfile()
   buildTabs()
   await loadCatalog(); await loadActive(); await refreshMyRecent()
   if(isManagerUp()) await refreshDashboard()
@@ -250,6 +278,7 @@ async function ensureProfile(){
   if(!data){
     const nm=(me.email||'').split('@')[0].replace(/[._]/g,' ').replace(/\b\w/g,c=>c.toUpperCase())
     const ins=await sb.from('sim_profiles').insert({id:me.id,email:me.email,full_name:nm}).select().single()
+    if(ins.error) throw ins.error
     data=ins.data
   }
   profile=data
@@ -274,7 +303,7 @@ window.showTab=function(which){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.id==='tab_'+which));
   ['log','dash','manage'].forEach(k=>{ const el=$(k+'Tab'); if(el) el.classList.toggle('hidden', k!==which) })
   if(which==='dash') refreshDashboard()
-  if(which==='manage'){ loadTeam(); renderTaskList() }
+  if(which==='manage'){ loadAccess(); renderTaskList() }
 }
 
 // ---------- CATALOG ----------
@@ -374,29 +403,49 @@ async function refreshDashboard(){
   else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} units in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+'/hr)':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
-// ---------- MANAGE: team members ----------
-async function loadTeam(){
+// ---------- MANAGE: access list ----------
+window.inviteUser=async function(){
+  const email=$('invEmail').value.trim().toLowerCase(), name=$('invName').value.trim(), role=$('invRole').value
+  if(!email||!email.includes('@')){msg($('invMsg'),'Enter a valid email.',false);return}
+  const {error}=await sb.rpc('sim_invite_user',{p_email:email,p_name:name,p_role:role})
+  if(error){msg($('invMsg'),error.message,false);return}
+  $('invEmail').value='';$('invName').value='';$('invRole').value='staff'
+  msg($('invMsg'),`${email} can now log in as ${role}.`,true); loadAccess()
+}
+async function loadAccess(){
   if(!isAdmin()) return
   const box=$('memberList'); box.innerHTML='<p class="muted">Loading…</p>'
-  const {data,error}=await sb.from('sim_profiles').select('*').order('full_name')
+  const [{data:allowed,error},{data:profs}] = await Promise.all([
+    sb.from('sim_allowed_users').select('*').order('full_name'),
+    sb.from('sim_profiles').select('email')
+  ])
   if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
+  const activeEmails=new Set((profs||[]).map(p=>(p.email||'').toLowerCase()))
   box.innerHTML=''
-  ;(data||[]).forEach(p=>{
+  ;(allowed||[]).forEach(u=>{
     const d=document.createElement('div'); d.className='member'
-    const self=p.id===me.id
-    d.innerHTML=`<div><div class="name">${p.full_name||p.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${p.email||''}</div></div>`
+    const self=(u.email||'').toLowerCase()===(me.email||'').toLowerCase()
+    const active=activeEmails.has((u.email||'').toLowerCase())
+    const statusPill=active?'<span class="pill live">● logged in</span>':'<span class="pill off">invited</span>'
+    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${statusPill}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
     const sel=document.createElement('select')
-    ;['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(p.role===r)o.selected=true;sel.appendChild(o)})
+    ;['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(u.role===r)o.selected=true;sel.appendChild(o)})
     sel.disabled=self
     sel.onchange=async()=>{
-      const {error}=await sb.from('sim_profiles').update({role:sel.value}).eq('id',p.id)
-      if(error){msg($('memberMsg'),error.message,false); sel.value=p.role}
-      else{msg($('memberMsg'),`${p.full_name||p.email} is now ${sel.value}.`,true); p.role=sel.value}
+      const {error}=await sb.rpc('sim_set_user_role',{p_email:u.email,p_role:sel.value})
+      if(error){msg($('memberMsg'),error.message,false);sel.value=u.role}
+      else{msg($('memberMsg'),`${u.full_name||u.email} is now ${sel.value}.`,true);u.role=sel.value}
     }
-    ctl.appendChild(sel); d.appendChild(ctl); box.appendChild(d)
+    ctl.appendChild(sel)
+    if(!self){
+      const rm=document.createElement('button'); rm.className='ghost sm'; rm.textContent='Remove'
+      rm.onclick=async()=>{ if(!confirm('Remove access for '+u.email+'?'))return; const {error}=await sb.rpc('sim_remove_user',{p_email:u.email}); if(error){msg($('memberMsg'),error.message,false)} else {msg($('memberMsg'),'Removed '+u.email,true);loadAccess()} }
+      ctl.appendChild(rm)
+    }
+    d.appendChild(ctl); box.appendChild(d)
   })
-  if(!data||!data.length) box.innerHTML='<p class="muted">No team members yet.</p>'
+  if(!allowed||!allowed.length) box.innerHTML='<p class="muted">No users yet. Add your first user above.</p>'
 }
 
 // ---------- REALTIME ----------
