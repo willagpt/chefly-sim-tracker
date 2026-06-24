@@ -153,7 +153,7 @@
         </div>
         <label for="fComments">Comments</label>
         <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
-        <label>Photos of the work (optional)</label>
+        <label>Photos of the work (required to finish)</label>
         <div id="photoStrip" class="photo-strip"></div>
         <input id="photoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'main')" style="padding:10px" />
         <button class="ghost" id="pauseBtn" onclick="togglePause('main')">⏸ Pause</button>
@@ -314,7 +314,7 @@
         </div>
         <label for="kComments">Comments</label>
         <textarea id="kComments" rows="2"></textarea>
-        <label>Photos of the work (optional)</label>
+        <label>Photos of the work (required to finish)</label>
         <div id="kPhotoStrip" class="photo-strip"></div>
         <input id="kPhotoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'kiosk')" style="padding:10px" />
         <button class="ghost" id="kPauseBtn" onclick="togglePause('kiosk')">⏸ Pause</button>
@@ -602,6 +602,7 @@ window.startTask=async function(){
 }
 window.stopTask=async function(){
   if(!activeLog) return
+  if(!(activeLog.photos&&activeLog.photos.length)){alert('Please add at least one photo of the work before finishing.');return}
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
@@ -780,6 +781,7 @@ window.kioskStart=async function(){
 }
 window.kioskStop=async function(){
   if(!kActiveLog) return
+  if(!(kActiveLog.photos&&kActiveLog.photos.length)){alert('Please add at least one photo of the work before finishing.');return}
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
