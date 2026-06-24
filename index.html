@@ -155,7 +155,7 @@
         </div>
         <label for="fComments">Comments</label>
         <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
-        <label>Photos of the work (please add before finishing)</label>
+        <label>Photos of the work (required to finish)</label>
         <div id="photoStrip" class="photo-strip"></div>
         <input id="photoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'main')" style="padding:10px" />
         <button class="ghost" id="pauseBtn" onclick="togglePause('main')">⏸ Pause</button>
@@ -316,7 +316,7 @@
         </div>
         <label for="kComments">Comments</label>
         <textarea id="kComments" rows="2"></textarea>
-        <label>Photos of the work (please add before finishing)</label>
+        <label>Photos of the work (required to finish)</label>
         <div id="kPhotoStrip" class="photo-strip"></div>
         <input id="kPhotoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'kiosk')" style="padding:10px" />
         <button class="ghost" id="kPauseBtn" onclick="togglePause('kiosk')">⏸ Pause</button>
@@ -365,6 +365,13 @@ function numberSanityOK(units,waste){
   if(!issues.length) return true
   return confirm('⚠ Please double-check these numbers:\n\n• '+issues.join('\n• ')+'\n\nTap OK to save anyway, or Cancel to go back and fix.')
 }
+// Photo gate: staff must have a photo; managers/admins may override.
+function photoGateOK(log){
+  if(log.photos && log.photos.length) return true
+  if(isManagerUp()) return confirm('No photo added. Finish without a photo?\n\n(Manager override — staff cannot skip this.)')
+  alert('A photo is required to finish this task.\n\nPlease add a photo of the work above. If it will not upload, ask a manager to finish it for you.')
+  return false
+}
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
 function renderPhotoStrip(id,log){
   const box=$(id); if(!box) return; box.innerHTML=''
@@ -395,7 +402,7 @@ window.uploadPhotos=async function(ev,mode){
     const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
     const path=`${log.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
     const up=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
-    if(up.error){alert('Photo upload failed: '+up.error.message+'\n\nIf it keeps failing, you can still finish the task and add the photo later.');continue}
+    if(up.error){alert('Photo upload failed: '+up.error.message+'\n\nIf it keeps failing, ask a manager to finish the task.');continue}
     log.photos=[...(log.photos||[]),path]
     const u=await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
     if(u.error){alert('Saved photo but could not attach it: '+u.error.message);continue}
@@ -636,7 +643,7 @@ window.stopTask=async function(){
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
   if(!numberSanityOK(units,waste)) return
-  if(!(activeLog.photos&&activeLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
+  if(!photoGateOK(activeLog)) return
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
   if(error){alert(error.message);return}
@@ -816,7 +823,7 @@ window.kioskStop=async function(){
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
   if(!numberSanityOK(units,waste)) return
-  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
+  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ if(!confirm('No photo added for this task. Finish without a photo?\n\n(Manager override at the kiosk.)')) return }
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
   if(error){alert(error.message);return}
