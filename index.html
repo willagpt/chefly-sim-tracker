@@ -58,8 +58,10 @@
   .stat .n{font-size:26px;font-weight:800}.stat .l{font-size:12px;color:var(--muted);margin-top:2px}
   .feed-item{padding:12px 14px;border-left:3px solid var(--blue);background:var(--panel2);border-radius:8px;margin-bottom:8px;font-size:14px}
   .vs-good{color:var(--green);font-weight:700}.vs-bad{color:var(--amber);font-weight:700}
-  .photo-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .photo-strip img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+  .photo-strip{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .photo-strip .pwrap{position:relative;display:inline-block}
+  .photo-strip img{width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);display:block}
+  .photo-strip .del{position:absolute;top:-8px;right:-8px;width:24px;height:24px;padding:0;margin:0;border-radius:50%;background:var(--red);color:#fff;font-size:13px;font-weight:800;line-height:1;border:2px solid var(--bg);cursor:pointer}
   .feed-thumbs{display:flex;gap:6px;margin-top:8px}
   .feed-thumbs img{width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
   .center{text-align:center}
@@ -356,12 +358,31 @@ const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-dig
 function workedSeconds(l){let s=(Date.now()-new Date(l.start_time))/1000-(l.paused_seconds||0);if(l.status==='paused'&&l.pause_started_at)s-=(Date.now()-new Date(l.pause_started_at))/1000;return Math.max(0,s)}
 function updatePauseUI(l,pillId,btnId){const paused=l.status==='paused';const pill=$(pillId);if(pill){pill.textContent=paused?'❚❚ PAUSED':'● RUNNING';pill.className='pill '+(paused?'off':'live')}const btn=$(btnId);if(btn){btn.textContent=paused?'▶ Resume':'⏸ Pause';btn.className=paused?'green':'ghost'}}
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
-function renderPhotoStrip(id,paths){const box=$(id);if(!box)return;box.innerHTML='';(paths||[]).forEach(p=>{const a=document.createElement('a');a.href=photoUrl(p);a.target='_blank';const img=document.createElement('img');img.src=photoUrl(p);img.loading='lazy';a.appendChild(img);box.appendChild(a)})}
+function renderPhotoStrip(id,log){
+  const box=$(id); if(!box) return; box.innerHTML=''
+  const paths=(log&&log.photos)||[]
+  paths.forEach(p=>{
+    const wrap=document.createElement('div'); wrap.className='pwrap'
+    const a=document.createElement('a'); a.href=photoUrl(p); a.target='_blank'
+    const img=document.createElement('img'); img.src=photoUrl(p); img.loading='lazy'; a.appendChild(img); wrap.appendChild(a)
+    const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='Remove photo'
+    x.onclick=(e)=>{e.preventDefault(); delPhoto(log,p,id)}
+    wrap.appendChild(x); box.appendChild(wrap)
+  })
+}
+window.delPhoto=async function(log,path,stripId){
+  if(!log) return
+  if(!confirm('Remove this photo?')) return
+  log.photos=(log.photos||[]).filter(x=>x!==path)
+  const u=await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
+  if(u.error){alert('Could not remove: '+u.error.message);return}
+  await sb.storage.from('sim-photos').remove([path])
+  renderPhotoStrip(stripId,log)
+}
 window.uploadPhotos=async function(ev,mode){
   const log=mode==='kiosk'?kActiveLog:activeLog
   if(!log){alert('Start the task first.');return}
   const files=[...(ev.target.files||[])]; ev.target.value=''
-  let ok=0
   for(const f of files){
     const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
     const path=`${log.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
@@ -370,9 +391,8 @@ window.uploadPhotos=async function(ev,mode){
     log.photos=[...(log.photos||[]),path]
     const u=await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
     if(u.error){alert('Saved photo but could not attach it: '+u.error.message);continue}
-    ok++
   }
-  renderPhotoStrip(mode==='kiosk'?'kPhotoStrip':'photoStrip', log.photos)
+  renderPhotoStrip(mode==='kiosk'?'kPhotoStrip':'photoStrip', log)
 }
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
@@ -581,7 +601,7 @@ async function loadActive(){
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog.photos);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
   else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
 window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
@@ -771,7 +791,7 @@ function kioskRenderActive(){
     $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
     $('kStaffCount').value=kActiveLog.staff_count||1
     const c=catalog.find(x=>x.id===kActiveLog.catalog_id); const tw=!!(c&&c.track_waste)
-    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog.photos); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
+    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
     if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock(workedSeconds(kActiveLog))}; tick(); kTimerInt=setInterval(tick,1000)
   } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
 }
