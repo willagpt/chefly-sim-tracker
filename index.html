@@ -163,7 +163,7 @@
         <label for="selTask">Task</label>
         <select id="selTask"></select>
         <div class="row">
-          <div><label for="sProduct">Product / recipe</label><input id="sProduct" type="text" placeholder="e.g. Bavette" /></div>
+          <div><label for="sProduct">Product / recipe</label><select id="sProduct"></select></div>
           <div><label for="sStaff">People on task</label><input id="sStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
         </div>
         <button class="green" onclick="startTask()">▶ START NOW</button>
@@ -254,6 +254,15 @@
         <div id="staffList" style="margin-top:14px"></div>
       </div>
       <div class="card">
+        <h2>Products / recipes</h2>
+        <p class="muted" style="margin-top:-8px">These fill the Product/recipe dropdown when starting a task.</p>
+        <label for="npName">New product / recipe</label>
+        <input id="npName" type="text" placeholder="e.g. Bavette" />
+        <button class="ghost" onclick="addProduct()">Add product</button>
+        <div id="prMsg" class="msg"></div>
+        <div id="productList" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
         <h2>Tasks</h2>
         <label for="ntName">New task name</label>
         <input id="ntName" type="text" placeholder="e.g. Marinate" />
@@ -314,7 +323,7 @@
         <label for="kSelTask">Task</label>
         <select id="kSelTask"></select>
         <div class="row">
-          <div><label for="kProduct">Product / recipe</label><input id="kProduct" type="text" placeholder="e.g. Bavette" /></div>
+          <div><label for="kProduct">Product / recipe</label><select id="kProduct"></select></div>
           <div><label for="kCount">People on task</label><input id="kCount" type="number" inputmode="numeric" min="1" value="1" /></div>
         </div>
         <button class="green" onclick="kioskStart()">▶ START NOW</button>
@@ -332,7 +341,7 @@ const SUPABASE_URL = 'https://fhztszxpgqhunogwcoxw.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-let me=null, profile=null, catalog=[], activeLog=null, timerInt=null
+let me=null, profile=null, catalog=[], products=[], activeLog=null, timerInt=null
 let lastFinishIds=new Set(), notifyReady=false, booting=false, kStaff=null, kActiveLog=null, kTimerInt=null
 
 const $ = id => document.getElementById(id)
@@ -456,7 +465,7 @@ async function showApp(){
   const r=profile.role||'staff'; const badge=$('whoRole'); badge.textContent=r; badge.className='badge '+r
   $('kioskLink').classList.toggle('hidden',!isManagerUp())
   buildTabs()
-  await loadCatalog(); await loadActive(); await refreshMyRecent()
+  await loadCatalog(); await loadProducts(); await loadActive(); await refreshMyRecent()
   if(isManagerUp()) await refreshDashboard()
   subscribeRealtime()
   if('Notification' in window && Notification.permission==='default'){ try{notifyReady=(await Notification.requestPermission())==='granted'}catch(e){} }
@@ -478,7 +487,7 @@ window.showTab=function(which){
   ['log','dash','history','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='dash') refreshDashboard()
   if(which==='history') initHistory()
-  if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); renderTaskList() }
+  if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); renderTaskList() }
 }
 
 // ---------- CATALOG ----------
@@ -535,6 +544,28 @@ window.addTask=async function(){
   const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,track_waste:$('ntWaste').checked,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
   $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;msg($('addMsg'),'Task added.',true);await loadCatalog()
+}
+
+// ---------- PRODUCTS / RECIPES ----------
+async function loadProducts(){
+  const {data}=await sb.from('sim_products').select('*').eq('active',true).order('sort_order').order('name')
+  products=data||[]
+  populateProductSelects(); renderProductList()
+}
+function populateProductSelects(){
+  ['sProduct','kProduct'].forEach(id=>{const sel=$(id); if(!sel)return; const cur=sel.value; sel.innerHTML='<option value="">— select product —</option>'+products.map(p=>`<option>${p.name}</option>`).join(''); if(cur)sel.value=cur})
+}
+function renderProductList(){
+  const box=$('productList'); if(!box) return; box.innerHTML=''
+  products.forEach(p=>{const d=document.createElement('div');d.className='task-item';d.innerHTML='<div><b>'+p.name+'</b></div>';const b=document.createElement('button');b.className='ghost sm';b.textContent='Remove';b.onclick=async()=>{if(!confirm('Remove '+p.name+'?'))return;await sb.from('sim_products').update({active:false}).eq('id',p.id);await loadProducts()};d.appendChild(b);box.appendChild(d)})
+  if(!products.length) box.innerHTML='<p class="muted">No products yet. Add one above.</p>'
+}
+window.addProduct=async function(){
+  const name=$('npName').value.trim(); if(!name){msg($('prMsg'),'Enter a product/recipe name.',false);return}
+  const order=(products.length?Math.max(...products.map(p=>p.sort_order)):0)+1
+  const {error}=await sb.from('sim_products').insert({name,sort_order:order})
+  if(error){msg($('prMsg'),error.message,false);return}
+  $('npName').value='';msg($('prMsg'),'Added.',true);await loadProducts()
 }
 
 // ---------- TASK LOGGING ----------
@@ -672,6 +703,7 @@ window.addStaff=async function(){
 window.enterKiosk=async function(){
   hide($('appView')); hide($('loginView')); show($('kioskView'))
   if(!catalog.length) await loadCatalog()
+  if(!products.length) await loadProducts()
   kioskBackToGrid()
 }
 window.exitKiosk=function(){ kStaff=null; kActiveLog=null; if(kTimerInt)clearInterval(kTimerInt); hide($('kioskView')); show($('appView')) }
@@ -704,6 +736,7 @@ window.kioskVerify=async function(){
   $('kPinStep').classList.add('hidden'); $('kTaskStep').classList.remove('hidden')
   $('kWho').textContent='Start a task — '+kStaff.full_name
   const sel=$('kSelTask'); sel.innerHTML=''; catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;sel.appendChild(o)})
+  populateProductSelects()
   await kioskLoadActive()
 }
 async function kioskLoadActive(){
