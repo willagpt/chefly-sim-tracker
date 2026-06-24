@@ -69,7 +69,7 @@ async function refresh(){
   $('stKg').textContent=data.stats.kg
   const rb=$('running')
   if(!data.running.length){ rb.innerHTML='<div class="empty">Nobody is on a task right now.</div>' }
-  else rb.innerHTML=data.running.map(r=>`<div class="row"><div><div class="name">${r.who}</div><div class="sub">${r.task}${r.product?' · '+r.product:''} · ${r.staff||1} ppl</div></div><div class="badge run">● ${elapsedMin(r.start_time)} min</div></div>`).join('')
+  else rb.innerHTML=data.running.map(r=>`<div class="row"><div><div class="name">${r.who}</div><div class="sub">${r.task}${r.product?' · '+r.product:''} · ${r.staff||1} ppl</div></div>${r.paused?'<div class="badge low">❚❚ paused</div>':'<div class="badge run">● '+elapsedMin(r.start_time)+' min</div>'}</div>`).join('')
   const db=$('done')
   if(!data.done.length){ db.innerHTML='<div class="empty">No completed tasks yet today.</div>' }
   else db.innerHTML=data.done.slice(0,8).map(d=>{const pct=d.pct!=null?`<div class="badge ${d.pct>=100?'good':'low'}">${d.pct}%</div>`:'';return `<div class="row"><div><div class="name">${d.who}</div><div class="sub">${d.task} · ${d.units??'–'} kg · ${d.minutes??'–'} min${d.uph?' · '+d.uph+' kg/hr':''}${d.waste?' · '+d.waste+' kg waste':''} · ${fmtTime(d.finish_time)}</div></div>${pct}</div>`}).join('')
