@@ -146,6 +146,8 @@
         <div class="timer" id="activeTimer">00:00:00</div>
         <label for="fUnits">Kilograms produced (kg)</label>
         <input id="fUnits" type="number" inputmode="decimal" placeholder="e.g. 150" />
+        <div id="wasteWrap" class="hidden"><label for="fWaste">Waste (kg)</label><input id="fWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
+        <p id="wasteToggleP" style="margin:10px 0 0"><a class="link" onclick="showWaste()">+ Record waste (kg)</a></p>
         <div class="row">
           <div><label for="fStaff">People on task</label><input id="fStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
           <div><label for="fChange">Change over (mins)</label><input id="fChange" type="number" inputmode="numeric" placeholder="0" /></div>
@@ -217,6 +219,7 @@
           <div><label for="ntStation">Station</label><input id="ntStation" type="text" placeholder="Line 1" /></div>
           <div><label for="ntUnits">Expected (kg)</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:14px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste on this task</label>
         <button class="ghost" onclick="addTask()">Add task</button>
         <div id="addMsg" class="msg"></div>
         <div id="taskList" style="margin-top:14px"></div>
@@ -373,7 +376,7 @@ window.renderTaskList=function(){
   const box=$('taskList'); if(!box) return; box.innerHTML=''
   catalog.forEach(t=>{
     const d=document.createElement('div'); d.className='task-item'; d.id='task_'+t.id
-    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl</div></div>`
+    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl${t.track_waste?' · waste tracked':''}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
@@ -393,6 +396,7 @@ window.editTask=function(id){
       <input id="et_units_${id}" type="number" value="${t.expected_units??''}" placeholder="Expected kg" />
       <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste on this task</label>
     <div class="row" style="margin-top:8px">
       <button class="green sm" style="flex:1" onclick="saveTask('${id}')">Save</button>
       <button class="ghost sm" style="flex:1" onclick="renderTaskList()">Cancel</button>
@@ -403,7 +407,8 @@ window.saveTask=async function(id){
   const station=$('et_station_'+id).value.trim()||null
   const units=$('et_units_'+id).value?Number($('et_units_'+id).value):null
   const staff=$('et_staff_'+id).value?Number($('et_staff_'+id).value):null
-  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff}).eq('id',id)
+  const trackWaste=$('et_waste_'+id).checked
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste}).eq('id',id)
   if(error){msg($('addMsg'),error.message,false);return}
   await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
@@ -411,9 +416,9 @@ window.addTask=async function(){
   const name=$('ntName').value.trim(); if(!name){msg($('addMsg'),'Enter a task name.',false);return}
   const station=$('ntStation').value.trim()||null, units=$('ntUnits').value?Number($('ntUnits').value):null
   const order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order)):0)+1
-  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,sort_order:order})
+  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,track_waste:$('ntWaste').checked,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';msg($('addMsg'),'Task added.',true);await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---------- TASK LOGGING ----------
@@ -422,9 +427,10 @@ async function loadActive(){
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)};tick();timerInt=setInterval(tick,1000)}
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)};tick();timerInt=setInterval(tick,1000)}
   else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
+window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
 window.startTask=async function(){
   const t=catalog.find(c=>c.id===$('selTask').value); if(!t){msg($('logMsg'),'Pick a task.',false);return}
   const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
@@ -434,16 +440,17 @@ window.startTask=async function(){
 window.stopTask=async function(){
   if(!activeLog) return
   const units=$('fUnits').value?Number($('fUnits').value):null
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
+  const waste=$('fWaste').value?Number($('fWaste').value):null
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
   if(error){alert(error.message);return}
-  activeLog=null;$('fUnits').value='';$('fChange').value='';$('fComments').value='';renderActive();await refreshMyRecent();if(isManagerUp())await refreshDashboard()
+  activeLog=null;$('fUnits').value='';$('fWaste').value='';$('fChange').value='';$('fComments').value='';renderActive();await refreshMyRecent();if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
   const today=new Date().toISOString().slice(0,10)
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
   const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}</div></div>`;box.appendChild(d)})
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' kg waste':''}</div></div>`;box.appendChild(d)})
 }
 
 // ---------- DASHBOARD ----------
@@ -460,7 +467,7 @@ async function refreshDashboard(){
   else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameOf(l.user_id)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
-  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
+  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
 // ---------- MANAGE ----------
