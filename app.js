@@ -367,7 +367,7 @@ window.initPerf=async function(){
 }
 window.setPerfView=function(v){
   perfView=v
-  ;['team','person','task'].forEach(k=>$('pv_'+k).classList.toggle('active',k===v))
+  ;['team','person','task','daily'].forEach(k=>$('pv_'+k).classList.toggle('active',k===v))
   $('pPersonPick').classList.toggle('hidden',v!=='person')
   $('pTaskPick').classList.toggle('hidden',v!=='task')
   renderPerf()
@@ -447,6 +447,7 @@ function populatePerfPickers(){
 function renderPerf(){
   if(perfView==='person') return renderPerfPerson()
   if(perfView==='task') return renderPerfTask()
+  if(perfView==='daily') return renderPerfDaily()
   return renderPerfTeam()
 }
 function perfRangeLabel(){return $('pFrom').value+' → '+$('pTo').value}
@@ -510,6 +511,34 @@ function renderPerfTask(){
     <th ${th}>#</th><th ${th}>Name</th><th ${th}>Logs</th><th ${th}>Rate /head</th><th ${th}>vs team</th><th ${th}>Waste</th><th ${th}>Hours</th></tr></thead><tbody>`
   rows.forEach((r,i)=>{html+=`<tr><td ${td}>${i+1}</td><td ${td}>${r.name}</td><td ${td}>${r.n}</td><td ${td}>${r.rate!=null?r.rate.toFixed(1)+' kg/hr':'–'}</td><td ${td}>${idxCell(r.idx)}</td><td ${td}>${r.wastePct!=null?(100*r.wastePct).toFixed(1)+'%':'–'}</td><td ${td}>${r.hours.toFixed(1)}</td></tr>`})
   html+='</tbody></table></div>'
+  box.innerHTML=html
+}
+function renderPerfDaily(){
+  const box=$('perfBody')
+  if(!perfPeriodLogs.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
+  const byDay={}
+  perfPeriodLogs.forEach(l=>{(byDay[l.log_date]=byDay[l.log_date]||[]).push(l)})
+  const days=Object.keys(byDay).sort().reverse()
+  const grandKg=perfPeriodLogs.reduce((s,l)=>s+(Number(l.units)||0),0)
+  let html=`<h2>Daily totals · ${perfRangeLabel()}</h2><p class="muted">Total kilograms prepped each day, broken down by task. ${days.length} day${days.length===1?'':'s'} · ${Math.round(grandKg)} kg overall.</p>`
+  const td='style="padding:6px 8px;border-bottom:1px solid var(--line)"'
+  days.forEach(d=>{
+    const logs=byDay[d]
+    const dayKg=logs.reduce((s,l)=>s+(Number(l.units)||0),0)
+    const dayHours=logs.reduce((s,l)=>s+(Number(l.total_minutes)||0)/60,0)
+    const dayWaste=logs.reduce((s,l)=>s+(Number(l.waste_kg)||0),0)
+    const byTask={}
+    logs.forEach(l=>{const k=l.task_name;(byTask[k]=byTask[k]||{kg:0,n:0});byTask[k].kg+=Number(l.units)||0;byTask[k].n++})
+    const rows=Object.keys(byTask).sort((a,b)=>byTask[b].kg-byTask[a].kg)
+    html+=`<div class="card" style="background:var(--panel2);margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+        <b style="font-size:16px">${d}</b>
+        <span><b style="font-size:22px;color:var(--accent)">${Math.round(dayKg)} kg</b> <span class="muted">· ${logs.length} tasks · ${dayHours.toFixed(1)} h${dayWaste?' · '+dayWaste.toFixed(1)+' kg waste':''}</span></span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px"><tbody>`
+    rows.forEach(t=>{html+=`<tr><td ${td}>${t}</td><td ${td} style="text-align:right;font-weight:700">${Math.round(byTask[t].kg)} kg</td><td ${td} style="text-align:right;color:var(--muted);width:48px">${byTask[t].n}×</td></tr>`})
+    html+=`</tbody></table></div>`
+  })
   box.innerHTML=html
 }
 window.printReview=function(){
