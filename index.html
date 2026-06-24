@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#0f172a" />
+<title>SIM Tracker</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273548; --line:#334155;
+    --txt:#f1f5f9; --muted:#94a3b8; --accent:#f97316; --accent2:#fb923c;
+    --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --amber:#f59e0b;
+    --radius:16px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--txt); min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px; margin:0 auto; padding:16px 16px 48px}
+  header.app{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:12px; padding:14px 16px; position:sticky; top:0; z-index:20;
+    background:rgba(15,23,42,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.5px}
+  .brand .dot{width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  .who{font-size:13px; color:var(--muted); text-align:right; line-height:1.3}
+  .who b{color:var(--txt); display:block}
+  .tabs{display:flex; gap:8px; margin:16px 0}
+  .tab{flex:1; padding:12px; text-align:center; border-radius:12px; background:var(--panel);
+    border:1px solid var(--line); color:var(--muted); font-weight:700; cursor:pointer; font-size:15px}
+  .tab.active{background:var(--accent); color:#1a1206; border-color:var(--accent)}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px}
+  h1{font-size:22px; margin:0 0 4px}
+  h2{font-size:17px; margin:0 0 14px}
+  label{display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; font-weight:600}
+  input,select,textarea{
+    width:100%; padding:14px; font-size:16px; border-radius:12px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--txt); font-family:inherit;
+  }
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); border-color:var(--accent)}
+  button{
+    width:100%; padding:16px; font-size:17px; font-weight:800; border:none; border-radius:14px;
+    background:var(--accent); color:#1a1206; cursor:pointer; margin-top:16px; transition:transform .05s, filter .15s;
+  }
+  button:active{transform:scale(.98)}
+  button.ghost{background:var(--panel2); color:var(--txt); border:1px solid var(--line)}
+  button.green{background:var(--green); color:#04210f}
+  button.red{background:var(--red); color:#2a0606}
+  button.sm{width:auto; padding:9px 14px; font-size:14px; margin:0}
+  button:disabled{filter:grayscale(.6) opacity(.5); cursor:not-allowed}
+  .muted{color:var(--muted); font-size:14px}
+  .msg{padding:12px 14px; border-radius:12px; margin:12px 0; font-size:14px; display:none}
+  .msg.show{display:block}
+  .msg.err{background:rgba(239,68,68,.15); color:#fca5a5; border:1px solid rgba(239,68,68,.4)}
+  .msg.ok{background:rgba(34,197,94,.15); color:#86efac; border:1px solid rgba(34,197,94,.4)}
+  .hidden{display:none !important}
+  .row{display:flex; gap:12px}
+  .row > *{flex:1}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.live{background:rgba(34,197,94,.18); color:#86efac}
+  .pill.done{background:rgba(59,130,246,.18); color:#93c5fd}
+  .timer{font-variant-numeric:tabular-nums; font-weight:800; font-size:40px; letter-spacing:1px; text-align:center; margin:8px 0}
+  .task-item{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px;
+    border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:var(--panel2)}
+  .task-item .meta{font-size:13px; color:var(--muted)}
+  .dash-row{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px;
+    border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:var(--panel2)}
+  .dash-row .name{font-weight:800}
+  .dash-row .sub{font-size:13px; color:var(--muted); margin-top:2px}
+  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px}
+  .stat{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center}
+  .stat .n{font-size:26px; font-weight:800}
+  .stat .l{font-size:12px; color:var(--muted); margin-top:2px}
+  .feed-item{padding:12px 14px; border-left:3px solid var(--blue); background:var(--panel2); border-radius:8px; margin-bottom:8px; font-size:14px}
+  .vs-good{color:var(--green); font-weight:700}
+  .vs-bad{color:var(--amber); font-weight:700}
+  .center{text-align:center}
+  .logo-big{font-size:30px; font-weight:900; letter-spacing:1px; margin-bottom:6px}
+  .footnote{font-size:12px; color:var(--muted); text-align:center; margin-top:24px; line-height:1.5}
+  @media(min-width:560px){ .timer{font-size:52px} }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginView" class="wrap">
+  <div style="height:8vh"></div>
+  <div class="card center">
+    <div class="logo-big">⏱️ SIM Tracker</div>
+    <p class="muted">Short Interval Management · Chefly</p>
+    <div id="loginStep">
+      <label for="email">Sign in with your work email</label>
+      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@chefly.com" />
+      <button id="sendLinkBtn" onclick="sendLink()">Email me a login link</button>
+      <p class="muted" style="margin-top:14px">We'll send a one-tap link. You can also enter the 6-digit code from the email below.</p>
+    </div>
+    <div id="otpStep" class="hidden">
+      <label for="otp">Enter the 6-digit code from your email</label>
+      <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" style="text-align:center; font-size:26px; letter-spacing:8px" />
+      <button onclick="verifyOtp()">Verify &amp; sign in</button>
+      <button class="ghost" onclick="backToEmail()">Use a different email</button>
+    </div>
+    <div id="loginMsg" class="msg"></div>
+  </div>
+  <p class="footnote">First time? Just enter your email — your account is created automatically.</p>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="appView" class="hidden">
+  <header class="app">
+    <div class="brand"><span class="dot"></span> SIM Tracker</div>
+    <div class="who"><b id="whoName">—</b><span id="whoRole">staff</span> · <a href="#" onclick="signOut();return false" style="color:var(--accent)">Sign out</a></div>
+  </header>
+  <div class="wrap">
+    <div class="tabs">
+      <div class="tab active" id="tabLog" onclick="showTab('log')">My Task</div>
+      <div class="tab" id="tabDash" onclick="showTab('dash')">Live Dashboard</div>
+    </div>
+
+    <!-- ===== LOG TAB ===== -->
+    <div id="logTab">
+      <!-- Active task -->
+      <div id="activeCard" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 style="margin:0" id="activeName">Task</h2>
+          <span class="pill live">● RUNNING</span>
+        </div>
+        <div class="muted" id="activeMeta"></div>
+        <div class="timer" id="activeTimer">00:00:00</div>
+        <label for="fUnits">Units produced (e.g. kilos)</label>
+        <input id="fUnits" type="number" inputmode="decimal" placeholder="e.g. 150" />
+        <div class="row">
+          <div>
+            <label for="fStaff">People on task</label>
+            <input id="fStaff" type="number" inputmode="numeric" min="1" value="1" />
+          </div>
+          <div>
+            <label for="fChange">Change over (mins)</label>
+            <input id="fChange" type="number" inputmode="numeric" placeholder="0" />
+          </div>
+        </div>
+        <label for="fComments">Comments</label>
+        <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
+        <button class="red" onclick="stopTask()">■ STOP &amp; FINISH TASK</button>
+      </div>
+
+      <!-- Start a task -->
+      <div id="startCard" class="card">
+        <h2>Start a task</h2>
+        <label for="selTask">Task</label>
+        <select id="selTask"></select>
+        <div class="row">
+          <div>
+            <label for="sProduct">Product / recipe</label>
+            <input id="sProduct" type="text" placeholder="e.g. Bavette" />
+          </div>
+          <div>
+            <label for="sStaff">People on task</label>
+            <input id="sStaff" type="number" inputmode="numeric" min="1" value="1" />
+          </div>
+        </div>
+        <button class="green" onclick="startTask()">▶ START NOW</button>
+        <div id="logMsg" class="msg"></div>
+      </div>
+
+      <!-- Add a task -->
+      <div class="card">
+        <details>
+          <summary style="cursor:pointer;font-weight:700">+ Add / manage tasks</summary>
+          <label for="ntName">New task name</label>
+          <input id="ntName" type="text" placeholder="e.g. Marinate" />
+          <div class="row">
+            <div><label for="ntStation">Station</label><input id="ntStation" type="text" placeholder="Line 1" /></div>
+            <div><label for="ntUnits">Expected units</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
+          </div>
+          <button class="ghost" onclick="addTask()">Add task</button>
+          <div id="addMsg" class="msg"></div>
+          <div id="taskList" style="margin-top:14px"></div>
+        </details>
+      </div>
+
+      <!-- My recent -->
+      <div class="card">
+        <h2>My recent tasks today</h2>
+        <div id="myRecent"><p class="muted">No tasks logged yet today.</p></div>
+      </div>
+    </div>
+
+    <!-- ===== DASHBOARD TAB ===== -->
+    <div id="dashTab" class="hidden">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <h2 style="margin:0">Today · Live</h2>
+          <span class="pill live" id="liveDot">● LIVE</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="n" id="stIn">0</div><div class="l">In progress</div></div>
+          <div class="stat"><div class="n" id="stDone">0</div><div class="l">Completed</div></div>
+          <div class="stat"><div class="n" id="stUnits">0</div><div class="l">Units today</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Running now</h2>
+        <div id="dashRunning"><p class="muted">Nobody is on a task right now.</p></div>
+      </div>
+
+      <div class="card">
+        <h2>Just finished</h2>
+        <div id="dashFeed"><p class="muted">No completed tasks yet today.</p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const SUPABASE_URL = 'https://fhztszxpgqhunogwcoxw.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve'
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+let me = null            // auth user
+let profile = null       // sim_profiles row
+let catalog = []         // tasks
+let activeLog = null     // current in-progress log for me
+let timerInt = null
+let lastFinishIds = new Set()
+let notifyReady = false
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id)
+function show(el){el.classList.remove('hidden')}
+function hide(el){el.classList.add('hidden')}
+function msg(el, text, ok){ el.textContent=text; el.className='msg show '+(ok?'ok':'err'); }
+function clearMsg(el){ el.className='msg'; }
+function fmtClock(sec){
+  sec=Math.max(0,Math.floor(sec));
+  const h=String(Math.floor(sec/3600)).padStart(2,'0');
+  const m=String(Math.floor((sec%3600)/60)).padStart(2,'0');
+  const s=String(sec%60).padStart(2,'0');
+  return `${h}:${m}:${s}`;
+}
+function mins(a,b){ return ((new Date(b)-new Date(a))/60000); }
+function fmtTime(t){ return new Date(t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+
+// ---------- AUTH ----------
+window.sendLink = async function(){
+  const email = $('email').value.trim().toLowerCase();
+  const btn = $('sendLinkBtn');
+  if(!email || !email.includes('@')){ msg($('loginMsg'),'Please enter a valid email.',false); return; }
+  btn.disabled=true; btn.textContent='Sending…';
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options:{ emailRedirectTo: window.location.origin + window.location.pathname, shouldCreateUser:true }
+  });
+  btn.disabled=false; btn.textContent='Email me a login link';
+  if(error){ msg($('loginMsg'), error.message, false); return; }
+  hide($('loginStep')); show($('otpStep'));
+  msg($('loginMsg'),'Check your email. Tap the link, or type the 6-digit code below.',true);
+  window._otpEmail = email;
+}
+window.verifyOtp = async function(){
+  const token = $('otp').value.trim();
+  const email = window._otpEmail;
+  if(token.length<6){ msg($('loginMsg'),'Enter the 6-digit code.',false); return; }
+  const { error } = await sb.auth.verifyOtp({ email, token, type:'email' });
+  if(error){ msg($('loginMsg'), error.message, false); return; }
+  // onAuthStateChange handles the rest
+}
+window.backToEmail = function(){ show($('loginStep')); hide($('otpStep')); clearMsg($('loginMsg')); }
+window.signOut = async function(){ await sb.auth.signOut(); location.reload(); }
+
+// ---------- BOOT ----------
+sb.auth.onAuthStateChange(async (_e, session)=>{
+  if(session && session.user){ me = session.user; await enterApp(); }
+})
+;(async ()=>{
+  const { data } = await sb.auth.getSession();
+  if(data.session){ me = data.session.user; await enterApp(); }
+})()
+
+async function enterApp(){
+  if(!me) return;
+  hide($('loginView')); show($('appView'));
+  await ensureProfile();
+  await loadCatalog();
+  await loadActive();
+  await refreshMyRecent();
+  await refreshDashboard();
+  subscribeRealtime();
+  // ask for notification permission (managers especially)
+  if('Notification' in window && Notification.permission==='default'){
+    try{ const p = await Notification.requestPermission(); notifyReady = p==='granted'; }catch(e){}
+  } else { notifyReady = ('Notification' in window) && Notification.permission==='granted'; }
+}
+
+async function ensureProfile(){
+  let { data } = await sb.from('sim_profiles').select('*').eq('id', me.id).maybeSingle();
+  if(!data){
+    const fallbackName = (me.email||'').split('@')[0].replace(/[._]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+    const ins = await sb.from('sim_profiles').insert({ id: me.id, email: me.email, full_name: fallbackName }).select().single();
+    data = ins.data;
+  }
+  profile = data;
+  $('whoName').textContent = profile?.full_name || me.email;
+  $('whoRole').textContent = profile?.role || 'staff';
+}
+
+async function loadCatalog(){
+  const { data } = await sb.from('sim_task_catalog').select('*').eq('active',true).order('sort_order');
+  catalog = data||[];
+  const sel = $('selTask'); sel.innerHTML='';
+  catalog.forEach(t=>{
+    const o=document.createElement('option'); o.value=t.id;
+    o.textContent = t.station ? `${t.name} — ${t.station}` : t.name;
+    sel.appendChild(o);
+  });
+  renderTaskList();
+}
+
+function renderTaskList(){
+  const box=$('taskList'); box.innerHTML='';
+  catalog.forEach(t=>{
+    const d=document.createElement('div'); d.className='task-item';
+    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} units</div></div>`;
+    const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove';
+    b.onclick=async()=>{ await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id); await loadCatalog(); };
+    d.appendChild(b); box.appendChild(d);
+  });
+}
+
+window.addTask = async function(){
+  const name=$('ntName').value.trim();
+  if(!name){ msg($('addMsg'),'Enter a task name.',false); return; }
+  const station=$('ntStation').value.trim()||null;
+  const units=$('ntUnits').value? Number($('ntUnits').value):null;
+  const order=(catalog.length? Math.max(...catalog.map(c=>c.sort_order)) :0)+1;
+  const { error } = await sb.from('sim_task_catalog').insert({name, station, expected_units:units, expected_staff:1, sort_order:order});
+  if(error){ msg($('addMsg'),error.message,false); return; }
+  $('ntName').value=''; $('ntStation').value=''; $('ntUnits').value='';
+  msg($('addMsg'),'Task added.',true); await loadCatalog();
+}
+
+// ---------- TASK LOGGING ----------
+async function loadActive(){
+  const { data } = await sb.from('sim_task_logs').select('*')
+    .eq('user_id', me.id).eq('status','in_progress').order('start_time',{ascending:false}).limit(1);
+  activeLog = (data&&data[0])||null;
+  renderActive();
+}
+function renderActive(){
+  if(activeLog){
+    hide($('startCard')); show($('activeCard'));
+    $('activeName').textContent=activeLog.task_name;
+    $('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;
+    $('fStaff').value=activeLog.staff_count||1;
+    if(timerInt) clearInterval(timerInt);
+    const tick=()=>{ $('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000); };
+    tick(); timerInt=setInterval(tick,1000);
+  } else {
+    show($('startCard')); hide($('activeCard'));
+    if(timerInt) clearInterval(timerInt);
+  }
+}
+window.startTask = async function(){
+  const t = catalog.find(c=>c.id===$('selTask').value);
+  if(!t){ msg($('logMsg'),'Pick a task.',false); return; }
+  const { data, error } = await sb.from('sim_task_logs').insert({
+    user_id: me.id, catalog_id:t.id, task_name:t.name, station:t.station,
+    product:$('sProduct').value.trim()||null, staff_count:Number($('sStaff').value)||1,
+    start_time:new Date().toISOString(), status:'in_progress'
+  }).select().single();
+  if(error){ msg($('logMsg'),error.message,false); return; }
+  activeLog=data; $('sProduct').value=''; clearMsg($('logMsg')); renderActive();
+}
+window.stopTask = async function(){
+  if(!activeLog) return;
+  const units=$('fUnits').value? Number($('fUnits').value):null;
+  const { error } = await sb.from('sim_task_logs').update({
+    finish_time:new Date().toISOString(), units,
+    staff_count:Number($('fStaff').value)||1,
+    changeover_mins:$('fChange').value?Number($('fChange').value):null,
+    comments:$('fComments').value.trim()||null, status:'completed'
+  }).eq('id',activeLog.id);
+  if(error){ alert(error.message); return; }
+  activeLog=null; $('fUnits').value=''; $('fChange').value=''; $('fComments').value='';
+  renderActive(); await refreshMyRecent(); await refreshDashboard();
+}
+
+async function refreshMyRecent(){
+  const today=new Date().toISOString().slice(0,10);
+  const { data } = await sb.from('sim_task_logs').select('*')
+    .eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false});
+  const box=$('myRecent');
+  if(!data||!data.length){ box.innerHTML='<p class="muted">No tasks logged yet today.</p>'; return; }
+  box.innerHTML='';
+  data.forEach(l=>{
+    const d=document.createElement('div'); d.className='task-item';
+    const status = l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';
+    const uph = l.units_per_hour? `${l.units_per_hour}/hr`:'';
+    d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} units · ${l.total_minutes??'–'} min · ${uph}</div></div>`;
+    box.appendChild(d);
+  });
+}
+
+// ---------- DASHBOARD ----------
+async function refreshDashboard(){
+  const today=new Date().toISOString().slice(0,10);
+  const { data:logs } = await sb.from('sim_task_logs').select('*').eq('log_date',today).order('start_time',{ascending:false});
+  const { data:profs } = await sb.from('sim_profiles').select('id,full_name,email');
+  const nameOf = id => { const p=(profs||[]).find(x=>x.id===id); return p? (p.full_name||p.email):'Someone'; };
+  const all=logs||[];
+  const running=all.filter(l=>l.status==='in_progress');
+  const done=all.filter(l=>l.status==='completed');
+  $('stIn').textContent=running.length;
+  $('stDone').textContent=done.length;
+  $('stUnits').textContent=done.reduce((s,l)=>s+(Number(l.units)||0),0);
+
+  // running
+  const rb=$('dashRunning');
+  if(!running.length){ rb.innerHTML='<p class="muted">Nobody is on a task right now.</p>'; }
+  else{
+    rb.innerHTML='';
+    running.forEach(l=>{
+      const el=document.createElement('div'); el.className='dash-row';
+      const elapsed=Math.floor(mins(l.start_time,new Date().toISOString()));
+      el.innerHTML=`<div><div class="name">${nameOf(l.user_id)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div>
+        <div style="text-align:right"><div class="pill live">● ${elapsed} min</div></div>`;
+      rb.appendChild(el);
+    });
+  }
+  // feed (completed, newest first)
+  const fb=$('dashFeed');
+  if(!done.length){ fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'; }
+  else{
+    fb.innerHTML='';
+    done.slice(0,20).forEach(l=>{
+      const cat=catalog.find(c=>c.id===l.catalog_id);
+      let vs='';
+      if(cat&&cat.expected_units&&l.units){
+        const pct=Math.round((l.units/cat.expected_units)*100);
+        vs = pct>=100? `<span class="vs-good">${pct}% of target</span>` : `<span class="vs-bad">${pct}% of target</span>`;
+      }
+      const el=document.createElement('div'); el.className='feed-item';
+      el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} units in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+'/hr)':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;
+      fb.appendChild(el);
+    });
+    done.forEach(l=>lastFinishIds.add(l.id));
+  }
+}
+
+function notify(title, body){
+  if(notifyReady){ try{ new Notification(title,{body}); }catch(e){} }
+}
+
+function subscribeRealtime(){
+  sb.channel('sim-logs')
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_task_logs'}, async (payload)=>{
+      // task just finished by anyone -> notify managers/dashboard viewers
+      if(payload.eventType==='UPDATE' && payload.new.status==='completed' && !lastFinishIds.has(payload.new.id)){
+        lastFinishIds.add(payload.new.id);
+        if(payload.new.user_id !== me.id){
+          notify('Task finished', `${payload.new.task_name} · ${payload.new.units??'–'} units`);
+        }
+      }
+      await refreshDashboard();
+      if(payload.new && payload.new.user_id===me.id){ await loadActive(); await refreshMyRecent(); }
+    })
+    .subscribe();
+  // periodic tick so running timers/elapsed update on dashboard
+  setInterval(()=>{ if(!$('dashTab').classList.contains('hidden')) refreshDashboard(); }, 30000);
+}
+
+// ---------- TABS ----------
+window.showTab = function(which){
+  const log=which==='log';
+  $('tabLog').classList.toggle('active',log);
+  $('tabDash').classList.toggle('active',!log);
+  $('logTab').classList.toggle('hidden',!log);
+  $('dashTab').classList.toggle('hidden',log);
+  if(!log) refreshDashboard();
+}
+</script>
+</body>
+</html>
