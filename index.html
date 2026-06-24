@@ -141,6 +141,26 @@
       <div class="card"><div id="hBody"><p class="muted">Pick a date range and tap Load.</p></div></div>
     </div>
 
+    <div id="perfTab" class="hidden">
+      <div class="card">
+        <h2>Performance</h2>
+        <p class="muted" style="margin-top:-8px">Each person is compared to the team's own median on the same task, so different jobs are judged fairly. 1.00× = team average. Speed on shared jobs is split by headcount.</p>
+        <div class="row">
+          <div><label for="pFrom">From</label><input id="pFrom" type="date" /></div>
+          <div><label for="pTo">To</label><input id="pTo" type="date" /></div>
+        </div>
+        <button class="green" onclick="loadPerf()">Load</button>
+        <div class="tabs" style="margin-top:14px">
+          <div class="tab active" id="pv_team" onclick="setPerfView('team')">Team</div>
+          <div class="tab" id="pv_person" onclick="setPerfView('person')">By person</div>
+          <div class="tab" id="pv_task" onclick="setPerfView('task')">By task</div>
+        </div>
+        <div id="pPersonPick" class="hidden"><label for="pPerson">Person</label><select id="pPerson" onchange="renderPerfFromPick()"></select></div>
+        <div id="pTaskPick" class="hidden"><label for="pTask">Task</label><select id="pTask" onchange="renderPerfFromPick()"></select></div>
+      </div>
+      <div class="card"><div id="perfBody"><p class="muted">Pick a range and tap Load.</p></div></div>
+    </div>
+
     <div id="manageTab" class="hidden">
       <div class="card">
         <h2>Join code</h2>
@@ -274,6 +294,9 @@
     </div>
   </div>
 </div>
+
+<!-- ============ PRINTABLE REVIEW SHEET (filled on demand) ============ -->
+<div id="printArea"></div>
 
 <script type="module" src="app.js"></script>
 </body>
