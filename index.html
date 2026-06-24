@@ -46,7 +46,7 @@
   .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}
   .pill.live{background:rgba(34,197,94,.18);color:#86efac}
   .pill.done{background:rgba(59,130,246,.18);color:#93c5fd}
-  .pill.off{background:rgba(148,163,184,.18);color:#cbd5e1}
+  .pill.off{background:rgba(245,158,11,.18);color:#fcd34d}
   .timer{font-variant-numeric:tabular-nums;font-weight:800;font-size:40px;letter-spacing:1px;text-align:center;margin:8px 0}
   .task-item,.dash-row,.member{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel2)}
   .task-item .meta,.dash-row .sub,.member .sub{font-size:13px;color:var(--muted)}
@@ -140,7 +140,7 @@
 
     <div id="logTab">
       <div id="activeCard" class="card hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="activeName">Task</h2><span class="pill live">● RUNNING</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="activeName">Task</h2><span class="pill live" id="activePill">● RUNNING</span></div>
         <div class="muted" id="activeMeta"></div>
         <div class="timer" id="activeTimer">00:00:00</div>
         <label for="fUnits">Kilograms produced (kg)</label>
@@ -156,6 +156,7 @@
         <label>Photos of the work (optional)</label>
         <div id="photoStrip" class="photo-strip"></div>
         <input id="photoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'main')" style="padding:10px" />
+        <button class="ghost" id="pauseBtn" onclick="togglePause('main')">⏸ Pause</button>
         <button class="red" onclick="stopTask()">■ STOP &amp; FINISH TASK</button>
       </div>
       <div id="startCard" class="card">
@@ -300,7 +301,7 @@
     </div>
     <div id="kTaskStep" class="hidden">
       <div id="kActiveCard" class="card hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="kActiveName">Task</h2><span class="pill live">● RUNNING</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="kActiveName">Task</h2><span class="pill live" id="kActivePill">● RUNNING</span></div>
         <div class="muted" id="kActiveMeta"></div>
         <div class="timer" id="kTimer">00:00:00</div>
         <label for="kUnits">Kilograms produced (kg)</label>
@@ -316,6 +317,7 @@
         <label>Photos of the work (optional)</label>
         <div id="kPhotoStrip" class="photo-strip"></div>
         <input id="kPhotoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'kiosk')" style="padding:10px" />
+        <button class="ghost" id="kPauseBtn" onclick="togglePause('kiosk')">⏸ Pause</button>
         <button class="red" onclick="kioskStop()">■ STOP &amp; FINISH</button>
       </div>
       <div id="kStartCard" class="card">
@@ -351,6 +353,8 @@ function clearMsg(el){el.className='msg'}
 function fmtClock(s){s=Math.max(0,Math.floor(s));const h=String(Math.floor(s/3600)).padStart(2,'0'),m=String(Math.floor((s%3600)/60)).padStart(2,'0'),x=String(s%60).padStart(2,'0');return `${h}:${m}:${x}`}
 const mins=(a,b)=>((new Date(b)-new Date(a))/60000)
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+function workedSeconds(l){let s=(Date.now()-new Date(l.start_time))/1000-(l.paused_seconds||0);if(l.status==='paused'&&l.pause_started_at)s-=(Date.now()-new Date(l.pause_started_at))/1000;return Math.max(0,s)}
+function updatePauseUI(l,pillId,btnId){const paused=l.status==='paused';const pill=$(pillId);if(pill){pill.textContent=paused?'❚❚ PAUSED':'● RUNNING';pill.className='pill '+(paused?'off':'live')}const btn=$(btnId);if(btn){btn.textContent=paused?'▶ Resume':'⏸ Pause';btn.className=paused?'green':'ghost'}}
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
 function renderPhotoStrip(id,paths){const box=$(id);if(!box)return;box.innerHTML='';(paths||[]).forEach(p=>{const a=document.createElement('a');a.href=photoUrl(p);a.target='_blank';const img=document.createElement('img');img.src=photoUrl(p);img.loading='lazy';a.appendChild(img);box.appendChild(a)})}
 window.uploadPhotos=async function(ev,mode){
@@ -570,14 +574,26 @@ window.addProduct=async function(){
 
 // ---------- TASK LOGGING ----------
 async function loadActive(){
-  const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('status','in_progress').order('start_time',{ascending:false}).limit(1)
+  const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).in('status',['in_progress','paused']).order('start_time',{ascending:false}).limit(1)
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog.photos);if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)};tick();timerInt=setInterval(tick,1000)}
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog.photos);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
   else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
 window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
+window.togglePause=async function(mode){
+  const log=mode==='kiosk'?kActiveLog:activeLog; if(!log) return
+  if(log.status==='paused'){
+    const add=(Date.now()-new Date(log.pause_started_at))/1000
+    log.paused_seconds=(log.paused_seconds||0)+add; log.pause_started_at=null; log.status='in_progress'
+    await sb.from('sim_task_logs').update({status:'in_progress',paused_seconds:log.paused_seconds,pause_started_at:null}).eq('id',log.id)
+  } else {
+    log.status='paused'; log.pause_started_at=new Date().toISOString()
+    await sb.from('sim_task_logs').update({status:'paused',pause_started_at:log.pause_started_at}).eq('id',log.id)
+  }
+  mode==='kiosk'?kioskRenderActive():renderActive()
+}
 window.startTask=async function(){
   const t=catalog.find(c=>c.id===$('selTask').value); if(!t){msg($('logMsg'),'Pick a task.',false);return}
   const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
@@ -588,7 +604,8 @@ window.stopTask=async function(){
   if(!activeLog) return
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
+  let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
   if(error){alert(error.message);return}
   activeLog=null;$('fUnits').value='';$('fWaste').value='';$('fChange').value='';$('fComments').value='';renderActive();await refreshMyRecent();if(isManagerUp())await refreshDashboard()
 }
@@ -597,7 +614,7 @@ async function refreshMyRecent(){
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
   const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' kg waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='completed'?'<span class="pill done">done</span>':(l.status==='paused'?'<span class="pill off">❚❚ paused</span>':'<span class="pill live">● running</span>');const uph=l.units_per_hour?`${l.units_per_hour} kg/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} kg · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' kg waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
 }
 
 // ---------- DASHBOARD ----------
@@ -608,11 +625,11 @@ async function refreshDashboard(){
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
   const nameFor=l=>{ if(l.user_id){const p=(profs||[]).find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=(staffs||[]).find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
-  const all=logs||[], running=all.filter(l=>l.status==='in_progress'), done=all.filter(l=>l.status==='completed')
+  const all=logs||[], running=all.filter(l=>l.status!=='completed'), done=all.filter(l=>l.status==='completed')
   $('stIn').textContent=running.length;$('stDone').textContent=done.length;$('stUnits').textContent=done.reduce((s,l)=>s+(Number(l.units)||0),0)
   const rb=$('dashRunning')
   if(!running.length){rb.innerHTML='<p class="muted">Nobody is on a task right now.</p>'}
-  else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameFor(l)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
+  else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const wk=Math.floor(workedSeconds(l)/60);const badge=l.status==='paused'?'<div class="pill off">❚❚ paused</div>':'<div class="pill live">● '+wk+' min</div>';el.innerHTML=`<div><div class="name">${nameFor(l)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right">${badge}</div>`;rb.appendChild(el)})}
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
   else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameFor(l)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>${l.photos&&l.photos.length?'<div class="feed-thumbs">'+l.photos.slice(0,5).map(p=>'<a href="'+photoUrl(p)+'" target="_blank"><img loading="lazy" src="'+photoUrl(p)+'"></a>').join('')+'</div>':''}`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
@@ -740,7 +757,7 @@ window.kioskVerify=async function(){
   await kioskLoadActive()
 }
 async function kioskLoadActive(){
-  const {data}=await sb.from('sim_task_logs').select('*').eq('staff_id',kStaff.id).eq('status','in_progress').order('start_time',{ascending:false}).limit(1)
+  const {data}=await sb.from('sim_task_logs').select('*').eq('staff_id',kStaff.id).in('status',['in_progress','paused']).order('start_time',{ascending:false}).limit(1)
   kActiveLog=(data&&data[0])||null; kioskRenderActive()
 }
 function kioskRenderActive(){
@@ -750,8 +767,8 @@ function kioskRenderActive(){
     $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
     $('kStaffCount').value=kActiveLog.staff_count||1
     const c=catalog.find(x=>x.id===kActiveLog.catalog_id); const tw=!!(c&&c.track_waste)
-    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog.photos)
-    if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock((Date.now()-new Date(kActiveLog.start_time))/1000)}; tick(); kTimerInt=setInterval(tick,1000)
+    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog.photos); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
+    if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock(workedSeconds(kActiveLog))}; tick(); kTimerInt=setInterval(tick,1000)
   } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
 }
 window.kioskShowWaste=function(){$('kWasteWrap').classList.remove('hidden');$('kWasteToggleP').classList.add('hidden')}
@@ -765,7 +782,8 @@ window.kioskStop=async function(){
   if(!kActiveLog) return
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
+  let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
   if(error){alert(error.message);return}
   $('kUnits').value='';$('kWaste').value='';$('kChange').value='';$('kComments').value=''
   alert('Logged — thanks '+kStaff.full_name+'!')
