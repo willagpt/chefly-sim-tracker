@@ -18,6 +18,7 @@ function workedSeconds(l){let s=(Date.now()-new Date(l.start_time))/1000-(l.paus
 function updatePauseUI(l,pillId,btnId){const paused=l.status==='paused';const pill=$(pillId);if(pill){pill.textContent=paused?'❚❚ PAUSED':'● RUNNING';pill.className='pill '+(paused?'off':'live')}const btn=$(btnId);if(btn){btn.textContent=paused?'▶ Resume':'⏸ Pause';btn.className=paused?'green':'ghost'}}
 function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
 function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==false}
+function finishErr(error){return /KG_REQUIRED/.test(error.message)?'Please enter the kilograms produced before finishing this task.':error.message}
 function numberSanityOK(units,waste){
   const issues=[]
   if(units!=null && units>1000) issues.push('Produced = '+units+' kg (over 1000)')
@@ -27,8 +28,8 @@ function numberSanityOK(units,waste){
   return confirm('⚠ Please double-check these numbers:\n\n• '+issues.join('\n• ')+'\n\nTap OK to save anyway, or Cancel to go back and fix.')
 }
 function unitsGateOK(){
-  if(isManagerUp()) return confirm('No kg entered. Finish without a weight?\n\n(Manager override — staff cannot skip this.)')
-  alert('Please enter the kilograms produced before finishing.\n\nIf this task genuinely has no weight, an admin can untick "Records kg" for it in Manage → Tasks.')
+  // kg is a required KPI — no override for anyone. The database enforces this too.
+  alert('Please enter the kilograms produced before finishing this task.\n\nIf this job genuinely has no weight, an admin can untick "Records kg" for it in Manage → Tasks.')
   return false
 }
 function photoGateOK(log){
@@ -312,11 +313,11 @@ window.stopTask=async function(){
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
   if(!numberSanityOK(units,waste)) return
-  if(requiresUnits(activeLog) && (units==null||isNaN(units))){ if(!unitsGateOK()) return }
+  if(requiresUnits(activeLog) && (units==null||isNaN(units))){ unitsGateOK(); return }
   if(!photoGateOK(activeLog)) return
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
-  if(error){alert(error.message);return}
+  if(error){alert(finishErr(error));return}
   activeLog=null;$('fUnits').value='';$('fWaste').value='';$('fChange').value='';$('fComments').value='';renderActive();await refreshMyRecent();if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
@@ -701,7 +702,7 @@ window.kioskStop=async function(){
   if(!(kActiveLog.photos&&kActiveLog.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
-  if(error){alert(error.message);return}
+  if(error){alert(finishErr(error));return}
   $('kUnits').value='';$('kWaste').value='';$('kChange').value='';$('kComments').value=''
   alert('Logged — thanks '+kStaff.full_name+'!')
   kioskBackToGrid()
