@@ -6,97 +6,103 @@
 <meta name="theme-color" content="#0f172a" />
 <title>SIM Tracker</title>
 <style>
-  :root{
-    --bg:#0f172a; --panel:#1e293b; --panel2:#273548; --line:#334155;
-    --txt:#f1f5f9; --muted:#94a3b8; --accent:#f97316;
-    --green:#22c55e; --red:#ef4444; --blue:#3b82f6; --amber:#f59e0b;
-    --radius:16px;
-  }
-  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-  html,body{margin:0; padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    background:var(--bg); color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;}
-  .wrap{max-width:760px; margin:0 auto; padding:16px 16px 48px}
-  header.app{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px;
-    position:sticky; top:0; z-index:20; background:rgba(15,23,42,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
-  .brand{display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.5px}
+  :root{--bg:#0f172a;--panel:#1e293b;--panel2:#273548;--line:#334155;--txt:#f1f5f9;--muted:#94a3b8;--accent:#f97316;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--amber:#f59e0b;--radius:16px;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:760px;margin:0 auto;padding:16px 16px 48px}
+  header.app{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;position:sticky;top:0;z-index:20;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.5px}
   .brand .dot{width:12px;height:12px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
-  .who{font-size:13px; color:var(--muted); text-align:right; line-height:1.3}
-  .who b{color:var(--txt); display:block}
+  .who{font-size:13px;color:var(--muted);text-align:right;line-height:1.3}
+  .who b{color:var(--txt);display:block}
   .badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
   .badge.admin{background:rgba(249,115,22,.2);color:#fdba74}
   .badge.manager{background:rgba(59,130,246,.2);color:#93c5fd}
   .badge.staff{background:rgba(148,163,184,.2);color:#cbd5e1}
-  .tabs{display:flex; gap:8px; margin:16px 0}
-  .tab{flex:1; padding:12px; text-align:center; border-radius:12px; background:var(--panel);
-    border:1px solid var(--line); color:var(--muted); font-weight:700; cursor:pointer; font-size:15px}
-  .tab.active{background:var(--accent); color:#1a1206; border-color:var(--accent)}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px}
-  h2{font-size:17px; margin:0 0 14px}
-  label{display:block; font-size:13px; color:var(--muted); margin:14px 0 6px; font-weight:600}
-  input,select,textarea{width:100%; padding:14px; font-size:16px; border-radius:12px; border:1px solid var(--line);
-    background:var(--panel2); color:var(--txt); font-family:inherit;}
-  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent); border-color:var(--accent)}
-  button{width:100%; padding:16px; font-size:17px; font-weight:800; border:none; border-radius:14px;
-    background:var(--accent); color:#1a1206; cursor:pointer; margin-top:16px; transition:transform .05s, filter .15s;}
+  .tabs{display:flex;gap:8px;margin:16px 0}
+  .tab{flex:1;padding:12px;text-align:center;border-radius:12px;background:var(--panel);border:1px solid var(--line);color:var(--muted);font-weight:700;cursor:pointer;font-size:15px}
+  .tab.active{background:var(--accent);color:#1a1206;border-color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+  h2{font-size:17px;margin:0 0 14px}
+  label{display:block;font-size:13px;color:var(--muted);margin:14px 0 6px;font-weight:600}
+  input,select,textarea{width:100%;padding:14px;font-size:16px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-family:inherit;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  button{width:100%;padding:16px;font-size:17px;font-weight:800;border:none;border-radius:14px;background:var(--accent);color:#1a1206;cursor:pointer;margin-top:16px;transition:transform .05s,filter .15s;}
   button:active{transform:scale(.98)}
-  button.ghost{background:var(--panel2); color:var(--txt); border:1px solid var(--line)}
-  button.green{background:var(--green); color:#04210f}
-  button.red{background:var(--red); color:#2a0606}
-  button.sm{width:auto; padding:9px 14px; font-size:14px; margin:0}
-  button:disabled{filter:grayscale(.6) opacity(.5); cursor:not-allowed}
-  .muted{color:var(--muted); font-size:14px}
-  .msg{padding:12px 14px; border-radius:12px; margin:12px 0; font-size:14px; display:none}
+  button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  button.green{background:var(--green);color:#04210f}
+  button.red{background:var(--red);color:#2a0606}
+  button.sm{width:auto;padding:9px 14px;font-size:14px;margin:0}
+  button:disabled{filter:grayscale(.6) opacity(.5);cursor:not-allowed}
+  a.link{color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-decoration:none}
+  .muted{color:var(--muted);font-size:14px}
+  .msg{padding:12px 14px;border-radius:12px;margin:12px 0;font-size:14px;display:none}
   .msg.show{display:block}
-  .msg.err{background:rgba(239,68,68,.15); color:#fca5a5; border:1px solid rgba(239,68,68,.4)}
-  .msg.ok{background:rgba(34,197,94,.15); color:#86efac; border:1px solid rgba(34,197,94,.4)}
+  .msg.err{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+  .msg.ok{background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.4)}
   .hidden{display:none !important}
-  .row{display:flex; gap:12px}
-  .row > *{flex:1}
-  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
-  .pill.live{background:rgba(34,197,94,.18); color:#86efac}
-  .pill.done{background:rgba(59,130,246,.18); color:#93c5fd}
-  .pill.off{background:rgba(148,163,184,.18); color:#cbd5e1}
-  .timer{font-variant-numeric:tabular-nums; font-weight:800; font-size:40px; letter-spacing:1px; text-align:center; margin:8px 0}
-  .task-item,.dash-row,.member{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px;
-    border:1px solid var(--line); border-radius:12px; margin-bottom:10px; background:var(--panel2)}
-  .task-item .meta,.dash-row .sub,.member .sub{font-size:13px; color:var(--muted)}
+  .row{display:flex;gap:12px}.row>*{flex:1}
+  .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700}
+  .pill.live{background:rgba(34,197,94,.18);color:#86efac}
+  .pill.done{background:rgba(59,130,246,.18);color:#93c5fd}
+  .pill.off{background:rgba(148,163,184,.18);color:#cbd5e1}
+  .timer{font-variant-numeric:tabular-nums;font-weight:800;font-size:40px;letter-spacing:1px;text-align:center;margin:8px 0}
+  .task-item,.dash-row,.member{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel2)}
+  .task-item .meta,.dash-row .sub,.member .sub{font-size:13px;color:var(--muted)}
   .dash-row .name,.member .name{font-weight:800}
-  .member .ctl{display:flex; gap:8px; align-items:center; flex-shrink:0}
-  .member select{width:auto; padding:8px 10px; font-size:14px}
-  .stat-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px}
-  .stat{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center}
-  .stat .n{font-size:26px; font-weight:800}
-  .stat .l{font-size:12px; color:var(--muted); margin-top:2px}
-  .feed-item{padding:12px 14px; border-left:3px solid var(--blue); background:var(--panel2); border-radius:8px; margin-bottom:8px; font-size:14px}
-  .vs-good{color:var(--green); font-weight:700}
-  .vs-bad{color:var(--amber); font-weight:700}
+  .member .ctl{display:flex;gap:8px;align-items:center;flex-shrink:0}
+  .member select{width:auto;padding:8px 10px;font-size:14px}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .stat .n{font-size:26px;font-weight:800}.stat .l{font-size:12px;color:var(--muted);margin-top:2px}
+  .feed-item{padding:12px 14px;border-left:3px solid var(--blue);background:var(--panel2);border-radius:8px;margin-bottom:8px;font-size:14px}
+  .vs-good{color:var(--green);font-weight:700}.vs-bad{color:var(--amber);font-weight:700}
   .center{text-align:center}
-  .logo-big{font-size:30px; font-weight:900; letter-spacing:1px; margin-bottom:6px}
-  .footnote{font-size:12px; color:var(--muted); text-align:center; margin-top:24px; line-height:1.5}
-  @media(min-width:560px){ .timer{font-size:52px} }
+  .logo-big{font-size:30px;font-weight:900;letter-spacing:1px;margin-bottom:6px}
+  .footnote{font-size:12px;color:var(--muted);text-align:center;margin-top:24px;line-height:1.5}
+  @media(min-width:560px){.timer{font-size:52px}}
 </style>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
+<!-- ============ LOGIN / AUTH ============ -->
 <div id="loginView" class="wrap">
-  <div style="height:8vh"></div>
+  <div style="height:7vh"></div>
   <div class="card center">
     <div class="logo-big">⏱️ SIM Tracker</div>
     <p class="muted">Short Interval Management · Chefly</p>
+
+    <div id="bootstrapStep" class="hidden">
+      <div class="msg ok show" style="text-align:left">First-time setup — create the admin account. (This only appears until the first account exists.)</div>
+      <label for="bEmail">Admin email</label>
+      <input id="bEmail" type="email" inputmode="email" placeholder="you@company.com" />
+      <label for="bName">Your name</label>
+      <input id="bName" type="text" placeholder="Full name" />
+      <label for="bPass">Choose a password</label>
+      <input id="bPass" type="password" placeholder="At least 6 characters" />
+      <button class="green" onclick="createFirstAdmin()">Create admin account</button>
+    </div>
+
     <div id="loginStep">
-      <label for="email">Sign in with your work email</label>
-      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@chefly.com" />
-      <button id="sendLinkBtn" onclick="sendLink()">Email me a login link</button>
-      <p class="muted" style="margin-top:14px">Access is by invite. If your email isn't set up yet, ask your admin to add you.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" />
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Your password" onkeydown="if(event.key==='Enter')logIn()" />
+      <button onclick="logIn()" id="loginBtn">Log in</button>
+      <p style="margin-top:12px"><a class="link" onclick="forgotPassword()">Forgot password?</a></p>
+      <p class="muted" style="margin-top:6px">No account? Accounts are created by your admin. Ask them to set you up.</p>
     </div>
-    <div id="otpStep" class="hidden">
-      <label for="otp">Enter the 6-digit code from your email</label>
-      <input id="otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" style="text-align:center; font-size:26px; letter-spacing:8px" />
-      <button onclick="verifyOtp()">Verify &amp; sign in</button>
-      <button class="ghost" onclick="backToEmail()">Use a different email</button>
+
+    <div id="pwStep" class="hidden">
+      <div class="msg ok show" style="text-align:left">Welcome! Please set your own password to continue.</div>
+      <label for="np1">New password</label>
+      <input id="np1" type="password" placeholder="At least 6 characters" />
+      <label for="np2">Confirm new password</label>
+      <input id="np2" type="password" placeholder="Re-enter password" />
+      <button class="green" onclick="setMyPassword()">Save &amp; continue</button>
     </div>
+
     <div id="loginMsg" class="msg"></div>
   </div>
   <p class="footnote">Your account links to your email, so your performance record stays consistent over time.</p>
@@ -111,13 +117,9 @@
   <div class="wrap">
     <div class="tabs" id="tabBar"></div>
 
-    <!-- ===== LOG TAB ===== -->
     <div id="logTab">
       <div id="activeCard" class="card hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <h2 style="margin:0" id="activeName">Task</h2>
-          <span class="pill live">● RUNNING</span>
-        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="activeName">Task</h2><span class="pill live">● RUNNING</span></div>
         <div class="muted" id="activeMeta"></div>
         <div class="timer" id="activeTimer">00:00:00</div>
         <label for="fUnits">Units produced (e.g. kilos)</label>
@@ -130,7 +132,6 @@
         <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
         <button class="red" onclick="stopTask()">■ STOP &amp; FINISH TASK</button>
       </div>
-
       <div id="startCard" class="card">
         <h2>Start a task</h2>
         <label for="selTask">Task</label>
@@ -142,19 +143,12 @@
         <button class="green" onclick="startTask()">▶ START NOW</button>
         <div id="logMsg" class="msg"></div>
       </div>
-
-      <div class="card">
-        <h2>My recent tasks today</h2>
-        <div id="myRecent"><p class="muted">No tasks logged yet today.</p></div>
-      </div>
+      <div class="card"><h2>My recent tasks today</h2><div id="myRecent"><p class="muted">No tasks logged yet today.</p></div></div>
     </div>
 
-    <!-- ===== DASHBOARD TAB ===== -->
     <div id="dashTab" class="hidden">
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <h2 style="margin:0">Today · Live</h2><span class="pill live">● LIVE</span>
-        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0">Today · Live</h2><span class="pill live">● LIVE</span></div>
         <div class="stat-grid">
           <div class="stat"><div class="n" id="stIn">0</div><div class="l">In progress</div></div>
           <div class="stat"><div class="n" id="stDone">0</div><div class="l">Completed</div></div>
@@ -165,25 +159,20 @@
       <div class="card"><h2>Just finished</h2><div id="dashFeed"><p class="muted">No completed tasks yet today.</p></div></div>
     </div>
 
-    <!-- ===== MANAGE TAB (admin) ===== -->
     <div id="manageTab" class="hidden">
       <div class="card">
-        <h2>Set up a user</h2>
-        <p class="muted" style="margin-top:-8px">Only people you add here can log in. They sign in with this exact email.</p>
-        <label for="invEmail">Email</label>
-        <input id="invEmail" type="email" inputmode="email" placeholder="name@company.com" />
+        <h2>Create a user</h2>
+        <p class="muted" style="margin-top:-8px">You create the account; give them the temporary password. They set their own on first login.</p>
+        <label for="cuEmail">Email</label>
+        <input id="cuEmail" type="email" inputmode="email" placeholder="name@company.com" />
         <div class="row">
-          <div><label for="invName">Name</label><input id="invName" type="text" placeholder="Full name" /></div>
-          <div><label for="invRole">Role</label>
-            <select id="invRole">
-              <option value="staff">Staff</option>
-              <option value="manager">Manager</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+          <div><label for="cuName">Name</label><input id="cuName" type="text" placeholder="Full name" /></div>
+          <div><label for="cuRole">Role</label><select id="cuRole"><option value="staff">Staff</option><option value="manager">Manager</option><option value="admin">Admin</option></select></div>
         </div>
-        <button class="green" onclick="inviteUser()">Add user</button>
-        <div id="invMsg" class="msg"></div>
+        <label for="cuPass">Temporary password</label>
+        <input id="cuPass" type="text" placeholder="e.g. Chefly2026" />
+        <button class="green" onclick="createUser()">Create account</button>
+        <div id="cuMsg" class="msg"></div>
       </div>
       <div class="card">
         <h2>People &amp; access</h2>
@@ -225,83 +214,90 @@ const mins=(a,b)=>((new Date(b)-new Date(a))/60000)
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
+function showOnly(stepId){ ['bootstrapStep','loginStep','pwStep'].forEach(s=>{const el=$(s); el.classList.toggle('hidden', s!==stepId)}) }
 
 // ---------- AUTH ----------
-window.sendLink=async function(){
-  const email=$('email').value.trim().toLowerCase(); const btn=$('sendLinkBtn')
-  if(!email||!email.includes('@')){msg($('loginMsg'),'Please enter a valid email.',false);return}
-  btn.disabled=true; btn.textContent='Checking…'
-  const {data:allowed,error:chkErr}=await sb.rpc('sim_email_allowed',{p_email:email})
-  if(chkErr){btn.disabled=false;btn.textContent='Email me a login link';msg($('loginMsg'),chkErr.message,false);return}
-  if(!allowed){btn.disabled=false;btn.textContent='Email me a login link';msg($('loginMsg'),"This email isn't set up yet. Please ask your admin to add you.",false);return}
-  btn.textContent='Sending…'
-  const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+window.location.pathname,shouldCreateUser:true}})
-  btn.disabled=false; btn.textContent='Email me a login link'
+window.logIn=async function(){
+  const email=$('email').value.trim().toLowerCase(), password=$('password').value
+  if(!email||!password){msg($('loginMsg'),'Enter your email and password.',false);return}
+  const btn=$('loginBtn'); btn.disabled=true; btn.textContent='Logging in…'
+  const {error}=await sb.auth.signInWithPassword({email,password})
+  btn.disabled=false; btn.textContent='Log in'
+  if(error){msg($('loginMsg'), error.message.includes('Invalid')? 'Wrong email or password. (No account? Ask your admin to set you up.)' : error.message, false);return}
+  clearMsg($('loginMsg'))
+}
+window.createFirstAdmin=async function(){
+  const email=$('bEmail').value.trim().toLowerCase(), name=$('bName').value.trim(), password=$('bPass').value
+  if(!email||password.length<6){msg($('loginMsg'),'Enter an email and a password of 6+ characters.',false);return}
+  const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'create_user',email,name,password}})
+  if(error||data?.error){msg($('loginMsg'),(data&&data.error)||error.message,false);return}
+  const {error:le}=await sb.auth.signInWithPassword({email,password})
+  if(le){msg($('loginMsg'),'Account created — now log in.',true);showOnly('loginStep');$('email').value=email;return}
+}
+window.forgotPassword=async function(){
+  const email=$('email').value.trim().toLowerCase()
+  if(!email){msg($('loginMsg'),'Enter your email above first, then tap Forgot password.',false);return}
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname})
   if(error){msg($('loginMsg'),error.message,false);return}
-  hide($('loginStep')); show($('otpStep')); msg($('loginMsg'),'Check your email. Tap the link, or type the 6-digit code below.',true)
-  window._otpEmail=email
+  msg($('loginMsg'),'If email is set up, a reset link is on its way. Otherwise ask your admin to reset it.',true)
 }
-window.verifyOtp=async function(){
-  const token=$('otp').value.trim(), email=window._otpEmail
-  if(token.length<6){msg($('loginMsg'),'Enter the 6-digit code.',false);return}
-  const {error}=await sb.auth.verifyOtp({email,token,type:'email'})
-  if(error){msg($('loginMsg'),error.message,false)}
+window.setMyPassword=async function(){
+  const a=$('np1').value, b=$('np2').value
+  if(a.length<6){msg($('loginMsg'),'Password must be 6+ characters.',false);return}
+  if(a!==b){msg($('loginMsg'),'Passwords do not match.',false);return}
+  const {error}=await sb.auth.updateUser({password:a})
+  if(error){msg($('loginMsg'),error.message,false);return}
+  await sb.from('sim_profiles').update({must_change_password:false}).eq('id',me.id)
+  profile.must_change_password=false; clearMsg($('loginMsg')); showApp()
 }
-window.backToEmail=function(){show($('loginStep'));hide($('otpStep'));clearMsg($('loginMsg'))}
 window.signOut=async function(){await sb.auth.signOut();location.reload()}
 
 // ---------- BOOT ----------
-sb.auth.onAuthStateChange(async(_e,session)=>{if(session&&session.user){me=session.user;await enterApp()}})
-;(async()=>{const{data}=await sb.auth.getSession();if(data.session){me=data.session.user;await enterApp()}})()
+;(async()=>{
+  const {data:needs}=await sb.rpc('sim_needs_bootstrap')
+  if(needs) showOnly('bootstrapStep')
+  const {data}=await sb.auth.getSession()
+  if(data.session){me=data.session.user; await afterAuth()}
+})()
+sb.auth.onAuthStateChange(async(_e,session)=>{ if(session&&session.user&&!me){me=session.user; await afterAuth()} })
 
-async function enterApp(){
+async function afterAuth(){
   if(!me) return
-  try{ await ensureProfile() }
-  catch(e){
-    await sb.auth.signOut()
-    show($('loginView')); hide($('appView')); backToEmail()
-    msg($('loginMsg'), (e&&e.message)? e.message : "You're not set up for access yet. Ask your admin.", false)
-    return
-  }
+  try{ await loadProfile() }
+  catch(e){ await sb.auth.signOut(); show($('loginView')); hide($('appView')); showOnly('loginStep'); msg($('loginMsg'),(e&&e.message)||'Account not set up. Ask your admin.',false); return }
+  if(profile.must_change_password){ hide($('appView')); show($('loginView')); showOnly('pwStep'); return }
+  showApp()
+}
+async function loadProfile(){
+  const {data,error}=await sb.from('sim_profiles').select('*').eq('id',me.id).maybeSingle()
+  if(error) throw error
+  if(!data) throw new Error('Your account is not fully set up yet. Please ask your admin.')
+  profile=data
+}
+async function showApp(){
   hide($('loginView')); show($('appView'))
+  $('whoName').textContent=profile.full_name||me.email
+  const r=profile.role||'staff'; const badge=$('whoRole'); badge.textContent=r; badge.className='badge '+r
   buildTabs()
   await loadCatalog(); await loadActive(); await refreshMyRecent()
   if(isManagerUp()) await refreshDashboard()
   subscribeRealtime()
-  if('Notification' in window && Notification.permission==='default'){
-    try{notifyReady=(await Notification.requestPermission())==='granted'}catch(e){}
-  } else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
+  if('Notification' in window && Notification.permission==='default'){ try{notifyReady=(await Notification.requestPermission())==='granted'}catch(e){} }
+  else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-async function ensureProfile(){
-  let {data}=await sb.from('sim_profiles').select('*').eq('id',me.id).maybeSingle()
-  if(!data){
-    const nm=(me.email||'').split('@')[0].replace(/[._]/g,' ').replace(/\b\w/g,c=>c.toUpperCase())
-    const ins=await sb.from('sim_profiles').insert({id:me.id,email:me.email,full_name:nm}).select().single()
-    if(ins.error) throw ins.error
-    data=ins.data
-  }
-  profile=data
-  $('whoName').textContent=profile?.full_name||me.email
-  const r=profile?.role||'staff'
-  const badge=$('whoRole'); badge.textContent=r; badge.className='badge '+r
-}
-
-// ---------- TABS (role-gated) ----------
+// ---------- TABS ----------
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
   const tabs=[{k:'log',label:'My Task'}]
   if(isManagerUp()) tabs.push({k:'dash',label:'Live Dashboard'})
   if(isAdmin()) tabs.push({k:'manage',label:'Manage'})
-  tabs.forEach((t,i)=>{
-    const d=document.createElement('div'); d.className='tab'+(i===0?' active':''); d.id='tab_'+t.k
-    d.textContent=t.label; d.onclick=()=>showTab(t.k); bar.appendChild(d)
-  })
-  ;['log','dash','manage'].forEach(k=>{ const el=$(k+'Tab'); if(el) el.classList.toggle('hidden', k!=='log') })
+  tabs.forEach((t,i)=>{const d=document.createElement('div');d.className='tab'+(i===0?' active':'');d.id='tab_'+t.k;d.textContent=t.label;d.onclick=()=>showTab(t.k);bar.appendChild(d)})
+  ;['log','dash','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='log')})
 }
 window.showTab=function(which){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.id==='tab_'+which));
-  ['log','dash','manage'].forEach(k=>{ const el=$(k+'Tab'); if(el) el.classList.toggle('hidden', k!==which) })
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which));
+  ['log','dash','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='dash') refreshDashboard()
   if(which==='manage'){ loadAccess(); renderTaskList() }
 }
@@ -309,20 +305,13 @@ window.showTab=function(which){
 // ---------- CATALOG ----------
 async function loadCatalog(){
   const {data}=await sb.from('sim_task_catalog').select('*').eq('active',true).order('sort_order')
-  catalog=data||[]
-  const sel=$('selTask'); sel.innerHTML=''
-  catalog.forEach(t=>{const o=document.createElement('option'); o.value=t.id; o.textContent=t.station?`${t.name} — ${t.station}`:t.name; sel.appendChild(o)})
+  catalog=data||[]; const sel=$('selTask'); sel.innerHTML=''
+  catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;sel.appendChild(o)})
   renderTaskList()
 }
 function renderTaskList(){
   const box=$('taskList'); if(!box) return; box.innerHTML=''
-  catalog.forEach(t=>{
-    const d=document.createElement('div'); d.className='task-item'
-    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} units</div></div>`
-    const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'
-    b.onclick=async()=>{await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id); await loadCatalog()}
-    d.appendChild(b); box.appendChild(d)
-  })
+  catalog.forEach(t=>{const d=document.createElement('div');d.className='task-item';d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} units</div></div>`;const b=document.createElement('button');b.className='ghost sm';b.textContent='Remove';b.onclick=async()=>{await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()};d.appendChild(b);box.appendChild(d)})
 }
 window.addTask=async function(){
   const name=$('ntName').value.trim(); if(!name){msg($('addMsg'),'Enter a task name.',false);return}
@@ -330,8 +319,7 @@ window.addTask=async function(){
   const order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order)):0)+1
   const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value=''
-  msg($('addMsg'),'Task added.',true); await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---------- TASK LOGGING ----------
@@ -340,49 +328,28 @@ async function loadActive(){
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){
-    hide($('startCard')); show($('activeCard'))
-    $('activeName').textContent=activeLog.task_name
-    $('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`
-    $('fStaff').value=activeLog.staff_count||1
-    if(timerInt) clearInterval(timerInt)
-    const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)}
-    tick(); timerInt=setInterval(tick,1000)
-  } else { show($('startCard')); hide($('activeCard')); if(timerInt) clearInterval(timerInt) }
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock((Date.now()-new Date(activeLog.start_time))/1000)};tick();timerInt=setInterval(tick,1000)}
+  else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
 window.startTask=async function(){
   const t=catalog.find(c=>c.id===$('selTask').value); if(!t){msg($('logMsg'),'Pick a task.',false);return}
-  const {data,error}=await sb.from('sim_task_logs').insert({
-    user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,
-    product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,
-    start_time:new Date().toISOString(),status:'in_progress'}).select().single()
+  const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
   if(error){msg($('logMsg'),error.message,false);return}
-  activeLog=data; $('sProduct').value=''; clearMsg($('logMsg')); renderActive()
+  activeLog=data;$('sProduct').value='';clearMsg($('logMsg'));renderActive()
 }
 window.stopTask=async function(){
   if(!activeLog) return
   const units=$('fUnits').value?Number($('fUnits').value):null
-  const {error}=await sb.from('sim_task_logs').update({
-    finish_time:new Date().toISOString(),units,staff_count:Number($('fStaff').value)||1,
-    changeover_mins:$('fChange').value?Number($('fChange').value):null,
-    comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
   if(error){alert(error.message);return}
-  activeLog=null;$('fUnits').value='';$('fChange').value='';$('fComments').value=''
-  renderActive(); await refreshMyRecent(); if(isManagerUp()) await refreshDashboard()
+  activeLog=null;$('fUnits').value='';$('fChange').value='';$('fComments').value='';renderActive();await refreshMyRecent();if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
   const today=new Date().toISOString().slice(0,10)
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
-  const box=$('myRecent')
-  if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
+  const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{
-    const d=document.createElement('div'); d.className='task-item'
-    const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>'
-    const uph=l.units_per_hour?`${l.units_per_hour}/hr`:''
-    d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} units · ${l.total_minutes??'–'} min · ${uph}</div></div>`
-    box.appendChild(d)
-  })
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='in_progress'?'<span class="pill live">● running</span>':'<span class="pill done">done</span>';const uph=l.units_per_hour?`${l.units_per_hour}/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} units · ${l.total_minutes??'–'} min · ${uph}</div></div>`;box.appendChild(d)})
 }
 
 // ---------- DASHBOARD ----------
@@ -393,8 +360,7 @@ async function refreshDashboard(){
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
   const nameOf=id=>{const p=(profs||[]).find(x=>x.id===id);return p?(p.full_name||p.email):'Someone'}
   const all=logs||[], running=all.filter(l=>l.status==='in_progress'), done=all.filter(l=>l.status==='completed')
-  $('stIn').textContent=running.length; $('stDone').textContent=done.length
-  $('stUnits').textContent=done.reduce((s,l)=>s+(Number(l.units)||0),0)
+  $('stIn').textContent=running.length;$('stDone').textContent=done.length;$('stUnits').textContent=done.reduce((s,l)=>s+(Number(l.units)||0),0)
   const rb=$('dashRunning')
   if(!running.length){rb.innerHTML='<p class="muted">Nobody is on a task right now.</p>'}
   else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const e=Math.floor(mins(l.start_time,new Date().toISOString()));el.innerHTML=`<div><div class="name">${nameOf(l.user_id)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right"><div class="pill live">● ${e} min</div></div>`;rb.appendChild(el)})}
@@ -403,14 +369,15 @@ async function refreshDashboard(){
   else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameOf(l.user_id)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} units in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+'/hr)':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
-// ---------- MANAGE: access list ----------
-window.inviteUser=async function(){
-  const email=$('invEmail').value.trim().toLowerCase(), name=$('invName').value.trim(), role=$('invRole').value
-  if(!email||!email.includes('@')){msg($('invMsg'),'Enter a valid email.',false);return}
-  const {error}=await sb.rpc('sim_invite_user',{p_email:email,p_name:name,p_role:role})
-  if(error){msg($('invMsg'),error.message,false);return}
-  $('invEmail').value='';$('invName').value='';$('invRole').value='staff'
-  msg($('invMsg'),`${email} can now log in as ${role}.`,true); loadAccess()
+// ---------- MANAGE ----------
+window.createUser=async function(){
+  const email=$('cuEmail').value.trim().toLowerCase(), name=$('cuName').value.trim(), role=$('cuRole').value, password=$('cuPass').value
+  if(!email||!email.includes('@')){msg($('cuMsg'),'Enter a valid email.',false);return}
+  if(password.length<6){msg($('cuMsg'),'Temporary password must be 6+ characters.',false);return}
+  const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'create_user',email,name,role,password}})
+  if(error||data?.error){msg($('cuMsg'),(data&&data.error)||error.message,false);return}
+  msg($('cuMsg'),`Account created for ${email} (${role}). Temporary password: ${password} — share it with them; they'll set their own on first login.`,true)
+  $('cuEmail').value='';$('cuName').value='';$('cuPass').value='';$('cuRole').value='staff'; loadAccess()
 }
 async function loadAccess(){
   if(!isAdmin()) return
@@ -426,40 +393,33 @@ async function loadAccess(){
     const d=document.createElement('div'); d.className='member'
     const self=(u.email||'').toLowerCase()===(me.email||'').toLowerCase()
     const active=activeEmails.has((u.email||'').toLowerCase())
-    const statusPill=active?'<span class="pill live">● logged in</span>':'<span class="pill off">invited</span>'
-    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${statusPill}</div></div>`
+    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${active?'<span class="pill live">● active</span>':'<span class="pill off">not logged in</span>'}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
-    const sel=document.createElement('select')
-    ;['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(u.role===r)o.selected=true;sel.appendChild(o)})
-    sel.disabled=self
-    sel.onchange=async()=>{
-      const {error}=await sb.rpc('sim_set_user_role',{p_email:u.email,p_role:sel.value})
-      if(error){msg($('memberMsg'),error.message,false);sel.value=u.role}
-      else{msg($('memberMsg'),`${u.full_name||u.email} is now ${sel.value}.`,true);u.role=sel.value}
-    }
+    const sel=document.createElement('select'); ['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(u.role===r)o.selected=true;sel.appendChild(o)}); sel.disabled=self
+    sel.onchange=async()=>{const {error}=await sb.rpc('sim_set_user_role',{p_email:u.email,p_role:sel.value});if(error){msg($('memberMsg'),error.message,false);sel.value=u.role}else{msg($('memberMsg'),`${u.full_name||u.email} is now ${sel.value}.`,true);u.role=sel.value}}
     ctl.appendChild(sel)
     if(!self){
-      const rm=document.createElement('button'); rm.className='ghost sm'; rm.textContent='Remove'
-      rm.onclick=async()=>{ if(!confirm('Remove access for '+u.email+'?'))return; const {error}=await sb.rpc('sim_remove_user',{p_email:u.email}); if(error){msg($('memberMsg'),error.message,false)} else {msg($('memberMsg'),'Removed '+u.email,true);loadAccess()} }
+      const rp=document.createElement('button');rp.className='ghost sm';rp.textContent='Reset pw'
+      rp.onclick=async()=>{const np=prompt('New temporary password for '+u.email+' (6+ chars):');if(!np)return;const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_password',email:u.email,password:np}});if(error||data?.error){msg($('memberMsg'),(data&&data.error)||error.message,false)}else{msg($('memberMsg'),'Password reset for '+u.email+'. They set their own next login.',true)}}
+      ctl.appendChild(rp)
+      const rm=document.createElement('button');rm.className='ghost sm';rm.textContent='Remove'
+      rm.onclick=async()=>{if(!confirm('Remove access for '+u.email+'?'))return;const {error}=await sb.rpc('sim_remove_user',{p_email:u.email});if(error){msg($('memberMsg'),error.message,false)}else{msg($('memberMsg'),'Removed '+u.email,true);loadAccess()}}
       ctl.appendChild(rm)
     }
     d.appendChild(ctl); box.appendChild(d)
   })
-  if(!allowed||!allowed.length) box.innerHTML='<p class="muted">No users yet. Add your first user above.</p>'
+  if(!allowed||!allowed.length) box.innerHTML='<p class="muted">No users yet. Create your first user above.</p>'
 }
 
 // ---------- REALTIME ----------
 function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}}}
 function subscribeRealtime(){
   sb.channel('sim-logs').on('postgres_changes',{event:'*',schema:'public',table:'sim_task_logs'},async(payload)=>{
-    if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){
-      lastFinishIds.add(payload.new.id)
-      if(isManagerUp()&&payload.new.user_id!==me.id) notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} units`)
-    }
-    if(isManagerUp()) await refreshDashboard()
+    if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){lastFinishIds.add(payload.new.id);if(isManagerUp()&&payload.new.user_id!==me.id)notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} units`)}
+    if(isManagerUp())await refreshDashboard()
     if(payload.new&&payload.new.user_id===me.id){await loadActive();await refreshMyRecent()}
   }).subscribe()
-  setInterval(()=>{ if(isManagerUp() && !$('dashTab').classList.contains('hidden')) refreshDashboard() },30000)
+  setInterval(()=>{if(isManagerUp()&&!$('dashTab').classList.contains('hidden'))refreshDashboard()},30000)
 }
 </script>
 </body>
