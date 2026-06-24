@@ -16,6 +16,8 @@ const mins=(a,b)=>((new Date(b)-new Date(a))/60000)
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
 function workedSeconds(l){let s=(Date.now()-new Date(l.start_time))/1000-(l.paused_seconds||0);if(l.status==='paused'&&l.pause_started_at)s-=(Date.now()-new Date(l.pause_started_at))/1000;return Math.max(0,s)}
 function updatePauseUI(l,pillId,btnId){const paused=l.status==='paused';const pill=$(pillId);if(pill){pill.textContent=paused?'❚❚ PAUSED':'● RUNNING';pill.className='pill '+(paused?'off':'live')}const btn=$(btnId);if(btn){btn.textContent=paused?'▶ Resume':'⏸ Pause';btn.className=paused?'green':'ghost'}}
+function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
+function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==false}
 function numberSanityOK(units,waste){
   const issues=[]
   if(units!=null && units>1000) issues.push('Produced = '+units+' kg (over 1000)')
@@ -23,6 +25,11 @@ function numberSanityOK(units,waste){
   if(units!=null && waste!=null && waste>units && waste>20) issues.push('Waste ('+waste+' kg) is more than produced ('+units+' kg)')
   if(!issues.length) return true
   return confirm('⚠ Please double-check these numbers:\n\n• '+issues.join('\n• ')+'\n\nTap OK to save anyway, or Cancel to go back and fix.')
+}
+function unitsGateOK(){
+  if(isManagerUp()) return confirm('No kg entered. Finish without a weight?\n\n(Manager override — staff cannot skip this.)')
+  alert('Please enter the kilograms produced before finishing.\n\nIf this task genuinely has no weight, an admin can untick "Records kg" for it in Manage → Tasks.')
+  return false
 }
 function photoGateOK(log){
   if(log.photos && log.photos.length) return true
@@ -203,7 +210,7 @@ window.renderTaskList=function(){
   const box=$('taskList'); if(!box) return; box.innerHTML=''
   catalog.forEach(t=>{
     const d=document.createElement('div'); d.className='task-item'; d.id='task_'+t.id
-    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl${t.track_waste?' · waste tracked':''}</div></div>`
+    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no kg':' · kg required'}${t.track_waste?' · waste tracked':''}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
@@ -223,6 +230,7 @@ window.editTask=function(id){
       <input id="et_units_${id}" type="number" value="${t.expected_units??''}" placeholder="Expected kg" />
       <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
     </div>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_requnits_${id}" style="width:auto" ${t.requires_units!==false?'checked':''}/> Records kg produced (required to finish)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste on this task</label>
     <div class="row" style="margin-top:8px">
       <button class="green sm" style="flex:1" onclick="saveTask('${id}')">Save</button>
@@ -235,7 +243,8 @@ window.saveTask=async function(id){
   const units=$('et_units_'+id).value?Number($('et_units_'+id).value):null
   const staff=$('et_staff_'+id).value?Number($('et_staff_'+id).value):null
   const trackWaste=$('et_waste_'+id).checked
-  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste}).eq('id',id)
+  const reqUnits=$('et_requnits_'+id).checked
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,requires_units:reqUnits}).eq('id',id)
   if(error){msg($('addMsg'),error.message,false);return}
   await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
@@ -243,9 +252,9 @@ window.addTask=async function(){
   const name=$('ntName').value.trim(); if(!name){msg($('addMsg'),'Enter a task name.',false);return}
   const station=$('ntStation').value.trim()||null, units=$('ntUnits').value?Number($('ntUnits').value):null
   const order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order)):0)+1
-  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,track_waste:$('ntWaste').checked,sort_order:order})
+  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,track_waste:$('ntWaste').checked,requires_units:$('ntReqUnits').checked,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;msg($('addMsg'),'Task added.',true);await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqUnits').checked=true;msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---------- PRODUCTS / RECIPES ----------
@@ -276,7 +285,7 @@ async function loadActive(){
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catalog.find(c=>c.id===activeLog.catalog_id);const _tw=!!(_cat&&_cat.track_waste);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catFor(activeLog);const _tw=!!(_cat&&_cat.track_waste);const _ru=!_cat||_cat.requires_units!==false;$('unitsWrap').classList.toggle('hidden',!_ru);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
   else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
 window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
@@ -303,6 +312,7 @@ window.stopTask=async function(){
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
   if(!numberSanityOK(units,waste)) return
+  if(requiresUnits(activeLog) && (units==null||isNaN(units))){ if(!unitsGateOK()) return }
   if(!photoGateOK(activeLog)) return
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
@@ -373,7 +383,6 @@ window.loadPerf=async function(){
   perfNames={}
   ;(profs||[]).forEach(p=>perfNames['u:'+p.id]=p.full_name||p.email)
   ;(staffs||[]).forEach(s=>perfNames['s:'+s.id]=s.full_name)
-  // drop sub-30-second junk logs (accidental start/stop)
   perfBaseLogs=(logs||[]).filter(l=>Number(l.total_minutes)>=0.5)
   perfPeriodLogs=perfBaseLogs.filter(l=>l.log_date>=from && l.log_date<=to)
   computeBaselines(); computePerf(); populatePerfPickers(); renderPerf()
@@ -619,7 +628,7 @@ window.addStaff=async function(){
   $('fsName').value='';$('fsStation').value='';$('fsPin').value='';msg($('fsMsg'),'Staff added.'+(pin?'':' Set a PIN before they can log in.'),true);loadStaff()
 }
 
-// ---------- KIOSK (shared device, manager/admin) ----------
+// ---------- KIOSK (shared device) ----------
 window.enterKiosk=async function(){
   hide($('appView')); hide($('loginView')); show($('kioskView'))
   if(!catalog.length) await loadCatalog()
@@ -669,7 +678,8 @@ function kioskRenderActive(){
     $('kActiveName').textContent=kActiveLog.task_name
     $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
     $('kStaffCount').value=kActiveLog.staff_count||1
-    const c=catalog.find(x=>x.id===kActiveLog.catalog_id); const tw=!!(c&&c.track_waste)
+    const c=catFor(kActiveLog); const tw=!!(c&&c.track_waste); const ru=!c||c.requires_units!==false
+    $('kUnitsWrap').classList.toggle('hidden',!ru)
     $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
     if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock(workedSeconds(kActiveLog))}; tick(); kTimerInt=setInterval(tick,1000)
   } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
@@ -686,7 +696,9 @@ window.kioskStop=async function(){
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
   if(!numberSanityOK(units,waste)) return
-  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ if(!confirm('No photo added for this task. Finish without a photo?\n\n(Manager override at the kiosk.)')) return }
+  // Kiosk is used by floor staff directly, so kg + photo are strictly required (no skip).
+  if(requiresUnits(kActiveLog) && (units==null||isNaN(units))){ alert('Please enter the kilograms produced before finishing this task.'); return }
+  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
   if(error){alert(error.message);return}
