@@ -357,6 +357,14 @@ const mins=(a,b)=>((new Date(b)-new Date(a))/60000)
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
 function workedSeconds(l){let s=(Date.now()-new Date(l.start_time))/1000-(l.paused_seconds||0);if(l.status==='paused'&&l.pause_started_at)s-=(Date.now()-new Date(l.pause_started_at))/1000;return Math.max(0,s)}
 function updatePauseUI(l,pillId,btnId){const paused=l.status==='paused';const pill=$(pillId);if(pill){pill.textContent=paused?'❚❚ PAUSED':'● RUNNING';pill.className='pill '+(paused?'off':'live')}const btn=$(btnId);if(btn){btn.textContent=paused?'▶ Resume':'⏸ Pause';btn.className=paused?'green':'ghost'}}
+function numberSanityOK(units,waste){
+  const issues=[]
+  if(units!=null && units>1000) issues.push('Produced = '+units+' kg (over 1000)')
+  if(waste!=null && waste>1000) issues.push('Waste = '+waste+' kg (over 1000)')
+  if(units!=null && waste!=null && waste>units && waste>20) issues.push('Waste ('+waste+' kg) is more than produced ('+units+' kg)')
+  if(!issues.length) return true
+  return confirm('⚠ Please double-check these numbers:\n\n• '+issues.join('\n• ')+'\n\nTap OK to save anyway, or Cancel to go back and fix.')
+}
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
 function renderPhotoStrip(id,log){
   const box=$(id); if(!box) return; box.innerHTML=''
@@ -625,9 +633,10 @@ window.startTask=async function(){
 }
 window.stopTask=async function(){
   if(!activeLog) return
-  if(!(activeLog.photos&&activeLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
+  if(!numberSanityOK(units,waste)) return
+  if(!(activeLog.photos&&activeLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
   if(error){alert(error.message);return}
@@ -804,9 +813,10 @@ window.kioskStart=async function(){
 }
 window.kioskStop=async function(){
   if(!kActiveLog) return
-  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
+  if(!numberSanityOK(units,waste)) return
+  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ if(!confirm('No photo added yet. Add one if you can.\n\nFinish without a photo?')) return }
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
   if(error){alert(error.message);return}
