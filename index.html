@@ -150,10 +150,11 @@
           <div><label for="pTo">To</label><input id="pTo" type="date" /></div>
         </div>
         <button class="green" onclick="loadPerf()">Load</button>
-        <div class="tabs" style="margin-top:14px">
+        <div class="tabs" style="margin-top:14px;flex-wrap:wrap">
           <div class="tab active" id="pv_team" onclick="setPerfView('team')">Team</div>
           <div class="tab" id="pv_person" onclick="setPerfView('person')">By person</div>
           <div class="tab" id="pv_task" onclick="setPerfView('task')">By task</div>
+          <div class="tab" id="pv_daily" onclick="setPerfView('daily')">Daily</div>
         </div>
         <div id="pPersonPick" class="hidden"><label for="pPerson">Person</label><select id="pPerson" onchange="setPerfView('person')"></select></div>
         <div id="pTaskPick" class="hidden"><label for="pTask">Task</label><select id="pTask" onchange="setPerfView('task')"></select></div>
