@@ -367,7 +367,7 @@ window.initPerf=async function(){
 }
 window.setPerfView=function(v){
   perfView=v
-  ;['team','person','task','daily'].forEach(k=>$('pv_'+k).classList.toggle('active',k===v))
+  ;['team','person','task','daily','time'].forEach(k=>$('pv_'+k).classList.toggle('active',k===v))
   $('pPersonPick').classList.toggle('hidden',v!=='person')
   $('pTaskPick').classList.toggle('hidden',v!=='task')
   renderPerf()
@@ -448,6 +448,7 @@ function renderPerf(){
   if(perfView==='person') return renderPerfPerson()
   if(perfView==='task') return renderPerfTask()
   if(perfView==='daily') return renderPerfDaily()
+  if(perfView==='time') return renderPerfTime()
   return renderPerfTeam()
 }
 function perfRangeLabel(){return $('pFrom').value+' → '+$('pTo').value}
@@ -539,6 +540,41 @@ function renderPerfDaily(){
     rows.forEach(t=>{html+=`<tr><td ${td}>${t}</td><td ${td} style="text-align:right;font-weight:700">${Math.round(byTask[t].kg)} kg</td><td ${td} style="text-align:right;color:var(--muted);width:48px">${byTask[t].n}×</td></tr>`})
     html+=`</tbody></table></div>`
   })
+  box.innerHTML=html
+}
+function renderPerfTime(){
+  const box=$('perfBody')
+  if(!perfPeriodLogs.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
+  const buckets={}
+  perfPeriodLogs.forEach(l=>{
+    const t=l.finish_time||l.start_time; if(!t)return
+    const h=new Date(t).getHours()
+    const b=buckets[h]=buckets[h]||{kg:0,n:0,idxSum:0,idxN:0}
+    b.kg+=Number(l.units)||0; b.n++
+    const ph=perHead(l), base=perfTaskMedian[taskKey(l)]
+    if(ph!=null&&base){b.idxSum+=ph/base; b.idxN++}
+  })
+  const hours=Object.keys(buckets).map(Number).sort((a,b)=>a-b)
+  const maxKg=Math.max(1,...hours.map(h=>buckets[h].kg))
+  let mS=0,mN=0,aS=0,aN=0
+  hours.forEach(h=>{const b=buckets[h];if(b.idxN){if(h<12){mS+=b.idxSum;mN+=b.idxN}else{aS+=b.idxSum;aN+=b.idxN}}})
+  const mAvg=mN?mS/mN:null, aAvg=aN?aS/aN:null
+  let trend=''
+  if(mAvg!=null&&aAvg!=null){
+    const dir=aAvg>mAvg+0.03?'speeds up':(aAvg<mAvg-0.03?'slows down':'holds steady')
+    trend=` Pace ${dir} over the day — morning ${mAvg.toFixed(2)}× vs afternoon ${aAvg.toFixed(2)}×.`
+  }
+  let html=`<h2>Through the day · ${perfRangeLabel()}</h2><p class="muted">Output (bar) and pace by hour of day, across the selected range. Pace = per-head rate vs each task's team norm; 1.00× = normal.${trend}</p><div style="margin-top:6px">`
+  hours.forEach(h=>{
+    const b=buckets[h]
+    const pace=b.idxN?b.idxSum/b.idxN:null
+    const w=Math.round(b.kg/maxKg*100)
+    html+=`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span><b>${String(h).padStart(2,'0')}:00</b> <span class="muted">${b.n} task${b.n===1?'':'s'}</span></span><span>${Math.round(b.kg)} kg · pace <span class="${idxColor(pace)}">${pace==null?'–':pace.toFixed(2)+'×'}</span></span></div>
+      <div style="height:10px;background:var(--panel2);border-radius:6px;margin-top:4px;overflow:hidden"><div style="height:100%;width:${w}%;background:var(--accent)"></div></div>
+    </div>`
+  })
+  html+='</div><p class="muted" style="margin-top:6px">Hours combine every day in the range, so a wider range shows the typical daily shape. For one day, set From and To to the same date.</p>'
   box.innerHTML=html
 }
 window.printReview=function(){
