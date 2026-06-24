@@ -155,8 +155,8 @@
           <div class="tab" id="pv_person" onclick="setPerfView('person')">By person</div>
           <div class="tab" id="pv_task" onclick="setPerfView('task')">By task</div>
         </div>
-        <div id="pPersonPick" class="hidden"><label for="pPerson">Person</label><select id="pPerson" onchange="renderPerfFromPick()"></select></div>
-        <div id="pTaskPick" class="hidden"><label for="pTask">Task</label><select id="pTask" onchange="renderPerfFromPick()"></select></div>
+        <div id="pPersonPick" class="hidden"><label for="pPerson">Person</label><select id="pPerson" onchange="setPerfView('person')"></select></div>
+        <div id="pTaskPick" class="hidden"><label for="pTask">Task</label><select id="pTask" onchange="setPerfView('task')"></select></div>
       </div>
       <div class="card"><div id="perfBody"><p class="muted">Pick a range and tap Load.</p></div></div>
     </div>
