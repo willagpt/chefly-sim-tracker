@@ -68,13 +68,13 @@
 
 <!-- ============ LOGIN / AUTH ============ -->
 <div id="loginView" class="wrap">
-  <div style="height:7vh"></div>
+  <div style="height:6vh"></div>
   <div class="card center">
     <div class="logo-big">⏱️ SIM Tracker</div>
     <p class="muted">Short Interval Management · Chefly</p>
 
     <div id="bootstrapStep" class="hidden">
-      <div class="msg ok show" style="text-align:left">First-time setup — create the admin account. (This only appears until the first account exists.)</div>
+      <div class="msg ok show" style="text-align:left">First-time setup — create the admin account. (Shown only until the first account exists.)</div>
       <label for="bEmail">Admin email</label>
       <input id="bEmail" type="email" inputmode="email" placeholder="you@company.com" />
       <label for="bName">Your name</label>
@@ -84,14 +84,31 @@
       <button class="green" onclick="createFirstAdmin()">Create admin account</button>
     </div>
 
-    <div id="loginStep">
+    <div id="authToggle" class="tabs hidden">
+      <div class="tab active" id="authTabLogin" onclick="showAuth('login')">Log in</div>
+      <div class="tab" id="authTabSignup" onclick="showAuth('signup')">Create account</div>
+    </div>
+
+    <div id="loginStep" class="hidden">
       <label for="email">Email</label>
       <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" />
       <label for="password">Password</label>
       <input id="password" type="password" autocomplete="current-password" placeholder="Your password" onkeydown="if(event.key==='Enter')logIn()" />
       <button onclick="logIn()" id="loginBtn">Log in</button>
       <p style="margin-top:12px"><a class="link" onclick="forgotPassword()">Forgot password?</a></p>
-      <p class="muted" style="margin-top:6px">No account? Accounts are created by your admin. Ask them to set you up.</p>
+    </div>
+
+    <div id="signupStep" class="hidden">
+      <label for="suName">Your name</label>
+      <input id="suName" type="text" placeholder="Full name" />
+      <label for="suEmail">Email</label>
+      <input id="suEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@company.com" />
+      <label for="suPass">Choose a password</label>
+      <input id="suPass" type="password" placeholder="At least 6 characters" />
+      <label for="suCode">Join code</label>
+      <input id="suCode" type="text" placeholder="Code from your manager" />
+      <button class="green" onclick="createAccount()">Create my account</button>
+      <p class="muted" style="margin-top:10px">Don't have a join code? Ask your manager — it stops random sign-ups.</p>
     </div>
 
     <div id="pwStep" class="hidden">
@@ -161,8 +178,16 @@
 
     <div id="manageTab" class="hidden">
       <div class="card">
-        <h2>Create a user</h2>
-        <p class="muted" style="margin-top:-8px">You create the account; give them the temporary password. They set their own on first login.</p>
+        <h2>Join code</h2>
+        <p class="muted" style="margin-top:-8px">Staff enter this on "Create account". Change it anytime to cut off old codes. Leave blank to switch off self-signup.</p>
+        <label for="jcInput">Current join code</label>
+        <input id="jcInput" type="text" placeholder="e.g. CHEFLY-LINE1" />
+        <button class="ghost" onclick="saveJoinCode()">Save join code</button>
+        <div id="jcMsg" class="msg"></div>
+      </div>
+      <div class="card">
+        <h2>Create a user manually</h2>
+        <p class="muted" style="margin-top:-8px">For managers/admins, or anyone you'd rather set up yourself with a temporary password.</p>
         <label for="cuEmail">Email</label>
         <input id="cuEmail" type="email" inputmode="email" placeholder="name@company.com" />
         <div class="row">
@@ -203,7 +228,7 @@ const SUPABASE_KEY = 'sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve'
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 let me=null, profile=null, catalog=[], activeLog=null, timerInt=null
-let lastFinishIds=new Set(), notifyReady=false
+let lastFinishIds=new Set(), notifyReady=false, booting=false
 
 const $ = id => document.getElementById(id)
 const show=el=>el.classList.remove('hidden'), hide=el=>el.classList.add('hidden')
@@ -214,32 +239,56 @@ const mins=(a,b)=>((new Date(b)-new Date(a))/60000)
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
-function showOnly(stepId){ ['bootstrapStep','loginStep','pwStep'].forEach(s=>{const el=$(s); el.classList.toggle('hidden', s!==stepId)}) }
 
-// ---------- AUTH ----------
+function setAuthView(mode){
+  $('bootstrapStep').classList.toggle('hidden', mode!=='bootstrap')
+  $('authToggle').classList.toggle('hidden', !(mode==='login'||mode==='signup'))
+  $('loginStep').classList.toggle('hidden', mode!=='login')
+  $('signupStep').classList.toggle('hidden', mode!=='signup')
+  $('pwStep').classList.toggle('hidden', mode!=='pw')
+  if(mode==='login'||mode==='signup'){
+    $('authTabLogin').classList.toggle('active', mode==='login')
+    $('authTabSignup').classList.toggle('active', mode==='signup')
+  }
+}
+window.showAuth=function(m){ clearMsg($('loginMsg')); setAuthView(m) }
+
+// ---------- AUTH ACTIONS ----------
 window.logIn=async function(){
   const email=$('email').value.trim().toLowerCase(), password=$('password').value
   if(!email||!password){msg($('loginMsg'),'Enter your email and password.',false);return}
   const btn=$('loginBtn'); btn.disabled=true; btn.textContent='Logging in…'
-  const {error}=await sb.auth.signInWithPassword({email,password})
+  const {data,error}=await sb.auth.signInWithPassword({email,password})
   btn.disabled=false; btn.textContent='Log in'
-  if(error){msg($('loginMsg'), error.message.includes('Invalid')? 'Wrong email or password. (No account? Ask your admin to set you up.)' : error.message, false);return}
-  clearMsg($('loginMsg'))
+  if(error){msg($('loginMsg'), /invalid/i.test(error.message)? 'Wrong email or password.' : error.message, false);return}
+  me=data.user; clearMsg($('loginMsg')); await afterAuth()
 }
 window.createFirstAdmin=async function(){
   const email=$('bEmail').value.trim().toLowerCase(), name=$('bName').value.trim(), password=$('bPass').value
   if(!email||password.length<6){msg($('loginMsg'),'Enter an email and a password of 6+ characters.',false);return}
   const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'create_user',email,name,password}})
   if(error||data?.error){msg($('loginMsg'),(data&&data.error)||error.message,false);return}
-  const {error:le}=await sb.auth.signInWithPassword({email,password})
-  if(le){msg($('loginMsg'),'Account created — now log in.',true);showOnly('loginStep');$('email').value=email;return}
+  const {data:s,error:le}=await sb.auth.signInWithPassword({email,password})
+  if(le){msg($('loginMsg'),'Account created — please log in.',true);setAuthView('login');$('email').value=email;return}
+  me=s.user; clearMsg($('loginMsg')); await afterAuth()
+}
+window.createAccount=async function(){
+  const name=$('suName').value.trim(), email=$('suEmail').value.trim().toLowerCase(), password=$('suPass').value, code=$('suCode').value.trim()
+  if(!email||!email.includes('@')){msg($('loginMsg'),'Enter a valid email.',false);return}
+  if(password.length<6){msg($('loginMsg'),'Password must be 6+ characters.',false);return}
+  if(!code){msg($('loginMsg'),'Enter the join code from your manager.',false);return}
+  const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'self_signup',name,email,password,code}})
+  if(error||data?.error){msg($('loginMsg'),(data&&data.error)||error.message,false);return}
+  const {data:s,error:le}=await sb.auth.signInWithPassword({email,password})
+  if(le){msg($('loginMsg'),'Account created — please log in.',true);setAuthView('login');$('email').value=email;return}
+  me=s.user; clearMsg($('loginMsg')); await afterAuth()
 }
 window.forgotPassword=async function(){
   const email=$('email').value.trim().toLowerCase()
-  if(!email){msg($('loginMsg'),'Enter your email above first, then tap Forgot password.',false);return}
+  if(!email){msg($('loginMsg'),'Type your email above first, then tap Forgot password.',false);return}
   const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname})
   if(error){msg($('loginMsg'),error.message,false);return}
-  msg($('loginMsg'),'If email is set up, a reset link is on its way. Otherwise ask your admin to reset it.',true)
+  msg($('loginMsg'),'If email is set up you\'ll get a reset link. Otherwise ask your admin to reset it.',true)
 }
 window.setMyPassword=async function(){
   const a=$('np1').value, b=$('np2').value
@@ -248,25 +297,31 @@ window.setMyPassword=async function(){
   const {error}=await sb.auth.updateUser({password:a})
   if(error){msg($('loginMsg'),error.message,false);return}
   await sb.from('sim_profiles').update({must_change_password:false}).eq('id',me.id)
-  profile.must_change_password=false; clearMsg($('loginMsg')); showApp()
+  profile.must_change_password=false; clearMsg($('loginMsg')); await showApp()
 }
 window.signOut=async function(){await sb.auth.signOut();location.reload()}
 
-// ---------- BOOT ----------
+// ---------- BOOT (no DB awaits inside onAuthStateChange — avoids auth deadlock) ----------
 ;(async()=>{
-  const {data:needs}=await sb.rpc('sim_needs_bootstrap')
-  if(needs) showOnly('bootstrapStep')
+  try{ const {data:needs}=await sb.rpc('sim_needs_bootstrap'); setAuthView(needs?'bootstrap':'login') }
+  catch(e){ setAuthView('login') }
   const {data}=await sb.auth.getSession()
-  if(data.session){me=data.session.user; await afterAuth()}
+  if(data.session){ me=data.session.user; await afterAuth() }
 })()
-sb.auth.onAuthStateChange(async(_e,session)=>{ if(session&&session.user&&!me){me=session.user; await afterAuth()} })
+sb.auth.onAuthStateChange((event)=>{ if(event==='SIGNED_OUT'){ me=null } })
 
 async function afterAuth(){
-  if(!me) return
-  try{ await loadProfile() }
-  catch(e){ await sb.auth.signOut(); show($('loginView')); hide($('appView')); showOnly('loginStep'); msg($('loginMsg'),(e&&e.message)||'Account not set up. Ask your admin.',false); return }
-  if(profile.must_change_password){ hide($('appView')); show($('loginView')); showOnly('pwStep'); return }
-  showApp()
+  if(!me||booting) return
+  booting=true
+  try{
+    await loadProfile()
+    if(profile.must_change_password){ hide($('appView')); show($('loginView')); setAuthView('pw'); return }
+    await showApp()
+  }catch(e){
+    await sb.auth.signOut(); me=null
+    show($('loginView')); hide($('appView')); setAuthView('login')
+    msg($('loginMsg'),(e&&e.message)||'Account not set up. Ask your admin.',false)
+  }finally{ booting=false }
 }
 async function loadProfile(){
   const {data,error}=await sb.from('sim_profiles').select('*').eq('id',me.id).maybeSingle()
@@ -296,10 +351,10 @@ function buildTabs(){
   ;['log','dash','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='log')})
 }
 window.showTab=function(which){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which));
+  document.querySelectorAll('#tabBar .tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which));
   ['log','dash','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='dash') refreshDashboard()
-  if(which==='manage'){ loadAccess(); renderTaskList() }
+  if(which==='manage'){ loadJoinCode(); loadAccess(); renderTaskList() }
 }
 
 // ---------- CATALOG ----------
@@ -370,13 +425,24 @@ async function refreshDashboard(){
 }
 
 // ---------- MANAGE ----------
+async function loadJoinCode(){
+  if(!isAdmin()) return
+  const {data}=await sb.from('sim_settings').select('value').eq('key','join_code').maybeSingle()
+  $('jcInput').value=(data&&data.value)||''
+}
+window.saveJoinCode=async function(){
+  const code=$('jcInput').value
+  const {error}=await sb.rpc('sim_set_join_code',{p_code:code})
+  if(error){msg($('jcMsg'),error.message,false);return}
+  msg($('jcMsg'), code.trim()? 'Join code saved. Share it with staff.' : 'Join code cleared — self-signup is now off.', true)
+}
 window.createUser=async function(){
   const email=$('cuEmail').value.trim().toLowerCase(), name=$('cuName').value.trim(), role=$('cuRole').value, password=$('cuPass').value
   if(!email||!email.includes('@')){msg($('cuMsg'),'Enter a valid email.',false);return}
   if(password.length<6){msg($('cuMsg'),'Temporary password must be 6+ characters.',false);return}
   const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'create_user',email,name,role,password}})
   if(error||data?.error){msg($('cuMsg'),(data&&data.error)||error.message,false);return}
-  msg($('cuMsg'),`Account created for ${email} (${role}). Temporary password: ${password} — share it with them; they'll set their own on first login.`,true)
+  msg($('cuMsg'),`Account created for ${email} (${role}). Temp password: ${password} — they set their own on first login.`,true)
   $('cuEmail').value='';$('cuName').value='';$('cuPass').value='';$('cuRole').value='staff'; loadAccess()
 }
 async function loadAccess(){
@@ -400,7 +466,7 @@ async function loadAccess(){
     ctl.appendChild(sel)
     if(!self){
       const rp=document.createElement('button');rp.className='ghost sm';rp.textContent='Reset pw'
-      rp.onclick=async()=>{const np=prompt('New temporary password for '+u.email+' (6+ chars):');if(!np)return;const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_password',email:u.email,password:np}});if(error||data?.error){msg($('memberMsg'),(data&&data.error)||error.message,false)}else{msg($('memberMsg'),'Password reset for '+u.email+'. They set their own next login.',true)}}
+      rp.onclick=async()=>{const np=prompt('New temporary password for '+u.email+' (6+ chars):');if(!np)return;const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_password',email:u.email,password:np}});if(error||data?.error){msg($('memberMsg'),(data&&data.error)||error.message,false)}else{msg($('memberMsg'),'Password reset for '+u.email+'.',true)}}
       ctl.appendChild(rp)
       const rm=document.createElement('button');rm.className='ghost sm';rm.textContent='Remove'
       rm.onclick=async()=>{if(!confirm('Remove access for '+u.email+'?'))return;const {error}=await sb.rpc('sim_remove_user',{p_email:u.email});if(error){msg($('memberMsg'),error.message,false)}else{msg($('memberMsg'),'Removed '+u.email,true);loadAccess()}}
@@ -408,16 +474,16 @@ async function loadAccess(){
     }
     d.appendChild(ctl); box.appendChild(d)
   })
-  if(!allowed||!allowed.length) box.innerHTML='<p class="muted">No users yet. Create your first user above.</p>'
+  if(!allowed||!allowed.length) box.innerHTML='<p class="muted">No users yet.</p>'
 }
 
 // ---------- REALTIME ----------
 function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}}}
 function subscribeRealtime(){
-  sb.channel('sim-logs').on('postgres_changes',{event:'*',schema:'public',table:'sim_task_logs'},async(payload)=>{
+  sb.channel('sim-logs').on('postgres_changes',{event:'*',schema:'public',table:'sim_task_logs'},(payload)=>{
     if(payload.eventType==='UPDATE'&&payload.new.status==='completed'&&!lastFinishIds.has(payload.new.id)){lastFinishIds.add(payload.new.id);if(isManagerUp()&&payload.new.user_id!==me.id)notify('Task finished',`${payload.new.task_name} · ${payload.new.units??'–'} units`)}
-    if(isManagerUp())await refreshDashboard()
-    if(payload.new&&payload.new.user_id===me.id){await loadActive();await refreshMyRecent()}
+    if(isManagerUp())refreshDashboard()
+    if(payload.new&&payload.new.user_id===me.id){loadActive();refreshMyRecent()}
   }).subscribe()
   setInterval(()=>{if(isManagerUp()&&!$('dashTab').classList.contains('hidden'))refreshDashboard()},30000)
 }
