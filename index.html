@@ -84,7 +84,7 @@
         <div class="timer" id="activeTimer">00:00:00</div>
         <div id="unitsWrap"><label for="fUnits">Kilograms produced (kg)</label>
         <input id="fUnits" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
-        <div id="wasteWrap" class="hidden"><label for="fWaste">Waste (kg)</label><input id="fWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
+        <div id="wasteWrap" class="hidden"><label id="fWasteLabel" for="fWaste">Waste (kg)</label><input id="fWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
         <p id="wasteToggleP" style="margin:10px 0 0"><a class="link" onclick="showWaste()">+ Record waste (kg)</a></p>
         <div class="row">
           <div><label for="fStaff">People on task</label><input id="fStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
@@ -247,7 +247,8 @@
           <div><label for="ntUnits">Expected (kg)</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
         </div>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:14px"><input type="checkbox" id="ntReqUnits" style="width:auto" checked /> Records kg produced (required to finish)</label>
-        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste on this task</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste (show the box, optional)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqWaste" style="width:auto" /> Require a waste figure to finish</label>
         <button class="ghost" onclick="addTask()">Add task</button>
         <div id="addMsg" class="msg"></div>
         <div id="taskList" style="margin-top:14px"></div>
@@ -282,7 +283,7 @@
         <div class="timer" id="kTimer">00:00:00</div>
         <div id="kUnitsWrap"><label for="kUnits">Kilograms produced (kg)</label>
         <input id="kUnits" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
-        <div id="kWasteWrap" class="hidden"><label for="kWaste">Waste (kg)</label><input id="kWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
+        <div id="kWasteWrap" class="hidden"><label id="kWasteLabel" for="kWaste">Waste (kg)</label><input id="kWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
         <p id="kWasteToggleP" style="margin:10px 0 0"><a class="link" onclick="kioskShowWaste()">+ Record waste (kg)</a></p>
         <div class="row">
           <div><label for="kStaffCount">People on task</label><input id="kStaffCount" type="number" inputmode="numeric" min="1" value="1" /></div>
