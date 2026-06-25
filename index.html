@@ -315,6 +315,15 @@
 <!-- ============ PRINTABLE REVIEW SHEET (filled on demand) ============ -->
 <div id="printArea"></div>
 
+<!-- ============ PHOTO LIGHTBOX ============ -->
+<div id="lightbox" class="hidden" onclick="lbBackdrop(event)">
+  <button class="lb-close" onclick="lbClose()">✕</button>
+  <button class="lb-prev" onclick="lbPrev(event)">‹</button>
+  <img id="lbImg" src="" alt="photo" />
+  <button class="lb-next" onclick="lbNext(event)">›</button>
+  <div id="lbCount" class="lb-count"></div>
+</div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>
