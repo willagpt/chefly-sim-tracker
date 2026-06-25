@@ -30,20 +30,30 @@ function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==
 function requiresWaste(log){const c=catFor(log);return !!(c&&c.require_waste)}
 function showsWaste(log){const c=catFor(log);return !!(c&&(c.track_waste||c.require_waste))}
 function finishErr(error){
+  if(/VALUE_TOO_HIGH/.test(error.message)) return 'That number looks wrong — it is over the 1000 kg per-task limit. Please re-check and re-enter (e.g. 22.94, not 2294).'
   if(/KG_REQUIRED/.test(error.message)) return 'Please enter the kilograms produced before finishing this task.'
   if(/WASTE_REQUIRED/.test(error.message)) return 'Please enter the waste (kg) for this task before finishing.'
   return error.message
 }
+// hard block (no override): implausible magnitudes. Returns a message, or null if OK.
+function numberHardError(units,waste){
+  if(units!=null && units>1000) return 'That looks wrong: '+units+' kg in one task. The maximum is 1000 kg — did you drop a decimal point (e.g. '+(units/100).toFixed(2)+')? Please re-enter.'
+  if(waste!=null && waste>1000) return 'That waste figure looks wrong: '+waste+' kg. The maximum is 1000 kg — please re-enter.'
+  return null
+}
+// soft warning (overridable) for plausible-but-odd numbers
 function numberSanityOK(units,waste){
   const issues=[]
-  if(units!=null && units>1000) issues.push('Produced = '+units+' kg (over 1000)')
-  if(waste!=null && waste>1000) issues.push('Waste = '+waste+' kg (over 1000)')
   if(units!=null && waste!=null && waste>units && waste>20) issues.push('Waste ('+waste+' kg) is more than produced ('+units+' kg)')
   if(!issues.length) return true
   return confirm('⚠ Please double-check these numbers:\n\n• '+issues.join('\n• ')+'\n\nTap OK to save anyway, or Cancel to go back and fix.')
 }
 function unitsGateOK(){
   alert('Please enter the kilograms produced before finishing this task.\n\nIf this job genuinely has no weight, an admin can untick "Records kg" for it in Manage → Tasks.')
+  return false
+}
+function wasteGateOK(){
+  alert('Please enter the waste (kg) for this task before finishing.\n\nIf there was genuinely no waste, enter 0.')
   return false
 }
 function photoGateOK(log){
