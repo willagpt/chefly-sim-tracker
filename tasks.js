@@ -10,7 +10,8 @@ window.renderTaskList=function(){
   const box=$('taskList'); if(!box) return; box.innerHTML=''
   catalog.forEach(t=>{
     const d=document.createElement('div'); d.className='task-item'; d.id='task_'+t.id
-    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no kg':' · kg required'}${t.track_waste?' · waste tracked':''}</div></div>`
+    const wasteMeta=t.require_waste?' · waste required':(t.track_waste?' · waste optional':'')
+    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} kg · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no kg':' · kg required'}${wasteMeta}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
@@ -31,7 +32,8 @@ window.editTask=function(id){
       <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_requnits_${id}" style="width:auto" ${t.requires_units!==false?'checked':''}/> Records kg produced (required to finish)</label>
-    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste on this task</label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste (show the box, optional)</label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqwaste_${id}" style="width:auto" ${t.require_waste?'checked':''}/> Require a waste figure to finish</label>
     <div class="row" style="margin-top:8px">
       <button class="green sm" style="flex:1" onclick="saveTask('${id}')">Save</button>
       <button class="ghost sm" style="flex:1" onclick="renderTaskList()">Cancel</button>
@@ -43,8 +45,9 @@ window.saveTask=async function(id){
   const units=$('et_units_'+id).value?Number($('et_units_'+id).value):null
   const staff=$('et_staff_'+id).value?Number($('et_staff_'+id).value):null
   const trackWaste=$('et_waste_'+id).checked
+  const reqWaste=$('et_reqwaste_'+id).checked
   const reqUnits=$('et_requnits_'+id).checked
-  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,requires_units:reqUnits}).eq('id',id)
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits}).eq('id',id)
   if(error){msg($('addMsg'),error.message,false);return}
   await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
@@ -52,9 +55,9 @@ window.addTask=async function(){
   const name=$('ntName').value.trim(); if(!name){msg($('addMsg'),'Enter a task name.',false);return}
   const station=$('ntStation').value.trim()||null, units=$('ntUnits').value?Number($('ntUnits').value):null
   const order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order)):0)+1
-  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,track_waste:$('ntWaste').checked,requires_units:$('ntReqUnits').checked,sort_order:order})
+  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqUnits').checked=true;msg($('addMsg'),'Task added.',true);await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---- products / recipes ----
@@ -85,7 +88,7 @@ async function loadActive(){
   activeLog=(data&&data[0])||null; renderActive()
 }
 function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catFor(activeLog);const _tw=!!(_cat&&_cat.track_waste);const _ru=!_cat||_cat.requires_units!==false;$('unitsWrap').classList.toggle('hidden',!_ru);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_tw);$('wasteToggleP').classList.toggle('hidden',_tw);renderPhotoStrip('photoStrip',activeLog);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
+  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catFor(activeLog);const _ru=!_cat||_cat.requires_units!==false;const _sw=!!(_cat&&(_cat.track_waste||_cat.require_waste));const _rw=!!(_cat&&_cat.require_waste);$('unitsWrap').classList.toggle('hidden',!_ru);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_sw);$('wasteToggleP').classList.toggle('hidden',_sw);const _wl=$('fWasteLabel');if(_wl)_wl.textContent=_rw?'Waste (kg) — required':'Waste (kg)';renderPhotoStrip('photoStrip',activeLog);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
   else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
 }
 window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
@@ -111,8 +114,10 @@ window.stopTask=async function(){
   if(!activeLog) return
   const units=$('fUnits').value?Number($('fUnits').value):null
   const waste=$('fWaste').value?Number($('fWaste').value):null
+  const he=numberHardError(units,waste); if(he){ alert(he); return }
   if(!numberSanityOK(units,waste)) return
   if(requiresUnits(activeLog) && (units==null||isNaN(units))){ unitsGateOK(); return }
+  if(requiresWaste(activeLog) && (waste==null||isNaN(waste))){ wasteGateOK(); return }
   if(!photoGateOK(activeLog)) return
   let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
