@@ -25,21 +25,28 @@ async function loadAccess(){
   const box=$('memberList'); box.innerHTML='<p class="muted">Loading…</p>'
   const [{data:allowed,error},{data:profs}] = await Promise.all([
     sb.from('sim_allowed_users').select('*').order('full_name'),
-    sb.from('sim_profiles').select('email')
+    sb.from('sim_profiles').select('email,suspended')
   ])
   if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
   const activeEmails=new Set((profs||[]).map(p=>(p.email||'').toLowerCase()))
+  const suspendedByEmail=new Map((profs||[]).map(p=>[(p.email||'').toLowerCase(), !!p.suspended]))
   box.innerHTML=''
   ;(allowed||[]).forEach(u=>{
+    const em=(u.email||'').toLowerCase()
     const d=document.createElement('div'); d.className='member'
-    const self=(u.email||'').toLowerCase()===(me.email||'').toLowerCase()
-    const active=activeEmails.has((u.email||'').toLowerCase())
-    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${active?'<span class="pill live">● active</span>':'<span class="pill off">not logged in</span>'}</div></div>`
+    const self=em===(me.email||'').toLowerCase()
+    const active=activeEmails.has(em)
+    const sus=suspendedByEmail.get(em)===true
+    const stateBadge = sus ? '<span class="pill off">suspended</span>' : (active?'<span class="pill live">● active</span>':'<span class="pill off">not logged in</span>')
+    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${stateBadge}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
     const sel=document.createElement('select'); ['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(u.role===r)o.selected=true;sel.appendChild(o)}); sel.disabled=self
     sel.onchange=async()=>{const {error}=await sb.rpc('sim_set_user_role',{p_email:u.email,p_role:sel.value});if(error){msg($('memberMsg'),error.message,false);sel.value=u.role}else{msg($('memberMsg'),`${u.full_name||u.email} is now ${sel.value}.`,true);u.role=sel.value}}
     ctl.appendChild(sel)
     if(!self){
+      const susB=document.createElement('button');susB.className='ghost sm';susB.textContent=sus?'Unsuspend':'Suspend'
+      susB.onclick=async()=>{if(!confirm((sus?'Unsuspend ':'Suspend ')+(u.full_name||u.email)+'?'+(sus?'':'\n\nThey will be unable to log in or clock in until unsuspended.')))return;const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_suspended',email:u.email,suspended:!sus}});if(error||data?.error){msg($('memberMsg'),(data&&data.error)||error.message,false)}else{msg($('memberMsg'),(sus?'Unsuspended ':'Suspended ')+u.email,true);loadAccess()}}
+      ctl.appendChild(susB)
       const rp=document.createElement('button');rp.className='ghost sm';rp.textContent='Reset pw'
       rp.onclick=async()=>{const np=prompt('New temporary password for '+u.email+' (6+ chars):');if(!np)return;const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_password',email:u.email,password:np}});if(error||data?.error){msg($('memberMsg'),(data&&data.error)||error.message,false)}else{msg($('memberMsg'),'Password reset for '+u.email+'.',true)}}
       ctl.appendChild(rp)
@@ -112,16 +119,44 @@ window.loadHistory=async function(){
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
   const nameFor=l=>{ if(l.user_id){const p=(profs||[]).find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=(staffs||[]).find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
-  historyRows=(logs||[]).map(l=>({date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
+  historyRows=(logs||[]).map(l=>({id:l.id,date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
   $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${totKg}</b> kg · <b>${totMin}</b> min · <b>${totWaste}</b> kg waste`
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
+  const canEdit=isManagerUp()
   const th='style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:var(--muted);white-space:nowrap"'
   const td='style="padding:8px;border-bottom:1px solid var(--line);white-space:nowrap"'
-  box.innerHTML='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+
-    ['Date','Who','Task','Product','kg','min','kg/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')+'</tr></thead><tbody>'+
-    historyRows.map(r=>'<tr>'+[r.date,r.who,r.task,r.product,r.kg,r.mins,r.uph,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>'
+  const heads=['Date','Who','Task','Product','kg','min','kg/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')+(canEdit?`<th ${th}></th>`:'')
+  const rowsHtml=historyRows.map(r=>{
+    const cells=[r.date,r.who,r.task,r.product,r.kg,r.mins,r.uph,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
+    const act=canEdit?`<td ${td}><a class="link" onclick="editLog('${r.id}')">Edit</a> · <a class="link" style="color:var(--red)" onclick="delLog('${r.id}')">Delete</a></td>`:''
+    return '<tr>'+cells+act+'</tr>'
+  }).join('')
+  box.innerHTML='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+heads+'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
+}
+window.editLog=async function(id){
+  if(!isManagerUp()) return
+  const r=historyRows.find(x=>x.id===id); if(!r) return
+  const kg=prompt('Kilograms produced (kg) — leave blank for none:', r.kg===''?'':r.kg)
+  if(kg===null) return
+  const waste=prompt('Waste (kg) — leave blank for none:', r.waste===''?'':r.waste)
+  if(waste===null) return
+  const units=kg.trim()===''?null:Number(kg)
+  const wkg=waste.trim()===''?null:Number(waste)
+  if(units!=null&&isNaN(units)){alert('Kg must be a number.');return}
+  if(wkg!=null&&isNaN(wkg)){alert('Waste must be a number.');return}
+  if((units!=null&&units>1000)||(wkg!=null&&wkg>1000)){alert('That value is over the 1000 kg limit — please re-check (e.g. a dropped decimal point).');return}
+  const {error}=await sb.from('sim_task_logs').update({units,waste_kg:wkg}).eq('id',id)
+  if(error){alert(finishErr(error));return}
+  msg($('hSummary'),'',true); loadHistory()
+}
+window.delLog=async function(id){
+  if(!isManagerUp()) return
+  if(!confirm('Delete this log permanently? This cannot be undone.')) return
+  const {error}=await sb.from('sim_task_logs').delete().eq('id',id)
+  if(error){alert(error.message);return}
+  loadHistory()
 }
 window.exportCsv=function(){
   if(!historyRows.length){alert('Nothing to export — load a range first.');return}
