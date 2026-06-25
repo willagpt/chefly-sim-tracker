@@ -27,7 +27,13 @@ function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}
 // ---- task helpers ----
 function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
 function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==false}
-function finishErr(error){return /KG_REQUIRED/.test(error.message)?'Please enter the kilograms produced before finishing this task.':error.message}
+function requiresWaste(log){const c=catFor(log);return !!(c&&c.require_waste)}
+function showsWaste(log){const c=catFor(log);return !!(c&&(c.track_waste||c.require_waste))}
+function finishErr(error){
+  if(/KG_REQUIRED/.test(error.message)) return 'Please enter the kilograms produced before finishing this task.'
+  if(/WASTE_REQUIRED/.test(error.message)) return 'Please enter the waste (kg) for this task before finishing.'
+  return error.message
+}
 function numberSanityOK(units,waste){
   const issues=[]
   if(units!=null && units>1000) issues.push('Produced = '+units+' kg (over 1000)')
