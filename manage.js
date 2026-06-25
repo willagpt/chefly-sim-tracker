@@ -104,7 +104,7 @@ window.genWallToken=async function(){
 window.copyWall=function(){const v=$('wallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Copied to clipboard.',true)}}
 
 // ---- history / reports (manager/admin) ----
-let historyRows=[]
+let historyRows=[], histLogs=[], histProfs=[], histStaffs=[], leCurrentId=null
 function initHistory(){
   if(!$('hTo').value) $('hTo').value=new Date().toISOString().slice(0,10)
   if(!$('hFrom').value) $('hFrom').value=new Date(Date.now()-6*864e5).toISOString().slice(0,10)
@@ -118,45 +118,84 @@ window.loadHistory=async function(){
   if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
-  const nameFor=l=>{ if(l.user_id){const p=(profs||[]).find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=(staffs||[]).find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
-  historyRows=(logs||[]).map(l=>({id:l.id,date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
+  histLogs=logs||[]; histProfs=profs||[]; histStaffs=staffs||[]
+  const nameFor=l=>{ if(l.user_id){const p=histProfs.find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=histStaffs.find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
+  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
-  $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${totKg}</b> kg · <b>${totMin}</b> min · <b>${totWaste}</b> kg waste`
+  $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> kg · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> kg waste`
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
   const canEdit=isManagerUp()
   const th='style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:var(--muted);white-space:nowrap"'
   const td='style="padding:8px;border-bottom:1px solid var(--line);white-space:nowrap"'
-  const heads=['Date','Who','Task','Product','kg','min','kg/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')+(canEdit?`<th ${th}></th>`:'')
+  const heads=(canEdit?`<th ${th}></th>`:'')+['Date','Who','Task','Product','kg','min','kg/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')
   const rowsHtml=historyRows.map(r=>{
+    const act=canEdit?`<td ${td}><a class="link" onclick="editLog('${r.id}')">✏️ Edit</a></td>`:''
     const cells=[r.date,r.who,r.task,r.product,r.kg,r.mins,r.uph,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
-    const act=canEdit?`<td ${td}><a class="link" onclick="editLog('${r.id}')">Edit</a> · <a class="link" style="color:var(--red)" onclick="delLog('${r.id}')">Delete</a></td>`:''
-    return '<tr>'+cells+act+'</tr>'
+    return '<tr>'+act+cells+'</tr>'
   }).join('')
   box.innerHTML='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+heads+'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
 }
-window.editLog=async function(id){
+
+// ---- full log editor (manager/admin) ----
+window.editLog=function(id){
   if(!isManagerUp()) return
-  const r=historyRows.find(x=>x.id===id); if(!r) return
-  const kg=prompt('Kilograms produced (kg) — leave blank for none:', r.kg===''?'':r.kg)
-  if(kg===null) return
-  const waste=prompt('Waste (kg) — leave blank for none:', r.waste===''?'':r.waste)
-  if(waste===null) return
-  const units=kg.trim()===''?null:Number(kg)
-  const wkg=waste.trim()===''?null:Number(waste)
-  if(units!=null&&isNaN(units)){alert('Kg must be a number.');return}
-  if(wkg!=null&&isNaN(wkg)){alert('Waste must be a number.');return}
-  if((units!=null&&units>1000)||(wkg!=null&&wkg>1000)){alert('That value is over the 1000 kg limit — please re-check (e.g. a dropped decimal point).');return}
-  const {error}=await sb.from('sim_task_logs').update({units,waste_kg:wkg}).eq('id',id)
-  if(error){alert(finishErr(error));return}
-  msg($('hSummary'),'',true); loadHistory()
+  const l=histLogs.find(x=>x.id===id); if(!l) return
+  leCurrentId=id
+  const ts=$('leTask'); ts.innerHTML=''; let hasCat=false
+  catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;if(t.id===l.catalog_id){o.selected=true;hasCat=true}ts.appendChild(o)})
+  if(!hasCat){const o=document.createElement('option');o.value=l.catalog_id||'';o.textContent=(l.task_name||'(this task)')+' — current';o.selected=true;ts.insertBefore(o,ts.firstChild)}
+  const ws=$('leWho'); ws.innerHTML=''
+  histProfs.forEach(p=>{const o=document.createElement('option');o.value='u:'+p.id;o.textContent=(p.full_name||p.email);if(l.user_id===p.id)o.selected=true;ws.appendChild(o)})
+  histStaffs.forEach(s=>{const o=document.createElement('option');o.value='s:'+s.id;o.textContent=s.full_name+' (floor)';if(l.staff_id===s.id)o.selected=true;ws.appendChild(o)})
+  $('leDate').value=l.log_date||''
+  $('leProduct').value=l.product||''
+  $('leKg').value=l.units??''
+  $('leWaste').value=l.waste_kg??''
+  $('lePeople').value=l.staff_count??1
+  $('leMins').value=l.total_minutes??''
+  $('leChange').value=l.changeover_mins??''
+  $('leComments').value=l.comments||''
+  clearMsg($('leMsg'))
+  $('logEdit').classList.remove('hidden')
+}
+window.closeLogEdit=function(){ $('logEdit').classList.add('hidden'); leCurrentId=null }
+window.saveLogEdit=async function(){
+  const id=leCurrentId; if(!id) return
+  const l=histLogs.find(x=>x.id===id); if(!l) return
+  const numOrNull=v=>{v=String(v).trim();return v===''?null:Number(v)}
+  const units=numOrNull($('leKg').value), waste=numOrNull($('leWaste').value)
+  if((units!=null&&isNaN(units))||(waste!=null&&isNaN(waste))){msg($('leMsg'),'Kg and waste must be numbers.',false);return}
+  if((units!=null&&units>1000)||(waste!=null&&waste>1000)){msg($('leMsg'),'A value is over the 1000 kg limit — please re-check (e.g. a dropped decimal point).',false);return}
+  const upd={
+    product:$('leProduct').value.trim()||null,
+    units, waste_kg:waste,
+    staff_count:Number($('lePeople').value)||1,
+    changeover_mins:numOrNull($('leChange').value),
+    comments:$('leComments').value.trim()||null,
+    log_date:$('leDate').value||l.log_date
+  }
+  const who=$('leWho').value
+  if(who.startsWith('u:')){upd.user_id=who.slice(2);upd.staff_id=null}
+  else if(who.startsWith('s:')){upd.staff_id=who.slice(2);upd.user_id=null}
+  const cat=catalog.find(c=>c.id===$('leTask').value)
+  if(cat){upd.catalog_id=cat.id;upd.task_name=cat.name;upd.station=cat.station}
+  // minutes -> set finish_time so the totals trigger recomputes the chosen duration
+  const m=numOrNull($('leMins').value)
+  if(m!=null && !isNaN(m) && l.start_time){
+    const startMs=new Date(l.start_time).getTime(); const paused=Number(l.paused_seconds)||0
+    upd.finish_time=new Date(startMs + (m*60 + paused)*1000).toISOString()
+  }
+  const {error}=await sb.from('sim_task_logs').update(upd).eq('id',id)
+  if(error){msg($('leMsg'),finishErr(error),false);return}
+  closeLogEdit(); loadHistory()
 }
 window.delLog=async function(id){
   if(!isManagerUp()) return
   if(!confirm('Delete this log permanently? This cannot be undone.')) return
   const {error}=await sb.from('sim_task_logs').delete().eq('id',id)
   if(error){alert(error.message);return}
-  loadHistory()
+  closeLogEdit(); loadHistory()
 }
 window.exportCsv=function(){
   if(!historyRows.length){alert('Nothing to export — load a range first.');return}
