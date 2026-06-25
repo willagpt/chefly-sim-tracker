@@ -60,5 +60,12 @@ a.link{color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-de
 .logo-big{font-size:30px;font-weight:900;letter-spacing:1px;margin-bottom:6px}
 .footnote{font-size:12px;color:var(--muted);text-align:center;margin-top:24px;line-height:1.5}
 @media(min-width:560px){.timer{font-size:52px}}
+#lightbox{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.93);display:flex;align-items:center;justify-content:center}
+#lbImg{max-width:94vw;max-height:86vh;object-fit:contain;border-radius:8px}
+.lb-close,.lb-prev,.lb-next{position:absolute;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.15);color:#fff;border:none;cursor:pointer;padding:0;margin:0;border-radius:50%}
+.lb-close{top:16px;right:16px;width:48px;height:48px;font-size:24px}
+.lb-prev,.lb-next{top:50%;transform:translateY(-50%);width:54px;height:54px;font-size:32px}
+.lb-prev{left:12px}.lb-next{right:12px}
+.lb-count{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font-size:15px;background:rgba(0,0,0,.45);padding:4px 12px;border-radius:999px}
 #printArea{display:none}
 @media print{ body{background:#fff} body>*{display:none !important} #printArea{display:block !important} }
