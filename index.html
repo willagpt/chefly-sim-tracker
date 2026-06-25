@@ -313,6 +313,38 @@
   </div>
 </div>
 
+<!-- ============ EDIT LOG (manager/admin) ============ -->
+<div id="logEdit" class="hidden">
+  <div class="le-card">
+    <h2>Edit log</h2>
+    <label for="leTask">Task</label>
+    <select id="leTask"></select>
+    <label for="leWho">Who</label>
+    <select id="leWho"></select>
+    <div class="row">
+      <div><label for="leDate">Date</label><input id="leDate" type="date" /></div>
+      <div><label for="leProduct">Product / recipe</label><input id="leProduct" type="text" /></div>
+    </div>
+    <div class="row">
+      <div><label for="leKg">Kg produced</label><input id="leKg" type="number" inputmode="decimal" /></div>
+      <div><label for="leWaste">Waste (kg)</label><input id="leWaste" type="number" inputmode="decimal" /></div>
+    </div>
+    <div class="row">
+      <div><label for="lePeople">People</label><input id="lePeople" type="number" inputmode="numeric" min="1" /></div>
+      <div><label for="leMins">Minutes</label><input id="leMins" type="number" inputmode="decimal" /></div>
+      <div><label for="leChange">Changeover</label><input id="leChange" type="number" inputmode="numeric" /></div>
+    </div>
+    <label for="leComments">Comments</label>
+    <textarea id="leComments" rows="2"></textarea>
+    <div id="leMsg" class="msg"></div>
+    <div class="row" style="margin-top:6px">
+      <button class="green" onclick="saveLogEdit()">Save changes</button>
+      <button class="ghost" onclick="closeLogEdit()">Cancel</button>
+    </div>
+    <button class="red" onclick="delLog(leCurrentId)">Delete this log</button>
+  </div>
+</div>
+
 <!-- ============ PRINTABLE REVIEW SHEET (filled on demand) ============ -->
 <div id="printArea"></div>
 
