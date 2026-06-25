@@ -49,9 +49,11 @@ function kioskRenderActive(){
     $('kActiveName').textContent=kActiveLog.task_name
     $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
     $('kStaffCount').value=kActiveLog.staff_count||1
-    const c=catFor(kActiveLog); const tw=!!(c&&c.track_waste); const ru=!c||c.requires_units!==false
+    const c=catFor(kActiveLog); const ru=!c||c.requires_units!==false; const sw=!!(c&&(c.track_waste||c.require_waste)); const rw=!!(c&&c.require_waste)
     $('kUnitsWrap').classList.toggle('hidden',!ru)
-    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!tw); $('kWasteToggleP').classList.toggle('hidden',tw); renderPhotoStrip('kPhotoStrip',kActiveLog); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
+    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!sw); $('kWasteToggleP').classList.toggle('hidden',sw)
+    const kwl=$('kWasteLabel'); if(kwl)kwl.textContent=rw?'Waste (kg) — required':'Waste (kg)'
+    renderPhotoStrip('kPhotoStrip',kActiveLog); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
     if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock(workedSeconds(kActiveLog))}; tick(); kTimerInt=setInterval(tick,1000)
   } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
 }
@@ -66,9 +68,11 @@ window.kioskStop=async function(){
   if(!kActiveLog) return
   const units=$('kUnits').value?Number($('kUnits').value):null
   const waste=$('kWaste').value?Number($('kWaste').value):null
+  const he=numberHardError(units,waste); if(he){ alert(he); return }
   if(!numberSanityOK(units,waste)) return
-  // Kiosk is used by floor staff directly, so kg + photo are strictly required (no skip).
+  // Kiosk is used by floor staff directly, so kg + waste + photo are strictly required (no skip).
   if(requiresUnits(kActiveLog) && (units==null||isNaN(units))){ alert('Please enter the kilograms produced before finishing this task.'); return }
+  if(requiresWaste(kActiveLog) && (waste==null||isNaN(waste))){ alert('Please enter the waste (kg) for this task before finishing. If there was none, enter 0.'); return }
   if(!(kActiveLog.photos&&kActiveLog.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
   let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
