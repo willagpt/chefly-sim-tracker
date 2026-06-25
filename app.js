@@ -42,12 +42,14 @@ const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
 function renderPhotoStrip(id,log){
   const box=$(id); if(!box) return; box.innerHTML=''
   const paths=(log&&log.photos)||[]
-  paths.forEach(p=>{
+  const urls=paths.map(photoUrl); const lb=urls.join('|')
+  paths.forEach((p,idx)=>{
     const wrap=document.createElement('div'); wrap.className='pwrap'
-    const a=document.createElement('a'); a.href=photoUrl(p); a.target='_blank'
-    const img=document.createElement('img'); img.src=photoUrl(p); img.loading='lazy'; a.appendChild(img); wrap.appendChild(a)
+    const img=document.createElement('img'); img.src=urls[idx]; img.loading='lazy'; img.style.cursor='zoom-in'
+    img.dataset.lb=lb; img.dataset.i=idx; img.onclick=()=>openLightboxEl(img)
+    wrap.appendChild(img)
     const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='Remove photo'
-    x.onclick=(e)=>{e.preventDefault(); delPhoto(log,p,id)}
+    x.onclick=(e)=>{e.preventDefault(); e.stopPropagation(); delPhoto(log,p,id)}
     wrap.appendChild(x); box.appendChild(wrap)
   })
 }
@@ -75,6 +77,28 @@ window.uploadPhotos=async function(ev,mode){
   }
   renderPhotoStrip(mode==='kiosk'?'kPhotoStrip':'photoStrip', log)
 }
+
+// ---------- PHOTO LIGHTBOX ----------
+let lbUrls=[], lbIdx=0
+window.openLightbox=function(urls,i){
+  lbUrls=(urls||[]).filter(Boolean); if(!lbUrls.length)return
+  lbIdx=Math.max(0,Math.min(i||0,lbUrls.length-1)); lbRender()
+  const lb=$('lightbox'); if(lb)lb.classList.remove('hidden')
+}
+window.openLightboxEl=function(el){ openLightbox((el.dataset.lb||'').split('|'), Number(el.dataset.i||0)) }
+function lbRender(){
+  const img=$('lbImg'); if(img)img.src=lbUrls[lbIdx]||''
+  const multi=lbUrls.length>1
+  const c=$('lbCount'); if(c){c.textContent=multi?(lbIdx+1)+' / '+lbUrls.length:'';c.style.display=multi?'block':'none'}
+  const pv=document.querySelector('.lb-prev'), nx=document.querySelector('.lb-next')
+  if(pv)pv.style.display=multi?'flex':'none'; if(nx)nx.style.display=multi?'flex':'none'
+}
+window.lbClose=function(){ const lb=$('lightbox'); if(lb)lb.classList.add('hidden'); lbUrls=[] }
+window.lbPrev=function(e){ if(e)e.stopPropagation(); if(!lbUrls.length)return; lbIdx=(lbIdx-1+lbUrls.length)%lbUrls.length; lbRender() }
+window.lbNext=function(e){ if(e)e.stopPropagation(); if(!lbUrls.length)return; lbIdx=(lbIdx+1)%lbUrls.length; lbRender() }
+window.lbBackdrop=function(e){ if(e.target&&e.target.id==='lightbox') lbClose() }
+window.addEventListener('keydown',e=>{ const lb=$('lightbox'); if(!lb||lb.classList.contains('hidden'))return; if(e.key==='Escape')lbClose(); else if(e.key==='ArrowLeft')lbPrev(); else if(e.key==='ArrowRight')lbNext() })
+
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
 
@@ -344,7 +368,7 @@ async function refreshDashboard(){
   else{rb.innerHTML='';running.forEach(l=>{const el=document.createElement('div');el.className='dash-row';const wk=Math.floor(workedSeconds(l)/60);const badge=l.status==='paused'?'<div class="pill off">❚❚ paused</div>':'<div class="pill live">● '+wk+' min</div>';el.innerHTML=`<div><div class="name">${nameFor(l)}</div><div class="sub">${l.task_name}${l.product?' · '+l.product:''} · ${l.staff_count||1} ppl</div></div><div style="text-align:right">${badge}</div>`;rb.appendChild(el)})}
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
-  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';el.innerHTML=`<b>${nameFor(l)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>${l.photos&&l.photos.length?'<div class="feed-thumbs">'+l.photos.slice(0,5).map(p=>'<a href="'+photoUrl(p)+'" target="_blank"><img loading="lazy" src="'+photoUrl(p)+'"></a>').join('')+'</div>':''}`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
+  else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';const thumbs=(l.photos&&l.photos.length)?(()=>{const us=l.photos.map(photoUrl);const lb=us.join('|');return '<div class="feed-thumbs">'+us.slice(0,5).map((u,i)=>'<img loading="lazy" src="'+u+'" data-lb="'+lb+'" data-i="'+i+'" onclick="openLightboxEl(this)" style="cursor:zoom-in">').join('')+'</div>'})():'';el.innerHTML=`<b>${nameFor(l)}</b> finished <b>${l.task_name}</b> · ${l.units??'–'} kg in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' kg/hr)':''}${l.waste_kg?' · '+l.waste_kg+' kg waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>${thumbs}`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
 }
 
 // ---------- EQUIPMENT (cooking vessels) ----------
