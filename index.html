@@ -112,6 +112,14 @@
       <div class="card"><h2>My recent tasks today</h2><div id="myRecent"><p class="muted">No tasks logged yet today.</p></div></div>
     </div>
 
+    <div id="equipTab" class="hidden">
+      <div class="card">
+        <h2>Cooking equipment</h2>
+        <p class="muted" style="margin-top:-8px">Tap "Put in" when something goes into a vessel, set a timer if it has a cook time, and "Take out" when it's done. A cook past its timer turns red and pops up an alert.</p>
+      </div>
+      <div id="equipBoard"></div>
+    </div>
+
     <div id="dashTab" class="hidden">
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0">Today · Live</h2><span class="pill live">● LIVE</span></div>
@@ -216,13 +224,19 @@
         <div id="staffList" style="margin-top:14px"></div>
       </div>
       <div class="card">
-        <h2>Products / recipes</h2>
-        <p class="muted" style="margin-top:-8px">These fill the Product/recipe dropdown when starting a task.</p>
-        <label for="npName">New product / recipe</label>
-        <input id="npName" type="text" placeholder="e.g. Bavette" />
-        <button class="ghost" onclick="addProduct()">Add product</button>
-        <div id="prMsg" class="msg"></div>
-        <div id="productList" style="margin-top:14px"></div>
+        <h2>Cooking equipment</h2>
+        <p class="muted" style="margin-top:-8px">Your ovens, tanks, combis, chillers and freezers. These appear on the Equipment board.</p>
+        <label for="enName">Name</label>
+        <input id="enName" type="text" placeholder="e.g. Rational Combi 3" />
+        <div class="row">
+          <div><label for="enKind">Type</label><select id="enKind"><option value="oven">Oven</option><option value="sous_vide">Sous-vide</option><option value="combi">Combi</option><option value="blast_chiller">Blast chiller</option><option value="freezer">Freezer</option><option value="other">Other</option></select></div>
+          <div><label for="enCap">Capacity</label><input id="enCap" type="text" placeholder="e.g. 200 L" /></div>
+        </div>
+        <label for="enLoc">Location</label>
+        <input id="enLoc" type="text" placeholder="e.g. Kitchen" />
+        <button class="ghost" onclick="addEquip()">Add equipment</button>
+        <div id="enMsg" class="msg"></div>
+        <div id="equipRegList" style="margin-top:14px"></div>
       </div>
       <div class="card">
         <h2>Tasks</h2>
