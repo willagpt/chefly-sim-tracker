@@ -82,7 +82,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="activeName">Task</h2><span class="pill live" id="activePill">● RUNNING</span></div>
         <div class="muted" id="activeMeta"></div>
         <div class="timer" id="activeTimer">00:00:00</div>
-        <div id="unitsWrap"><label for="fUnits">Kilograms produced (kg)</label>
+        <div id="unitsWrap"><label id="fUnitsLabel" for="fUnits">Kilograms produced (kg)</label>
         <input id="fUnits" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
         <div id="wasteWrap" class="hidden"><label id="fWasteLabel" for="fWaste">Waste (kg)</label><input id="fWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
         <p id="wasteToggleP" style="margin:10px 0 0"><a class="link" onclick="showWaste()">+ Record waste (kg)</a></p>
@@ -257,9 +257,11 @@
         <input id="ntName" type="text" placeholder="e.g. Marinate" />
         <div class="row">
           <div><label for="ntStation">Station</label><input id="ntStation" type="text" placeholder="Line 1" /></div>
-          <div><label for="ntUnits">Expected (kg)</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
+          <div><label for="ntUnits">Expected</label><input id="ntUnits" type="number" inputmode="decimal" placeholder="150" /></div>
+          <div><label for="ntUom">Unit</label><input id="ntUom" list="uomList" value="kg" placeholder="kg" /></div>
         </div>
-        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:14px"><input type="checkbox" id="ntReqUnits" style="width:auto" checked /> Records kg produced (required to finish)</label>
+        <datalist id="uomList"><option value="kg"><option value="units"><option value="each"><option value="trays"><option value="packs"><option value="sleeves"><option value="litres"></datalist>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:14px"><input type="checkbox" id="ntReqUnits" style="width:auto" checked /> Records amount produced (required to finish)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste (show the box, optional)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqWaste" style="width:auto" /> Require a waste figure to finish</label>
         <button class="ghost" onclick="addTask()">Add task</button>
@@ -294,7 +296,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="kActiveName">Task</h2><span class="pill live" id="kActivePill">● RUNNING</span></div>
         <div class="muted" id="kActiveMeta"></div>
         <div class="timer" id="kTimer">00:00:00</div>
-        <div id="kUnitsWrap"><label for="kUnits">Kilograms produced (kg)</label>
+        <div id="kUnitsWrap"><label id="kUnitsLabel" for="kUnits">Kilograms produced (kg)</label>
         <input id="kUnits" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
         <div id="kWasteWrap" class="hidden"><label id="kWasteLabel" for="kWaste">Waste (kg)</label><input id="kWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
         <p id="kWasteToggleP" style="margin:10px 0 0"><a class="link" onclick="kioskShowWaste()">+ Record waste (kg)</a></p>
@@ -339,8 +341,8 @@
       <div><label for="leProduct">Product / recipe</label><input id="leProduct" type="text" /></div>
     </div>
     <div class="row">
-      <div><label for="leKg">Kg produced</label><input id="leKg" type="number" inputmode="decimal" /></div>
-      <div><label for="leWaste">Waste (kg)</label><input id="leWaste" type="number" inputmode="decimal" /></div>
+      <div><label id="leKgLabel" for="leKg">Kg produced</label><input id="leKg" type="number" inputmode="decimal" /></div>
+      <div><label id="leWasteLabel" for="leWaste">Waste (kg)</label><input id="leWaste" type="number" inputmode="decimal" /></div>
     </div>
     <div class="row">
       <div><label for="lePeople">People</label><input id="lePeople" type="number" inputmode="numeric" min="1" /></div>

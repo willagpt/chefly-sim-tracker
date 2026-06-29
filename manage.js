@@ -168,18 +168,18 @@ window.loadHistory=async function(){
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
   histLogs=logs||[]; histProfs=profs||[]; histStaffs=staffs||[]
   const nameFor=l=>{ if(l.user_id){const p=histProfs.find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=histStaffs.find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
-  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
+  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',uom:uomFor(l),mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
-  $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> kg · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> kg waste`
+  $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
   const canEdit=isManagerUp()
   const th='style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:var(--muted);white-space:nowrap"'
   const td='style="padding:8px;border-bottom:1px solid var(--line);white-space:nowrap"'
-  const heads=(canEdit?`<th ${th}></th>`:'')+['Date','Who','Task','Product','kg','min','kg/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')
+  const heads=(canEdit?`<th ${th}></th>`:'')+['Date','Who','Task','Product','Qty','Unit','min','/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')
   const rowsHtml=historyRows.map(r=>{
     const act=canEdit?`<td ${td}><a class="link" onclick="editLog('${r.id}')">✏️ Edit</a></td>`:''
-    const cells=[r.date,r.who,r.task,r.product,r.kg,r.mins,r.uph,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
+    const cells=[r.date,r.who,r.task,r.product,r.kg,r.uom,r.mins,r.uph,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
     return '<tr>'+act+cells+'</tr>'
   }).join('')
   box.innerHTML='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+heads+'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
@@ -198,6 +198,9 @@ window.editLog=function(id){
   histStaffs.forEach(s=>{const o=document.createElement('option');o.value='s:'+s.id;o.textContent=s.full_name+' (floor)';if(l.staff_id===s.id)o.selected=true;ws.appendChild(o)})
   $('leDate').value=l.log_date||''
   $('leProduct').value=l.product||''
+  const _eu=uomFor(l)
+  const _kl=$('leKgLabel'); if(_kl)_kl.textContent=_eu+' produced'
+  const _wl=$('leWasteLabel'); if(_wl)_wl.textContent='Waste ('+_eu+')'
   $('leKg').value=l.units??''
   $('leWaste').value=l.waste_kg??''
   $('lePeople').value=l.staff_count??1
@@ -213,8 +216,9 @@ window.saveLogEdit=async function(){
   const l=histLogs.find(x=>x.id===id); if(!l) return
   const numOrNull=v=>{v=String(v).trim();return v===''?null:Number(v)}
   const units=numOrNull($('leKg').value), waste=numOrNull($('leWaste').value)
-  if((units!=null&&isNaN(units))||(waste!=null&&isNaN(waste))){msg($('leMsg'),'Kg and waste must be numbers.',false);return}
-  if((units!=null&&units>1000)||(waste!=null&&waste>1000)){msg($('leMsg'),'A value is over the 1000 kg limit — please re-check (e.g. a dropped decimal point).',false);return}
+  if((units!=null&&isNaN(units))||(waste!=null&&isNaN(waste))){msg($('leMsg'),'Amount and waste must be numbers.',false);return}
+  const _eu=uomFor(l)
+  if(_eu==='kg' && ((units!=null&&units>1000)||(waste!=null&&waste>1000))){msg($('leMsg'),'A value is over the 1000 kg limit — please re-check (e.g. a dropped decimal point).',false);return}
   const upd={
     product:$('leProduct').value.trim()||null,
     units, waste_kg:waste,
@@ -246,8 +250,8 @@ window.delLog=async function(id){
 }
 window.exportCsv=function(){
   if(!historyRows.length){alert('Nothing to export — load a range first.');return}
-  const cols=['date','who','task','station','product','kg','mins','uph','waste','staff','photos','comments']
-  const head=['Date','Name','Task','Station','Product','Kg','Minutes','Kg per hour','Waste kg','People','Photos','Comments']
+  const cols=['date','who','task','station','product','kg','uom','mins','uph','waste','staff','photos','comments']
+  const head=['Date','Name','Task','Station','Product','Qty','Unit','Minutes','Per hour','Waste','People','Photos','Comments']
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"'
   const csv=[head.join(',')].concat(historyRows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\n')
   const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a')
