@@ -2,6 +2,7 @@
    dish run-sheet with sequential start/stop + automatic changeover timing. */
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
+const PACK_CO_TARGET=3   // minutes — SKU change target
 
 window.loadPacking=async function(){
   const today=new Date().toISOString().slice(0,10)
@@ -28,7 +29,7 @@ function renderPacking(){
   const plannedMeals=packRuns.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
   const packedMeals=done.reduce((s,r)=>s+(Number(r.qty_packed)||Number(r.planned_qty)||0),0)
   const cos=packRuns.filter(r=>r.changeover_mins!=null)
-  const overCount=cos.filter(r=>r.changeover_mins>3).length
+  const overCount=cos.filter(r=>r.changeover_mins>PACK_CO_TARGET).length
   const avgCo=cos.length?(cos.reduce((s,r)=>s+Number(r.changeover_mins),0)/cos.length):null
   let html=''
   html+=`<div class="card">
@@ -39,7 +40,7 @@ function renderPacking(){
       <div class="stat"><div class="n">${plannedMeals}</div><div class="l">Meals planned</div></div>
     </div>
     ${packing?`<div style="margin-top:6px;font-weight:700">Now packing: ${packing.dish_name} <span class="muted">(SKU ${packing.sku||'–'})</span> · <span id="packCurElapsed">00:00:00</span></div>`:''}
-    <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over the 3-min target</span></p>
+    <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over the ${PACK_CO_TARGET}-min target</span></p>
   </div>`
 
   html+=`<div class="card"><h2>Team &amp; positions</h2>`
@@ -73,7 +74,10 @@ function renderPacking(){
 }
 function packRunRow(r){
   const anyPacking=packRuns.some(x=>x.status==='packing')
-  const co=r.changeover_mins!=null?` · <span class="${r.changeover_mins>3?'vs-bad':'vs-good'}">CO ${r.changeover_mins.toFixed(1)}m</span>`:''
+  const started=r.status!=='pending'
+  const coVal=r.changeover_mins!=null?r.changeover_mins.toFixed(1)+'m':'–'
+  const coCls=(r.changeover_mins!=null&&r.changeover_mins>PACK_CO_TARGET)?'vs-bad':'vs-good'
+  const co=started?` · CO <span class="${coCls}">${coVal}</span> <a class="link" style="font-size:13px" onclick="packEditChangeover('${r.id}')">✎</a>`:''
   const statusPill=r.status==='done'?'<span class="pill done">done</span>':(r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill off">pending</span>')
   let action=''
   if(r.status==='pending'){ action=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
@@ -98,6 +102,17 @@ function packRulesCard(){
 function packTick(){
   const r=packRuns.find(x=>x.status==='packing'); const el=$('packCurElapsed')
   if(r&&el&&r.start_time){ el.textContent=fmtClock((Date.now()-new Date(r.start_time))/1000) }
+}
+window.packEditChangeover=async function(id){
+  const r=packRuns.find(x=>x.id===id); if(!r)return
+  const v=prompt('Changeover for "'+r.dish_name+'" in minutes (blank for none):', r.changeover_mins!=null?r.changeover_mins:'')
+  if(v===null)return
+  const t=String(v).trim()
+  const n=t===''?null:Number(t)
+  if(n!=null&&(isNaN(n)||n<0)){alert('Enter a number of minutes (or leave blank).');return}
+  const {error}=await sb.from('sim_pack_runs').update({changeover_mins:n}).eq('id',id)
+  if(error){alert(error.message);return}
+  await loadPacking()
 }
 window.packAssign=async function(posId,memberId){
   const existing=packAssignments[posId]
