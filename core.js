@@ -26,19 +26,22 @@ function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}
 
 // ---- task helpers ----
 function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
+function uomCat(c){return (c&&c.uom)||'kg'}
+function uomFor(log){return (log&&log.uom)||uomCat(catFor(log))}
 function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==false}
 function requiresWaste(log){const c=catFor(log);return !!(c&&c.require_waste)}
 function showsWaste(log){const c=catFor(log);return !!(c&&(c.track_waste||c.require_waste))}
 function finishErr(error){
   if(/VALUE_TOO_HIGH/.test(error.message)) return 'That number looks wrong — it is over the 1000 kg per-task limit. Please re-check and re-enter (e.g. 22.94, not 2294).'
-  if(/KG_REQUIRED/.test(error.message)) return 'Please enter the kilograms produced before finishing this task.'
+  if(/KG_REQUIRED/.test(error.message)) return 'Please enter the amount produced before finishing this task.'
   if(/WASTE_REQUIRED/.test(error.message)) return 'Please enter the waste (kg) for this task before finishing.'
   return error.message
 }
 // hard block (no override): implausible magnitudes. Returns a message, or null if OK.
-function numberHardError(units,waste){
-  if(units!=null && units>1000) return 'That looks wrong: '+units+' kg in one task. The maximum is 1000 kg — did you drop a decimal point (e.g. '+(units/100).toFixed(2)+')? Please re-enter.'
-  if(waste!=null && waste>1000) return 'That waste figure looks wrong: '+waste+' kg. The maximum is 1000 kg — please re-enter.'
+function numberHardError(units,waste,uom){
+  const isKg=(!uom||uom==='kg'); const cap=isKg?1000:100000; const u=isKg?'kg':uom
+  if(units!=null && units>cap) return 'That looks wrong: '+units+' '+u+' in one task. The maximum is '+cap+' '+u+(isKg?' — did you drop a decimal point (e.g. '+(units/100).toFixed(2)+')?':'.')+' Please re-enter.'
+  if(waste!=null && waste>cap) return 'That waste figure looks wrong: '+waste+' '+u+'. The maximum is '+cap+' '+u+'. Please re-enter.'
   return null
 }
 // soft warning (overridable) for plausible-but-odd numbers
@@ -49,11 +52,11 @@ function numberSanityOK(units,waste){
   return confirm('⚠ Please double-check these numbers:\n\n• '+issues.join('\n• ')+'\n\nTap OK to save anyway, or Cancel to go back and fix.')
 }
 function unitsGateOK(){
-  alert('Please enter the kilograms produced before finishing this task.\n\nIf this job genuinely has no weight, an admin can untick "Records kg" for it in Manage → Tasks.')
+  alert('Please enter the amount produced before finishing this task.\n\nIf this job genuinely has no output to record, an admin can untick "Records amount produced" for it in Manage → Tasks.')
   return false
 }
 function wasteGateOK(){
-  alert('Please enter the waste (kg) for this task before finishing.\n\nIf there was genuinely no waste, enter 0.')
+  alert('Please enter the waste for this task before finishing.\n\nIf there was genuinely no waste, enter 0.')
   return false
 }
 function photoGateOK(log){
