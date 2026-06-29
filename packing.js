@@ -122,10 +122,14 @@ function packActionPanel(packing,next){
     </div>`
   }
   if(next){
+    const dones=packRuns.filter(x=>x.status==='done'&&x.finish_time)
+    const lastFin=dones.length?dones.reduce((a,b)=>new Date(a.finish_time)>new Date(b.finish_time)?a:b):null
+    const coBlock=lastFin?`<div class="muted" style="font-size:12px;margin-top:8px">⏱ Changeover running — time since last dish finished (target ${PACK_CO_TARGET}m)</div><div class="timer vs-good" id="packCoElapsed" style="font-size:34px;margin:2px 0">00:00</div>`:''
     return `<div class="card" style="background:var(--panel2);text-align:center;margin:6px 0 0">
       <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NEXT UP · SKU ${next.sku||'–'}</div>
       <div style="font-size:19px;font-weight:800;margin:2px 0">${next.dish_name}</div>
       <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack</div>
+      ${coBlock}
       <button class="green" onclick="packStartDish('${next.id}')">▶ START</button>
       <a class="link" style="display:block;margin-top:10px;font-size:13px" onclick="packSkip('${next.id}')">Not ready — skip this dish</a>
     </div>`
@@ -173,11 +177,12 @@ function packActualOrderCard(){
     const actual=i+1, planned=plannedRank[r.id]
     const moved=planned!=null&&planned!==actual
     const movedBadge=moved?`<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">moved from #${planned}</span>`:''
+    const coTxt=r.changeover_mins!=null?` · CO ${r.changeover_mins.toFixed(1)}m`:''
     const reason=r.out_of_sequence_reason?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">↳ ${r.out_of_sequence_reason}</div>`:''
     const status=r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill done">done</span>'
-    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;min-width:26px">#${actual}</b><span style="background:rgba(249,115,22,.18);color:var(--accent);font-weight:900;border-radius:6px;padding:1px 8px">${r.sku||'–'}</span><b style="flex:1;min-width:0">${r.dish_name}</b>${status}${movedBadge}</div>${reason}</div>`
+    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;min-width:26px">#${actual}</b><span style="background:rgba(249,115,22,.18);color:var(--accent);font-weight:900;border-radius:6px;padding:1px 8px">${r.sku||'–'}</span><b style="flex:1;min-width:0">${r.dish_name}</b>${status}${movedBadge}</div><div class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min pack':''}${coTxt}</div>${reason}</div>`
   }).join('')
-  return `<div class="card"><h2>Actual packed order</h2><p class="muted" style="margin-top:-8px">The real sequence packed today${movedAny?' — dishes that moved from the plan are flagged with the reason given':''}.</p>${rows}</div>`
+  return `<div class="card"><h2>Actual packed order</h2><p class="muted" style="margin-top:-8px">The real sequence packed today, with pack time and changeover (CO) into each dish${movedAny?'. Dishes that moved from the plan are flagged with the reason given':''}.</p>${rows}</div>`
 }
 function packRulesCard(){
   return `<div class="card"><h2>Packing Team Rules</h2><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)">
@@ -202,6 +207,17 @@ function packTick(){
       const elapsedMin=sec/60, targetMin=r.planned_qty/packTarget*60
       if(elapsedMin<=targetMin){ const left=Math.max(0,targetMin-elapsedMin); info.innerHTML='<span class="vs-good">On pace ✓ — '+left.toFixed(1)+' min left to hit '+packTarget+'/hr</span>' }
       else { const over=elapsedMin-targetMin; info.innerHTML='<span class="vs-bad">Behind by '+over.toFixed(1)+' min vs '+packTarget+'/hr</span>' }
+    }
+    return
+  }
+  const coEl=$('packCoElapsed')
+  if(coEl){
+    const dones=packRuns.filter(x=>x.status==='done'&&x.finish_time)
+    if(dones.length){
+      const last=dones.reduce((a,b)=>new Date(a.finish_time)>new Date(b.finish_time)?a:b)
+      const sec=(Date.now()-new Date(last.finish_time))/1000
+      coEl.textContent=fmtClock(sec)
+      coEl.className = (sec/60>PACK_CO_TARGET)?'timer vs-bad':'timer vs-good'
     }
   }
 }
