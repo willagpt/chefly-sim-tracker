@@ -98,9 +98,11 @@ async function loadPackRoster(){
     const d=document.createElement('div'); d.className='member'
     d.innerHTML=`<div><div class="name">${m.full_name}</div><div class="sub">${m.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
+    const ed=document.createElement('button'); ed.className='ghost sm'; ed.textContent='Rename'
+    ed.onclick=async()=>{const nn=prompt('Edit name:', m.full_name);if(nn===null)return;const name=nn.trim();if(!name){alert('Name cannot be blank.');return}const {error}=await sb.from('sim_pack_members').update({full_name:name}).eq('id',m.id);if(error){msg($('pmMsg'),error.message,false)}else{msg($('pmMsg'),'Renamed.',true);loadPackRoster()}}
     const act=document.createElement('button'); act.className='ghost sm'; act.textContent=m.active?'Remove':'Restore'
     act.onclick=async()=>{await sb.from('sim_pack_members').update({active:!m.active}).eq('id',m.id);loadPackRoster()}
-    ctl.appendChild(act); d.appendChild(ctl); box.appendChild(d)
+    ctl.appendChild(ed); ctl.appendChild(act); d.appendChild(ctl); box.appendChild(d)
   })
   if(!data||!data.length) box.innerHTML='<p class="muted">No packing team members yet.</p>'
 }
