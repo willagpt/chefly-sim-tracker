@@ -146,14 +146,19 @@ function packRunRow(r){
   else if(r.status==='skipped'){ act=`<button class="ghost sm" onclick="packUnskip('${r.id}')">Un-skip</button>` }
   else if(r.status==='done'){ const rt=packRate(r); const rtTxt=rt!=null?` · <span class="${rt>=packTarget?'vs-good':'vs-bad'}">${Math.round(rt)}/hr</span>`:''; act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.line_count?' · '+r.line_count+'p':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}${rtTxt}</span>` }
   const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
+  const photos=r.notes_photos||[]
+  const photoLink=`<a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'Photo ('+photos.length+')':'Photo'}</a>`
+  const lbStr=photos.map(photoUrl).join('|')
+  const photoStrip=photos.length?`<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">`+photos.map((p,i)=>`<span class="pwrap" style="position:relative"><img src="${photoUrl(p)}" loading="lazy" data-lb="${lbStr}" data-i="${i}" onclick="openLightboxEl(this)" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--line)"/><button onclick="packDelPhoto('${r.id}','${p}')" title="Remove" style="position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer">✕</button></span>`).join('')+`</div>`:''
   const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
   const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${r.notes}</div>`:''
   return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:6px">
     <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${r.dish_name}</b>${planBlock}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${noteLink}${act}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
     ${notesLine}
+    ${photoStrip}
   </div>`
 }
 function packRulesCard(){
@@ -225,6 +230,31 @@ window.packNote=async function(id){
   if(v===null)return
   const {error}=await sb.from('sim_pack_runs').update({notes:v.trim()||null}).eq('id',id)
   if(error){alert(error.message);return}
+  await loadPacking()
+}
+window.packAddPhoto=function(id){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment')
+  inp.onchange=async(ev)=>{
+    const f=(ev.target.files||[])[0]; if(!f)return
+    const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
+    const path=`pack/${id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
+    const up=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
+    if(up.error){alert('Photo upload failed: '+up.error.message);return}
+    const r=packRuns.find(x=>x.id===id)
+    const photos=[...((r&&r.notes_photos)||[]),path]
+    const {error}=await sb.from('sim_pack_runs').update({notes_photos:photos}).eq('id',id)
+    if(error){alert('Saved photo but could not attach it: '+error.message);return}
+    await loadPacking()
+  }
+  inp.click()
+}
+window.packDelPhoto=async function(id,path){
+  if(!confirm('Remove this photo?'))return
+  const r=packRuns.find(x=>x.id===id)
+  const photos=((r&&r.notes_photos)||[]).filter(x=>x!==path)
+  const {error}=await sb.from('sim_pack_runs').update({notes_photos:photos}).eq('id',id)
+  if(error){alert(error.message);return}
+  await sb.storage.from('sim-photos').remove([path])
   await loadPacking()
 }
 window.packSkip=async function(id){
