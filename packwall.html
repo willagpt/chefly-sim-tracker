@@ -58,7 +58,10 @@
     <div class="tmr" id="heroTmr">00:00</div>
     <div class="pace" id="heroPace">&nbsp;</div>
   </div>
-  <div class="panel" id="breakPanel" style="margin-bottom:18px"><h2>⏸ On break now <span id="breakCount" style="font-size:16px;color:var(--muted)"></span></h2><div id="breaks"></div></div>
+  <div class="panel" id="breakPanel" style="margin-bottom:18px">
+    <h2>⏸ On break now <span id="breakCount" style="font-size:16px;color:var(--muted)"></span></h2><div id="breaks"></div>
+    <h2 style="margin-top:18px">☕ Breaks taken today <span id="breakDoneCount" style="font-size:16px;color:var(--muted)"></span></h2><div id="breaksDone"></div>
+  </div>
   <div class="cols">
     <div class="panel"><h2>Just finished</h2><div id="done"></div></div>
     <div class="panel"><h2>Up next</h2><div id="next"></div></div>
@@ -102,11 +105,18 @@ async function refresh(){
   const nx=data.next
   $('next').innerHTML = nx? `<div class="row"><div><div class="name"><span class="sku">${nx.sku||'–'}</span>${nx.dish_name}</div><div class="sub">${nx.planned_qty??'–'} to pack</div></div></div>` : (data.current?'<div class="empty">Last dish in progress.</div>':'<div class="empty">All dishes done 🎉</div>')
 
-  const br=data.breaks||[]
-  $('breakCount').textContent = br.length? '('+br.length+')' : ''
-  $('breaks').innerHTML = br.length
-    ? br.map(b=>`<div class="row"><div class="name">${b.name}</div><span class="badge" style="background:rgba(245,158,11,.2);color:#fcd34d" data-since="${b.since}">0:00</span></div>`).join('')
+  const all=data.breaks_today||[]
+  const onNow=all.filter(b=>!b.ended_at)
+  const doneB=all.filter(b=>b.ended_at)
+  $('breakCount').textContent = onNow.length? '('+onNow.length+')' : ''
+  $('breaks').innerHTML = onNow.length
+    ? onNow.map(b=>`<div class="row"><div class="name">${b.name}</div><span class="badge" style="background:rgba(245,158,11,.2);color:#fcd34d" data-since="${b.started_at}">0:00</span></div>`).join('')
     : '<div class="empty">Everyone on the line — nobody on break.</div>'
+  const totMin=doneB.reduce((s,b)=>s+(Number(b.duration_min)||0),0)
+  $('breakDoneCount').textContent = doneB.length? '('+doneB.length+' · '+totMin+' min total)' : ''
+  $('breaksDone').innerHTML = doneB.length
+    ? doneB.slice().reverse().map(b=>`<div class="row"><div><div class="name">${b.name}</div><div class="sub">${fmtTime(b.started_at)}–${fmtTime(b.ended_at)}</div></div><span class="badge good">${b.duration_min} min</span></div>`).join('')
+    : '<div class="empty">No breaks taken yet today.</div>'
 
   renderHero()
 }
