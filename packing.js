@@ -3,7 +3,7 @@
    Live: subscribes to realtime + live pace vs an adjustable meals/hour target. */
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
-let packChannel=null, packLiveT=null, packDragging=false, packTarget=500
+let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packComponents={}
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
 window.loadPacking=async function(){
@@ -11,16 +11,18 @@ window.loadPacking=async function(){
   let {data:sh}=await sb.from('sim_pack_shifts').select('*').eq('shift_date',today).maybeSingle()
   if(!sh){const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data}
   packShift=sh
-  const [pos,mem,asg,runs,brk,cfg]=await Promise.all([
+  const [pos,mem,asg,runs,brk,cfg,comp]=await Promise.all([
     sb.from('sim_pack_positions').select('*').eq('active',true).order('sort_order'),
     sb.from('sim_pack_members').select('*').eq('active',true).order('sort_order').order('full_name'),
     sb.from('sim_pack_assignments').select('*').eq('shift_id',sh.id),
     sb.from('sim_pack_runs').select('*').eq('shift_id',sh.id).order('sort_order'),
     sb.from('sim_pack_breaks').select('*').eq('shift_id',sh.id).order('created_at'),
-    sb.from('sim_pack_settings').select('target_per_hour').eq('id',1).maybeSingle()
+    sb.from('sim_pack_settings').select('target_per_hour').eq('id',1).maybeSingle(),
+    sb.from('sim_pack_dish_components').select('*')
   ])
   packPositions=pos.data||[]; packMembers=mem.data||[]; packRuns=runs.data||[]; packBreaks=brk.data||[]
   packTarget=(cfg&&cfg.data&&Number(cfg.data.target_per_hour))||500
+  packComponents={}; ((comp&&comp.data)||[]).forEach(c=>{packComponents[c.sku]=c.components})
   packAssignments={}; (asg.data||[]).forEach(a=>{packAssignments[a.position_id]=a})
   renderPacking()
   packSubscribe()
@@ -35,6 +37,7 @@ function packSubscribe(){
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_shifts'},packLiveRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_dish_import'},packLiveRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_settings'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_dish_components'},packLiveRefresh)
     .subscribe()
 }
 function packLiveRefresh(){
@@ -48,6 +51,7 @@ function packLiveRefresh(){
 }
 function packMemberName(id){const m=packMembers.find(x=>x.id===id);return m?m.full_name:'—'}
 function packMemberOptions(sel){return '<option value="">— unassigned —</option>'+packMembers.map(m=>`<option value="${m.id}" ${sel===m.id?'selected':''}>${m.full_name}</option>`).join('')}
+function packCompCount(sku){return (sku!=null&&packComponents[sku]!=null)?packComponents[sku]:null}
 function packRate(r){ // meals per hour for a finished dish
   const q=(r.qty_packed!=null?r.qty_packed:r.planned_qty)
   if(!r.total_minutes||r.total_minutes<=0||q==null) return null
@@ -119,7 +123,7 @@ function packActionPanel(packing,next){
   if(packing){
     const tmin=(packTarget&&packing.planned_qty)?(packing.planned_qty/packTarget*60):null
     return `<div class="card" style="background:var(--panel2);border-color:var(--accent);text-align:center;margin:6px 0 0">
-      <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}${packing.line_count?' · '+packing.line_count+' on line':''}</div>
+      <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}${packCompCount(packing.sku)!=null?' · 🧩 '+packCompCount(packing.sku)+' components':''}${packing.line_count?' · '+packing.line_count+' on line':''}</div>
       <div style="font-size:19px;font-weight:800;margin:2px 0">${packing.dish_name}</div>
       <div class="timer" id="packCurElapsed">00:00:00</div>
       <div class="muted" style="font-size:12px">Target ${packTarget}/hr${tmin?' · '+tmin.toFixed(1)+' min for '+packing.planned_qty:''}</div>
@@ -136,7 +140,7 @@ function packActionPanel(packing,next){
     return `<div class="card" style="background:var(--panel2);text-align:center;margin:6px 0 0">
       <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NEXT UP · SKU ${next.sku||'–'}</div>
       <div style="font-size:19px;font-weight:800;margin:2px 0">${next.dish_name}</div>
-      <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack</div>
+      <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack · 🧩 <b style="color:var(--txt)">${packCompCount(next.sku)!=null?packCompCount(next.sku):'–'}</b> components <a class="link" style="font-size:13px" onclick="packSetComponents('${next.sku}')">edit</a></div>
       ${coBlock}
       <button class="green" onclick="packStartDish('${next.id}')">▶ START</button>
       <a class="link" style="display:block;margin-top:10px;font-size:13px" onclick="packSkip('${next.id}')">Not ready — skip this dish</a>
@@ -168,9 +172,11 @@ function packRunRow(r){
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
   const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${r.notes}</div>`:''
+  const _comp=packCompCount(r.sku)
+  const compChip=` · <a class="link" style="font-size:13px" onclick="packSetComponents('${r.sku}')">🧩 ${_comp!=null?_comp+' comp':'set comp'}</a>`
   return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:6px">
     <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${r.dish_name}</b>${planBlock}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}${compChip}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
     ${notesLine}
     ${photoStrip}
   </div>`
@@ -271,6 +277,19 @@ window.packSetTarget=async function(){
   const {error}=await sb.from('sim_pack_settings').update({target_per_hour:n}).eq('id',1)
   if(error){alert(error.message);return}
   packTarget=n; await loadPacking()
+}
+window.packSetComponents=async function(sku){
+  if(sku==null||sku===''){alert('This dish has no SKU.');return}
+  const cur=packComponents[sku]
+  const v=prompt('How many components for SKU '+sku+'? (number of items to assemble — used to judge how many people to put on the line)', cur!=null?cur:'')
+  if(v===null)return
+  const t=String(v).trim()
+  if(t===''){ await sb.from('sim_pack_dish_components').delete().eq('sku',sku); await loadPacking(); return }
+  const n=Math.round(Number(t))
+  if(isNaN(n)||n<0){alert('Enter a whole number (0 or more).');return}
+  const {error}=await sb.from('sim_pack_dish_components').upsert({sku,components:n,updated_at:new Date().toISOString()},{onConflict:'sku'})
+  if(error){alert(error.message);return}
+  await loadPacking()
 }
 window.packNote=async function(id){
   const r=packRuns.find(x=>x.id===id); if(!r)return
