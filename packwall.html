@@ -58,6 +58,7 @@
     <div class="tmr" id="heroTmr">00:00</div>
     <div class="pace" id="heroPace">&nbsp;</div>
   </div>
+  <div class="panel" id="breakPanel" style="margin-bottom:18px"><h2>⏸ On break now <span id="breakCount" style="font-size:16px;color:var(--muted)"></span></h2><div id="breaks"></div></div>
   <div class="cols">
     <div class="panel"><h2>Just finished</h2><div id="done"></div></div>
     <div class="panel"><h2>Up next</h2><div id="next"></div></div>
@@ -101,8 +102,15 @@ async function refresh(){
   const nx=data.next
   $('next').innerHTML = nx? `<div class="row"><div><div class="name"><span class="sku">${nx.sku||'–'}</span>${nx.dish_name}</div><div class="sub">${nx.planned_qty??'–'} to pack</div></div></div>` : (data.current?'<div class="empty">Last dish in progress.</div>':'<div class="empty">All dishes done 🎉</div>')
 
+  const br=data.breaks||[]
+  $('breakCount').textContent = br.length? '('+br.length+')' : ''
+  $('breaks').innerHTML = br.length
+    ? br.map(b=>`<div class="row"><div class="name">${b.name}</div><span class="badge" style="background:rgba(245,158,11,.2);color:#fcd34d" data-since="${b.since}">0:00</span></div>`).join('')
+    : '<div class="empty">Everyone on the line — nobody on break.</div>'
+
   renderHero()
 }
+function tickBreaks(){ document.querySelectorAll('[data-since]').forEach(el=>{const s=el.dataset.since; if(s){el.textContent=fmtClock((Date.now()-new Date(s))/1000)}}) }
 function renderHero(){
   const h=$('hero'), c=snap&&snap.current
   if(!c){ h.classList.add('idle'); $('heroEy').textContent='No dish running'; $('heroNm').textContent= (snap&&snap.stats&&snap.stats.dishes_total&&snap.stats.dishes_done>=snap.stats.dishes_total)?'All dishes done 🎉':'Waiting to start…'; $('heroTmr').textContent='00:00'; $('heroPace').innerHTML='&nbsp;'; return }
@@ -125,6 +133,7 @@ function tickHero(){
 function tickClock(){ $('clock').textContent=new Date().toLocaleString([], {weekday:'short', hour:'2-digit', minute:'2-digit'}) }
 tickClock(); setInterval(tickClock,1000)
 setInterval(tickHero,1000)
+setInterval(tickBreaks,1000)
 refresh(); setInterval(refresh, 10000)
 </script>
 </body>
