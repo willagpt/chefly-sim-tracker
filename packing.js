@@ -63,14 +63,15 @@ function renderPacking(){
   if(!packRuns.length){
     html+=`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
   } else {
-    html+='<div style="margin-top:8px">'
-    packRuns.forEach((r,i)=>{ html+=packRunRow(r,i) })
+    html+=`<p class="muted" style="margin:6px 0">Drag the ⠿ handle to reorder upcoming dishes.</p><div id="packDishList">`
+    packRuns.forEach(r=>{ html+=packRunRow(r) })
     html+='</div><button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
   }
   html+='</div>'
 
   html+=packRulesCard()
   box.innerHTML=html
+  packAttachDnD()
 }
 function packRunRow(r){
   const anyPacking=packRuns.some(x=>x.status==='packing')
@@ -83,8 +84,8 @@ function packRunRow(r){
   if(r.status==='pending'){ action=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
   else if(r.status==='packing'){ action=`<input id="qty_${r.id}" type="number" inputmode="numeric" placeholder="qty" value="${r.planned_qty??''}" style="width:64px;padding:8px;margin:0" /><button class="red sm" onclick="packStopDish('${r.id}')">Stop</button>` }
   else { action=`<span class="muted" style="font-size:13px">${r.total_minutes!=null?r.total_minutes+'m':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
-  const moves=r.status==='pending'?`<button class="ghost sm" onclick="packMove('${r.id}',-1)" style="padding:6px 9px">↑</button><button class="ghost sm" onclick="packMove('${r.id}',1)" style="padding:6px 9px">↓</button>`:''
-  return `<div class="task-item"><div style="min-width:0"><b>${r.dish_name}</b> ${statusPill}<div class="meta">SKU ${r.sku||'–'} · plan ${r.planned_qty??'–'}${co}</div></div><div style="display:flex;gap:6px;align-items:center;flex-shrink:0">${moves}${action}</div></div>`
+  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:4px 6px;font-size:18px;color:var(--muted)">⠿</span>`:''
+  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}"><div style="min-width:0"><b>${r.dish_name}</b> ${statusPill}<div class="meta">SKU ${r.sku||'–'} · plan ${r.planned_qty??'–'}${co}</div></div><div style="display:flex;gap:6px;align-items:center;flex-shrink:0">${handle}${action}</div></div>`
 }
 function packRulesCard(){
   return `<div class="card"><h2>Packing Team Rules</h2><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)">
@@ -102,6 +103,36 @@ function packRulesCard(){
 function packTick(){
   const r=packRuns.find(x=>x.status==='packing'); const el=$('packCurElapsed')
   if(r&&el&&r.start_time){ el.textContent=fmtClock((Date.now()-new Date(r.start_time))/1000) }
+}
+// drag-and-drop reordering (pointer events = works on touch + mouse)
+function packAttachDnD(){
+  const list=$('packDishList'); if(!list)return
+  list.querySelectorAll('.drag-h').forEach(h=>{
+    h.addEventListener('pointerdown',e=>{
+      const dragEl=h.closest('[data-runid]'); if(!dragEl)return
+      e.preventDefault(); dragEl.style.opacity='0.5'
+      const move=(ev)=>{
+        const targets=[...list.querySelectorAll('[data-runid][data-pending="1"]')].filter(r=>r!==dragEl)
+        let placed=false
+        for(const r of targets){ const rect=r.getBoundingClientRect(); if(ev.clientY < rect.top+rect.height/2){ list.insertBefore(dragEl,r); placed=true; break } }
+        if(!placed && targets.length){ const last=targets[targets.length-1]; list.insertBefore(dragEl,last.nextSibling) }
+      }
+      const up=async()=>{
+        document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up)
+        dragEl.style.opacity=''
+        const orderIds=[...list.querySelectorAll('[data-runid]')].map(r=>r.dataset.runid)
+        await packPersistOrder(orderIds)
+      }
+      document.addEventListener('pointermove',move)
+      document.addEventListener('pointerup',up)
+    })
+  })
+}
+async function packPersistOrder(orderIds){
+  const ups=[]
+  orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update({sort_order:i}).eq('id',id)) } })
+  if(ups.length) await Promise.all(ups)
+  await loadPacking()
 }
 window.packEditChangeover=async function(id){
   const r=packRuns.find(x=>x.id===id); if(!r)return
@@ -156,14 +187,6 @@ window.packStopDish=async function(id){
   const mins=r.start_time?Math.round(((new Date(fin)-new Date(r.start_time))/60000)*100)/100:null
   const {error}=await sb.from('sim_pack_runs').update({finish_time:fin,total_minutes:mins,qty_packed:qty,status:'done'}).eq('id',id)
   if(error){alert(error.message);return}
-  await loadPacking()
-}
-window.packMove=async function(id,dir){
-  const idx=packRuns.findIndex(r=>r.id===id); const j=idx+dir
-  if(idx<0||j<0||j>=packRuns.length)return
-  const a=packRuns[idx], b=packRuns[j]
-  await sb.from('sim_pack_runs').update({sort_order:b.sort_order}).eq('id',a.id)
-  await sb.from('sim_pack_runs').update({sort_order:a.sort_order}).eq('id',b.id)
   await loadPacking()
 }
 window.packSaveDefault=async function(){
