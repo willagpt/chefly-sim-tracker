@@ -92,22 +92,25 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
+const TAB_KEYS=['log','equip','pack','dash','history','perf','manage']
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
   const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
+  if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'pack',label:'Packing'})
   if(isManagerUp()) tabs.push({k:'dash',label:'Live Dashboard'})
   if(isManagerUp()) tabs.push({k:'history',label:'History'})
   if(isManagerUp()) tabs.push({k:'perf',label:'Performance'})
   if(isAdmin()) tabs.push({k:'manage',label:'Manage'})
   tabs.forEach((t,i)=>{const d=document.createElement('div');d.className='tab'+(i===0?' active':'');d.id='tab_'+t.k;d.textContent=t.label;d.onclick=()=>showTab(t.k);bar.appendChild(d)})
-  ;['log','equip','dash','history','perf','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='log')})
+  TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='log')})
 }
 window.showTab=function(which){
-  document.querySelectorAll('#tabBar .tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which));
-  ['log','equip','dash','history','perf','manage'].forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
+  document.querySelectorAll('#tabBar .tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which))
+  TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='equip') loadEquip()
+  if(which==='pack') loadPacking()
   if(which==='dash') refreshDashboard()
   if(which==='history') initHistory()
   if(which==='perf') initPerf()
-  if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); renderTaskList() }
+  if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); loadPackRoster(); renderTaskList() }
 }
