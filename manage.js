@@ -25,11 +25,12 @@ async function loadAccess(){
   const box=$('memberList'); box.innerHTML='<p class="muted">Loading…</p>'
   const [{data:allowed,error},{data:profs}] = await Promise.all([
     sb.from('sim_allowed_users').select('*').order('full_name'),
-    sb.from('sim_profiles').select('email,suspended')
+    sb.from('sim_profiles').select('email,suspended,packing_team')
   ])
   if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
   const activeEmails=new Set((profs||[]).map(p=>(p.email||'').toLowerCase()))
   const suspendedByEmail=new Map((profs||[]).map(p=>[(p.email||'').toLowerCase(), !!p.suspended]))
+  const packingByEmail=new Map((profs||[]).map(p=>[(p.email||'').toLowerCase(), !!p.packing_team]))
   box.innerHTML=''
   ;(allowed||[]).forEach(u=>{
     const em=(u.email||'').toLowerCase()
@@ -37,12 +38,17 @@ async function loadAccess(){
     const self=em===(me.email||'').toLowerCase()
     const active=activeEmails.has(em)
     const sus=suspendedByEmail.get(em)===true
+    const packLead=packingByEmail.get(em)===true
     const stateBadge = sus ? '<span class="pill off">suspended</span>' : (active?'<span class="pill live">● active</span>':'<span class="pill off">not logged in</span>')
-    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${stateBadge}</div></div>`
+    const packBadge = packLead ? ' · <span class="pill" style="background:rgba(249,115,22,.2);color:#fdba74">packing lead</span>' : ''
+    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${stateBadge}${packBadge}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
     const sel=document.createElement('select'); ['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(u.role===r)o.selected=true;sel.appendChild(o)}); sel.disabled=self
     sel.onchange=async()=>{const {error}=await sb.rpc('sim_set_user_role',{p_email:u.email,p_role:sel.value});if(error){msg($('memberMsg'),error.message,false);sel.value=u.role}else{msg($('memberMsg'),`${u.full_name||u.email} is now ${sel.value}.`,true);u.role=sel.value}}
     ctl.appendChild(sel)
+    const pkB=document.createElement('button');pkB.className='ghost sm';pkB.textContent=packLead?'Remove packing':'Packing lead'
+    pkB.onclick=async()=>{const {error}=await sb.rpc('sim_set_packing',{p_email:u.email,p_on:!packLead});if(error){msg($('memberMsg'),error.message,false)}else{msg($('memberMsg'),(packLead?'Removed packing access for ':'Packing lead access for ')+u.email,true);loadAccess()}}
+    ctl.appendChild(pkB)
     if(!self){
       const susB=document.createElement('button');susB.className='ghost sm';susB.textContent=sus?'Unsuspend':'Suspend'
       susB.onclick=async()=>{if(!confirm((sus?'Unsuspend ':'Suspend ')+(u.full_name||u.email)+'?'+(sus?'':'\n\nThey will be unable to log in or clock in until unsuspended.')))return;const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_suspended',email:u.email,suspended:!sus}});if(error||data?.error){msg($('memberMsg'),(data&&data.error)||error.message,false)}else{msg($('memberMsg'),(sus?'Unsuspended ':'Suspended ')+u.email,true);loadAccess()}}
