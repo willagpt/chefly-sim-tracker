@@ -118,6 +118,7 @@ function packActionPanel(packing,next){
       <div id="packPaceInfo" style="font-weight:800;font-size:15px;margin:6px 0 2px">&nbsp;</div>
       <div style="max-width:240px;margin:4px auto 0"><input id="qty_${packing.id}" type="number" inputmode="numeric" placeholder="qty packed" value="${packing.planned_qty??''}" style="text-align:center" /></div>
       <button class="red" onclick="packStopDish('${packing.id}')">■ STOP — finish dish</button>
+      <a class="link" style="display:block;margin-top:10px;font-size:13px" onclick="packDiscard('${packing.id}')">✕ Cancel start (mis-tap — return to list)</a>
     </div>`
   }
   if(next){
@@ -356,13 +357,27 @@ window.packStopDish=async function(id){
   const qtyEl=$('qty_'+id); const qty=(qtyEl&&qtyEl.value!=='')?Number(qtyEl.value):null
   const fin=new Date().toISOString()
   const mins=r.start_time?Math.round(((new Date(fin)-new Date(r.start_time))/60000)*100)/100:null
-  const {error}=await sb.from('sim_pack_runs').update({finish_time:fin,total_minutes:mins,qty_packed:qty,status:'done'}).eq('id',id)
-  if(error){alert(error.message);return}
   const usedQty=(qty!=null?qty:r.planned_qty)
   const rate=(mins&&mins>0&&usedQty!=null)?(usedQty/(mins/60)):null
+  // Data-entry guards: an accidental Stop right after Start, or an impossible rate, must not be silently recorded.
+  if(mins!=null && mins<0.5){
+    const sec=Math.round(mins*60)
+    if(confirm('This dish has only been running '+sec+'s — too short to be a real pack.\n\nOK = mis-tap, keep packing (ignore this Stop).\nCancel = finish it anyway.')) return
+  } else if(rate!=null && rate>5000){
+    if(!confirm('That works out at '+Math.round(rate)+' meals/hr — that is not possible.\n\nCheck qty packed ('+usedQty+') and minutes ('+mins+').\n\nFinish anyway?')) return
+  }
+  const {error}=await sb.from('sim_pack_runs').update({finish_time:fin,total_minutes:mins,qty_packed:qty,status:'done'}).eq('id',id)
+  if(error){alert(error.message);return}
   if(rate!=null){
     alert(r.dish_name+'\n\n'+Math.round(rate)+' meals/hr  (target '+packTarget+'/hr)\n\n'+(rate>=packTarget?'Great — above target! 🎉':'Below target — room to improve.'))
   }
+  await loadPacking()
+}
+window.packDiscard=async function(id){
+  const r=packRuns.find(x=>x.id===id); if(!r)return
+  if(!confirm('Cancel the start of "'+r.dish_name+'"? It returns to the dish list with no timing recorded.'))return
+  const {error}=await sb.from('sim_pack_runs').update({status:'pending',start_time:null,finish_time:null,total_minutes:null,qty_packed:null,changeover_mins:null,pack_seq:null,line_count:null,out_of_sequence_reason:null}).eq('id',id)
+  if(error){alert(error.message);return}
   await loadPacking()
 }
 window.packSaveDefault=async function(){
