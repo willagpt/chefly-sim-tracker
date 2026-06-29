@@ -97,11 +97,19 @@ function renderPacking(){
   })
   html+='</div>'
 
-  html+=`<div class="card"><h2>Breaks</h2>`
-  if(packBreaks.length){html+='<div style="margin-bottom:8px">'+packBreaks.map(b=>`<div class="task-item"><div><b>${packMemberName(b.member_id)}</b><div class="meta">${b.break_time||'—'}${b.approved_by?' · approved by '+b.approved_by:''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')+'</div>'}
+  const onBreak=packBreaks.filter(b=>b.started_at&&!b.ended_at)
+  const loggedBreaks=packBreaks.filter(b=>!(b.started_at&&!b.ended_at))
+  html+=`<div class="card"><h2>Breaks <span class="pill ${onBreak.length?'live':'off'}">${onBreak.length} on break now</span></h2>`
+  if(onBreak.length){
+    html+='<div style="margin-bottom:10px">'+onBreak.map(b=>`<div class="task-item" style="background:rgba(245,158,11,.12);border-color:var(--amber)"><div><b>${packMemberName(b.member_id)}</b><div class="meta">⏸ on break · <span class="brk-elapsed" data-start="${b.started_at}">0:00</span>${b.approved_by?' · '+b.approved_by:''}</div></div><button class="green sm" onclick="packEndBreak('${b.id}')">◀ Back</button></div>`).join('')+'</div>'
+  } else html+='<p class="muted">Everyone is on the line — nobody on break.</p>'
   html+=`<select id="brkMember">${packMemberOptions('')}</select>
-    <div class="row" style="margin-top:8px"><input id="brkTime" placeholder="Break time (e.g. 11:00)" /><input id="brkApproved" placeholder="Approved by" /></div>
-    <button class="green" onclick="packAddBreak()">Add break</button></div>`
+    <div class="row" style="margin-top:8px"><input id="brkApproved" placeholder="Approved by (optional)" /></div>
+    <button class="green" onclick="packStartBreak()">⏸ Send on break</button>`
+  if(loggedBreaks.length){
+    html+='<p class="muted" style="margin:12px 0 4px">Earlier today</p>'+loggedBreaks.slice(-8).reverse().map(b=>`<div class="task-item"><div><b>${packMemberName(b.member_id)}</b><div class="meta">${brkDuration(b)}${b.approved_by?' · '+b.approved_by:''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')
+  }
+  html+='</div>'
 
   html+=packRulesCard()
   box.innerHTML=html
@@ -184,6 +192,11 @@ function packActualOrderCard(){
   }).join('')
   return `<div class="card"><h2>Actual packed order</h2><p class="muted" style="margin-top:-8px">The real sequence packed today, with pack time and changeover (CO) into each dish${movedAny?'. Dishes that moved from the plan are flagged with the reason given':''}.</p>${rows}</div>`
 }
+function brkDuration(b){
+  if(b.started_at&&b.ended_at){ return Math.max(1,Math.round((new Date(b.ended_at)-new Date(b.started_at))/60000))+' min' }
+  if(b.break_time){ return 'at '+b.break_time }
+  return '—'
+}
 function packRulesCard(){
   return `<div class="card"><h2>Packing Team Rules</h2><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)">
     <li>Team leader sets team structure every Monday — confirm to team.</li>
@@ -198,6 +211,7 @@ function packRulesCard(){
   </ul></div>`
 }
 function packTick(){
+  document.querySelectorAll('.brk-elapsed').forEach(el=>{const st=el.dataset.start; if(st){el.textContent=fmtClock((Date.now()-new Date(st))/1000)}})
   const r=packRuns.find(x=>x.status==='packing'); const el=$('packCurElapsed')
   if(r&&el&&r.start_time){
     const sec=(Date.now()-new Date(r.start_time))/1000
@@ -321,9 +335,14 @@ window.packAssign=async function(posId,memberId){
   else if(memberId){ await sb.from('sim_pack_assignments').insert({shift_id:packShift.id,position_id:posId,member_id:memberId}) }
   await loadPacking()
 }
-window.packAddBreak=async function(){
+window.packStartBreak=async function(){
   const m=$('brkMember').value; if(!m){alert('Pick a person.');return}
-  const {error}=await sb.from('sim_pack_breaks').insert({shift_id:packShift.id,member_id:m,break_time:$('brkTime').value.trim()||null,approved_by:$('brkApproved').value.trim()||null})
+  const {error}=await sb.from('sim_pack_breaks').insert({shift_id:packShift.id,member_id:m,started_at:new Date().toISOString(),approved_by:($('brkApproved').value||'').trim()||null})
+  if(error){alert(error.message);return}
+  await loadPacking()
+}
+window.packEndBreak=async function(id){
+  const {error}=await sb.from('sim_pack_breaks').update({ended_at:new Date().toISOString()}).eq('id',id)
   if(error){alert(error.message);return}
   await loadPacking()
 }
