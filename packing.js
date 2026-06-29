@@ -27,6 +27,7 @@ function renderPacking(){
   const box=$('packBody'); if(!box)return
   const done=packRuns.filter(r=>r.status==='done'), packing=packRuns.find(r=>r.status==='packing')
   const next=packRuns.find(r=>r.status==='pending')
+  const skipped=packRuns.filter(r=>r.status==='skipped').length
   const plannedMeals=packRuns.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
   const packedMeals=done.reduce((s,r)=>s+(Number(r.qty_packed)||Number(r.planned_qty)||0),0)
   const cos=packRuns.filter(r=>r.changeover_mins!=null)
@@ -40,7 +41,7 @@ function renderPacking(){
       <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
       <div class="stat"><div class="n">${plannedMeals}</div><div class="l">Planned</div></div>
     </div>
-    <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min target</span></p>
+    <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min</span>${skipped?' · '+skipped+' skipped':''}</p>
   </div>`
 
   // ---- the run-sheet (big action panel + clean list) ----
@@ -93,27 +94,35 @@ function packActionPanel(packing,next){
       <div style="font-size:19px;font-weight:800;margin:2px 0">${next.dish_name}</div>
       <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack</div>
       <button class="green" onclick="packStartDish('${next.id}')">▶ START</button>
+      <a class="link" style="display:block;margin-top:10px;font-size:13px" onclick="packSkip('${next.id}')">Not ready — skip this dish</a>
     </div>`
   }
   return `<div class="card" style="background:var(--panel2);text-align:center;margin:6px 0 0"><b>All dishes done 🎉</b></div>`
 }
 function packRunRow(r){
   const anyPacking=packRuns.some(x=>x.status==='packing')
-  const started=r.status!=='pending'
+  const ran=(r.status==='packing'||r.status==='done')
   const coVal=r.changeover_mins!=null?r.changeover_mins.toFixed(1)+'m':'–'
   const coCls=(r.changeover_mins!=null&&r.changeover_mins>PACK_CO_TARGET)?'vs-bad':'vs-good'
-  const co=started?`CO <span class="${coCls}">${coVal}</span> <a class="link" style="font-size:13px" onclick="packEditChangeover('${r.id}')">✎</a>`:''
-  const statusPill=r.status==='done'?'<span class="pill done">done</span>':(r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill off">pending</span>')
+  const co=ran&&r.changeover_mins!=null?` · CO <span class="${coCls}">${coVal}</span> <a class="link" style="font-size:13px" onclick="packEditChangeover('${r.id}')">✎</a>`:''
+  let pill
+  if(r.status==='done')pill='<span class="pill done">done</span>'
+  else if(r.status==='packing')pill='<span class="pill live">● packing</span>'
+  else if(r.status==='skipped')pill='<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">skipped</span>'
+  else pill='<span class="pill off">pending</span>'
   let act=''
-  if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
-  else if(r.status==='packing'){ act='' }
-  else { act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
+  if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
+  else if(r.status==='skipped'){ act=`<button class="ghost sm" onclick="packUnskip('${r.id}')">Un-skip</button>` }
+  else if(r.status==='done'){ act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
+  const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
   const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
-  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:8px">
+  const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${r.notes}</div>`:''
+  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:6px">
     <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${r.dish_name}</b>${planBlock}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${statusPill}${co?' · '+co:''}</span><span style="flex-shrink:0">${act}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${noteLink}${act}</span></div>
+    ${notesLine}
   </div>`
 }
 function packRulesCard(){
@@ -161,6 +170,27 @@ async function packPersistOrder(orderIds){
   const ups=[]
   orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update({sort_order:i}).eq('id',id)) } })
   if(ups.length) await Promise.all(ups)
+  await loadPacking()
+}
+window.packNote=async function(id){
+  const r=packRuns.find(x=>x.id===id); if(!r)return
+  const v=prompt('Note for "'+r.dish_name+'":', r.notes||'')
+  if(v===null)return
+  const {error}=await sb.from('sim_pack_runs').update({notes:v.trim()||null}).eq('id',id)
+  if(error){alert(error.message);return}
+  await loadPacking()
+}
+window.packSkip=async function(id){
+  const r=packRuns.find(x=>x.id===id); if(!r)return
+  const reason=prompt('Skip "'+r.dish_name+'"? Add a reason (e.g. not ready):', r.notes||'')
+  if(reason===null)return
+  const {error}=await sb.from('sim_pack_runs').update({status:'skipped',notes:reason.trim()||null}).eq('id',id)
+  if(error){alert(error.message);return}
+  await loadPacking()
+}
+window.packUnskip=async function(id){
+  const {error}=await sb.from('sim_pack_runs').update({status:'pending'}).eq('id',id)
+  if(error){alert(error.message);return}
   await loadPacking()
 }
 window.packEditChangeover=async function(id){
