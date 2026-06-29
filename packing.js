@@ -26,6 +26,7 @@ function packMemberOptions(sel){return '<option value="">— unassigned —</opt
 function renderPacking(){
   const box=$('packBody'); if(!box)return
   const done=packRuns.filter(r=>r.status==='done'), packing=packRuns.find(r=>r.status==='packing')
+  const next=packRuns.find(r=>r.status==='pending')
   const plannedMeals=packRuns.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
   const packedMeals=done.reduce((s,r)=>s+(Number(r.qty_packed)||Number(r.planned_qty)||0),0)
   const cos=packRuns.filter(r=>r.changeover_mins!=null)
@@ -35,43 +36,66 @@ function renderPacking(){
   html+=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${packShift.shift_date}</h2><span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span></div>
     <div class="stat-grid" style="margin-top:10px">
-      <div class="stat"><div class="n">${done.length}/${packRuns.length}</div><div class="l">Dishes done</div></div>
-      <div class="stat"><div class="n">${packedMeals}</div><div class="l">Meals packed</div></div>
-      <div class="stat"><div class="n">${plannedMeals}</div><div class="l">Meals planned</div></div>
+      <div class="stat"><div class="n">${done.length}/${packRuns.length}</div><div class="l">Dishes</div></div>
+      <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
+      <div class="stat"><div class="n">${plannedMeals}</div><div class="l">Planned</div></div>
     </div>
-    ${packing?`<div style="margin-top:6px;font-weight:700">Now packing: ${packing.dish_name} <span class="muted">(SKU ${packing.sku||'–'})</span> · <span id="packCurElapsed">00:00:00</span></div>`:''}
-    <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over the ${PACK_CO_TARGET}-min target</span></p>
+    <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min target</span></p>
   </div>`
 
-  html+=`<div class="card"><h2>Team &amp; positions</h2>`
-  if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
-  html+='<div>'
-  packPositions.forEach(p=>{
-    const a=packAssignments[p.id]
-    html+=`<div class="row" style="align-items:center;margin-bottom:6px"><div style="flex:0 0 120px;font-weight:600;font-size:14px">${p.label}</div><select onchange="packAssign('${p.id}',this.value)">${packMemberOptions(a?a.member_id:'')}</select></div>`
-  })
-  html+='</div></div>'
-
-  html+=`<div class="card"><h2>Breaks</h2>`
-  if(packBreaks.length){html+='<div style="margin-bottom:8px">'+packBreaks.map(b=>`<div class="task-item"><div><b>${packMemberName(b.member_id)}</b><div class="meta">${b.break_time||'—'}${b.approved_by?' · approved by '+b.approved_by:''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')+'</div>'}
-  html+=`<div class="row"><select id="brkMember">${packMemberOptions('')}</select><input id="brkTime" placeholder="Break time (e.g. 11:00)" /></div>
-    <div class="row" style="margin-top:8px"><input id="brkApproved" placeholder="Approved by" /><button class="green sm" style="flex:0 0 auto" onclick="packAddBreak()">Add</button></div></div>`
-
+  // ---- the run-sheet (big action panel + clean list) ----
   html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">Dish list</h2>`
-  if(packRuns.length) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order as default</button>`
+  if(packRuns.length) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
   html+=`</div>`
   if(!packRuns.length){
     html+=`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
   } else {
-    html+=`<p class="muted" style="margin:6px 0">Drag the ⠿ handle to reorder upcoming dishes.</p><div id="packDishList">`
+    html+=packActionPanel(packing,next)
+    html+=`<p class="muted" style="margin:14px 0 4px">All dishes — drag ⠿ to reorder.</p><div id="packDishList">`
     packRuns.forEach(r=>{ html+=packRunRow(r) })
     html+='</div><button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
   }
   html+='</div>'
 
+  // ---- positions ----
+  html+=`<div class="card"><h2>Team &amp; positions</h2>`
+  if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
+  packPositions.forEach(p=>{
+    const a=packAssignments[p.id]
+    html+=`<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:3px">${p.label}</div><select onchange="packAssign('${p.id}',this.value)">${packMemberOptions(a?a.member_id:'')}</select></div>`
+  })
+  html+='</div>'
+
+  // ---- breaks ----
+  html+=`<div class="card"><h2>Breaks</h2>`
+  if(packBreaks.length){html+='<div style="margin-bottom:8px">'+packBreaks.map(b=>`<div class="task-item"><div><b>${packMemberName(b.member_id)}</b><div class="meta">${b.break_time||'—'}${b.approved_by?' · approved by '+b.approved_by:''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')+'</div>'}
+  html+=`<select id="brkMember">${packMemberOptions('')}</select>
+    <div class="row" style="margin-top:8px"><input id="brkTime" placeholder="Break time (e.g. 11:00)" /><input id="brkApproved" placeholder="Approved by" /></div>
+    <button class="green" onclick="packAddBreak()">Add break</button></div>`
+
   html+=packRulesCard()
   box.innerHTML=html
   packAttachDnD()
+}
+function packActionPanel(packing,next){
+  if(packing){
+    return `<div class="card" style="background:var(--panel2);border-color:var(--accent);text-align:center;margin:6px 0 0">
+      <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}</div>
+      <div style="font-size:19px;font-weight:800;margin:2px 0">${packing.dish_name}</div>
+      <div class="timer" id="packCurElapsed">00:00:00</div>
+      <div style="max-width:240px;margin:6px auto 0"><input id="qty_${packing.id}" type="number" inputmode="numeric" placeholder="qty packed" value="${packing.planned_qty??''}" style="text-align:center" /></div>
+      <button class="red" onclick="packStopDish('${packing.id}')">■ STOP — finish dish</button>
+    </div>`
+  }
+  if(next){
+    return `<div class="card" style="background:var(--panel2);text-align:center;margin:6px 0 0">
+      <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NEXT UP · SKU ${next.sku||'–'}</div>
+      <div style="font-size:19px;font-weight:800;margin:2px 0">${next.dish_name}</div>
+      <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack</div>
+      <button class="green" onclick="packStartDish('${next.id}')">▶ START</button>
+    </div>`
+  }
+  return `<div class="card" style="background:var(--panel2);text-align:center;margin:6px 0 0"><b>All dishes done 🎉</b></div>`
 }
 function packRunRow(r){
   const anyPacking=packRuns.some(x=>x.status==='packing')
@@ -80,18 +104,16 @@ function packRunRow(r){
   const coCls=(r.changeover_mins!=null&&r.changeover_mins>PACK_CO_TARGET)?'vs-bad':'vs-good'
   const co=started?`CO <span class="${coCls}">${coVal}</span> <a class="link" style="font-size:13px" onclick="packEditChangeover('${r.id}')">✎</a>`:''
   const statusPill=r.status==='done'?'<span class="pill done">done</span>':(r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill off">pending</span>')
-  let right=''
-  if(r.status==='pending'){ right=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
-  else if(r.status==='packing'){ right=`<input id="qty_${r.id}" type="number" inputmode="numeric" placeholder="qty" value="${r.planned_qty??''}" style="width:62px;padding:8px;margin:0" /><button class="red sm" onclick="packStopDish('${r.id}')">Stop</button>` }
-  else { right=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+'m':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
+  let act=''
+  if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
+  else if(r.status==='packing'){ act='' }
+  else { act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
   const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
-  const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:10px;color:var(--muted);letter-spacing:.5px">SKU</div><div style="font-size:22px;font-weight:900;color:var(--accent);line-height:1.05">${r.sku||'–'}</div></div>`
-  const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:48px"><div style="font-size:22px;font-weight:900;line-height:1.05">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted);letter-spacing:.5px">TO PACK</div></div>`
-  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}">
-    <div style="display:flex;align-items:center;gap:10px;min-width:0">${handle}${skuBlock}
-      <div style="min-width:0"><b style="font-size:15px">${r.dish_name}</b> ${statusPill}${co?'<div class="meta" style="margin-top:2px">'+co+'</div>':''}</div>
-    </div>
-    <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">${planBlock}${right}</div>
+  const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
+  const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
+  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${r.dish_name}</b>${planBlock}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${statusPill}${co?' · '+co:''}</span><span style="flex-shrink:0">${act}</span></div>
   </div>`
 }
 function packRulesCard(){
