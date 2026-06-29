@@ -101,7 +101,7 @@ function renderPacking(){
 function packActionPanel(packing,next){
   if(packing){
     return `<div class="card" style="background:var(--panel2);border-color:var(--accent);text-align:center;margin:6px 0 0">
-      <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}</div>
+      <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}${packing.line_count?' · '+packing.line_count+' on line':''}</div>
       <div style="font-size:19px;font-weight:800;margin:2px 0">${packing.dish_name}</div>
       <div class="timer" id="packCurElapsed">00:00:00</div>
       <div style="max-width:240px;margin:6px auto 0"><input id="qty_${packing.id}" type="number" inputmode="numeric" placeholder="qty packed" value="${packing.planned_qty??''}" style="text-align:center" /></div>
@@ -133,7 +133,7 @@ function packRunRow(r){
   let act=''
   if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
   else if(r.status==='skipped'){ act=`<button class="ghost sm" onclick="packUnskip('${r.id}')">Un-skip</button>` }
-  else if(r.status==='done'){ act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
+  else if(r.status==='done'){ act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.line_count?' · '+r.line_count+'p':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
   const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
   const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
@@ -253,9 +253,15 @@ window.packImportDishes=async function(){
 }
 window.packStartDish=async function(id){
   if(packRuns.some(r=>r.status==='packing')){alert('Finish the current dish first.');return}
+  const lastLine=(packRuns.find(r=>r.line_count)||{}).line_count
+  const def=lastLine||Object.keys(packAssignments).length||''
+  const v=prompt('How many people on the line for this dish?', def)
+  if(v===null)return
+  const n=Math.round(Number(v))
+  if(!n||isNaN(n)||n<1){alert('Enter the number of people on the line (1 or more) to start.');return}
   const done=packRuns.filter(r=>r.status==='done'&&r.finish_time).sort((a,b)=>new Date(b.finish_time)-new Date(a.finish_time))
   const co=done.length?Math.round(((Date.now()-new Date(done[0].finish_time))/60000)*10)/10:null
-  const {error}=await sb.from('sim_pack_runs').update({start_time:new Date().toISOString(),status:'packing',changeover_mins:co}).eq('id',id)
+  const {error}=await sb.from('sim_pack_runs').update({start_time:new Date().toISOString(),status:'packing',changeover_mins:co,line_count:n}).eq('id',id)
   if(error){alert(error.message);return}
   await loadPacking()
 }
