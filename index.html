@@ -120,6 +120,10 @@
       <div id="equipBoard"></div>
     </div>
 
+    <div id="packTab" class="hidden">
+      <div id="packBody"></div>
+    </div>
+
     <div id="dashTab" class="hidden">
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><h2 style="margin:0">Today · Live</h2><span class="pill live">● LIVE</span></div>
@@ -222,6 +226,15 @@
         <button class="green" onclick="addStaff()">Add floor staff</button>
         <div id="fsMsg" class="msg"></div>
         <div id="staffList" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
+        <h2>Packing team</h2>
+        <p class="muted" style="margin-top:-8px">The packing roster — added once here, then picked into positions each day on the Packing tab. No need to re-type.</p>
+        <label for="pmName">Name</label>
+        <input id="pmName" type="text" placeholder="Full name" />
+        <button class="green" onclick="addPackMember()">Add to packing team</button>
+        <div id="pmMsg" class="msg"></div>
+        <div id="packRosterList" style="margin-top:14px"></div>
       </div>
       <div class="card">
         <h2>Cooking equipment</h2>
@@ -366,6 +379,7 @@
 <script src="kiosk.js"></script>
 <script src="dashboard.js"></script>
 <script src="equipment.js"></script>
+<script src="packing.js"></script>
 <script src="performance.js"></script>
 <script src="manage.js"></script>
 <script src="boot.js"></script>
