@@ -1,4 +1,4 @@
-/* MANAGE: join code, user access, floor staff, wall link, and History/reports + CSV. */
+/* MANAGE: join code, user access, floor staff, wall link, History/reports + CSV, packing roster. */
 
 async function loadJoinCode(){
   if(!isAdmin()) return
@@ -85,6 +85,30 @@ window.addStaff=async function(){
   const {error}=await sb.rpc('sim_save_staff',{p_id:null,p_name:name,p_station:station,p_pin:pin||null})
   if(error){msg($('fsMsg'),error.message,false);return}
   $('fsName').value='';$('fsStation').value='';$('fsPin').value='';msg($('fsMsg'),'Staff added.'+(pin?'':' Set a PIN before they can log in.'),true);loadStaff()
+}
+
+// ---- packing team roster (admin) ----
+async function loadPackRoster(){
+  if(!isAdmin()) return
+  const box=$('packRosterList'); if(!box) return; box.innerHTML='<p class="muted">Loading…</p>'
+  const {data,error}=await sb.from('sim_pack_members').select('*').order('sort_order').order('full_name')
+  if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
+  box.innerHTML=''
+  ;(data||[]).forEach(m=>{
+    const d=document.createElement('div'); d.className='member'
+    d.innerHTML=`<div><div class="name">${m.full_name}</div><div class="sub">${m.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'}</div></div>`
+    const ctl=document.createElement('div'); ctl.className='ctl'
+    const act=document.createElement('button'); act.className='ghost sm'; act.textContent=m.active?'Remove':'Restore'
+    act.onclick=async()=>{await sb.from('sim_pack_members').update({active:!m.active}).eq('id',m.id);loadPackRoster()}
+    ctl.appendChild(act); d.appendChild(ctl); box.appendChild(d)
+  })
+  if(!data||!data.length) box.innerHTML='<p class="muted">No packing team members yet.</p>'
+}
+window.addPackMember=async function(){
+  const name=$('pmName').value.trim(); if(!name){msg($('pmMsg'),'Enter a name.',false);return}
+  const {error}=await sb.from('sim_pack_members').insert({full_name:name})
+  if(error){msg($('pmMsg'),error.message,false);return}
+  $('pmName').value='';msg($('pmMsg'),'Added.',true);loadPackRoster()
 }
 
 // ---- wall display link (admin) ----
@@ -180,7 +204,6 @@ window.saveLogEdit=async function(){
   else if(who.startsWith('s:')){upd.staff_id=who.slice(2);upd.user_id=null}
   const cat=catalog.find(c=>c.id===$('leTask').value)
   if(cat){upd.catalog_id=cat.id;upd.task_name=cat.name;upd.station=cat.station}
-  // minutes -> set finish_time so the totals trigger recomputes the chosen duration
   const m=numOrNull($('leMins').value)
   if(m!=null && !isNaN(m) && l.start_time){
     const startMs=new Date(l.start_time).getTime(); const paused=Number(l.paused_seconds)||0
