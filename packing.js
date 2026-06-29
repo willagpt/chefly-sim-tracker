@@ -1,7 +1,9 @@
 /* PACKING: team-leader screen — start-of-day positions & breaks, and the day's
-   dish run-sheet with sequential start/stop + automatic changeover timing. */
+   dish run-sheet with sequential start/stop + automatic changeover timing.
+   Live: subscribes to realtime so teammates' changes appear instantly. */
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
+let packChannel=null, packLiveT=null, packDragging=false
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
 window.loadPacking=async function(){
@@ -19,7 +21,28 @@ window.loadPacking=async function(){
   packPositions=pos.data||[]; packMembers=mem.data||[]; packRuns=runs.data||[]; packBreaks=brk.data||[]
   packAssignments={}; (asg.data||[]).forEach(a=>{packAssignments[a.position_id]=a})
   renderPacking()
+  packSubscribe()
   if(packTimer)clearInterval(packTimer); packTimer=setInterval(packTick,1000)
+}
+// ---- live: realtime subscription + guarded refresh ----
+function packSubscribe(){
+  if(packChannel) return
+  packChannel=sb.channel('sim-packing')
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_runs'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_assignments'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_breaks'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_shifts'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_dish_import'},packLiveRefresh)
+    .subscribe()
+}
+function packLiveRefresh(){
+  const et=$('packTab'); if(!et||et.classList.contains('hidden')) return        // not looking at packing
+  if(packDragging){ clearTimeout(packLiveT); packLiveT=setTimeout(packLiveRefresh,800); return }  // mid drag
+  const ae=document.activeElement
+  if(ae && (ae.tagName==='INPUT'||ae.tagName==='SELECT'||ae.tagName==='TEXTAREA') && $('packBody') && $('packBody').contains(ae)){
+    clearTimeout(packLiveT); packLiveT=setTimeout(packLiveRefresh,1500); return  // someone's typing/selecting — defer
+  }
+  clearTimeout(packLiveT); packLiveT=setTimeout(()=>{ loadPacking() },300)
 }
 function packMemberName(id){const m=packMembers.find(x=>x.id===id);return m?m.full_name:'—'}
 function packMemberOptions(sel){return '<option value="">— unassigned —</option>'+packMembers.map(m=>`<option value="${m.id}" ${sel===m.id?'selected':''}>${m.full_name}</option>`).join('')}
@@ -44,7 +67,6 @@ function renderPacking(){
     <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min</span>${skipped?' · '+skipped+' skipped':''}</p>
   </div>`
 
-  // ---- the run-sheet (big action panel + clean list) ----
   html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">Dish list</h2>`
   if(packRuns.length) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
   html+=`</div>`
@@ -58,7 +80,6 @@ function renderPacking(){
   }
   html+='</div>'
 
-  // ---- positions ----
   html+=`<div class="card"><h2>Team &amp; positions</h2>`
   if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
   packPositions.forEach(p=>{
@@ -67,7 +88,6 @@ function renderPacking(){
   })
   html+='</div>'
 
-  // ---- breaks ----
   html+=`<div class="card"><h2>Breaks</h2>`
   if(packBreaks.length){html+='<div style="margin-bottom:8px">'+packBreaks.map(b=>`<div class="task-item"><div><b>${packMemberName(b.member_id)}</b><div class="meta">${b.break_time||'—'}${b.approved_by?' · approved by '+b.approved_by:''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')+'</div>'}
   html+=`<select id="brkMember">${packMemberOptions('')}</select>
@@ -148,7 +168,7 @@ function packAttachDnD(){
   list.querySelectorAll('.drag-h').forEach(h=>{
     h.addEventListener('pointerdown',e=>{
       const dragEl=h.closest('[data-runid]'); if(!dragEl)return
-      e.preventDefault(); dragEl.style.opacity='0.5'
+      e.preventDefault(); packDragging=true; dragEl.style.opacity='0.5'
       const move=(ev)=>{
         const targets=[...list.querySelectorAll('[data-runid][data-pending="1"]')].filter(r=>r!==dragEl)
         let placed=false
@@ -157,7 +177,7 @@ function packAttachDnD(){
       }
       const up=async()=>{
         document.removeEventListener('pointermove',move); document.removeEventListener('pointerup',up)
-        dragEl.style.opacity=''
+        dragEl.style.opacity=''; packDragging=false
         const orderIds=[...list.querySelectorAll('[data-runid]')].map(r=>r.dataset.runid)
         await packPersistOrder(orderIds)
       }
