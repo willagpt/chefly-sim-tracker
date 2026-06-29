@@ -1,9 +1,9 @@
 /* PACKING: team-leader screen — start-of-day positions & breaks, and the day's
    dish run-sheet with sequential start/stop + automatic changeover timing.
-   Live: subscribes to realtime so teammates' changes appear instantly. */
+   Live: subscribes to realtime + live pace vs an adjustable meals/hour target. */
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
-let packChannel=null, packLiveT=null, packDragging=false
+let packChannel=null, packLiveT=null, packDragging=false, packTarget=500
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
 window.loadPacking=async function(){
@@ -11,20 +11,21 @@ window.loadPacking=async function(){
   let {data:sh}=await sb.from('sim_pack_shifts').select('*').eq('shift_date',today).maybeSingle()
   if(!sh){const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data}
   packShift=sh
-  const [pos,mem,asg,runs,brk]=await Promise.all([
+  const [pos,mem,asg,runs,brk,cfg]=await Promise.all([
     sb.from('sim_pack_positions').select('*').eq('active',true).order('sort_order'),
     sb.from('sim_pack_members').select('*').eq('active',true).order('sort_order').order('full_name'),
     sb.from('sim_pack_assignments').select('*').eq('shift_id',sh.id),
     sb.from('sim_pack_runs').select('*').eq('shift_id',sh.id).order('sort_order'),
-    sb.from('sim_pack_breaks').select('*').eq('shift_id',sh.id).order('created_at')
+    sb.from('sim_pack_breaks').select('*').eq('shift_id',sh.id).order('created_at'),
+    sb.from('sim_pack_settings').select('target_per_hour').eq('id',1).maybeSingle()
   ])
   packPositions=pos.data||[]; packMembers=mem.data||[]; packRuns=runs.data||[]; packBreaks=brk.data||[]
+  packTarget=(cfg&&cfg.data&&Number(cfg.data.target_per_hour))||500
   packAssignments={}; (asg.data||[]).forEach(a=>{packAssignments[a.position_id]=a})
   renderPacking()
   packSubscribe()
   if(packTimer)clearInterval(packTimer); packTimer=setInterval(packTick,1000)
 }
-// ---- live: realtime subscription + guarded refresh ----
 function packSubscribe(){
   if(packChannel) return
   packChannel=sb.channel('sim-packing')
@@ -33,19 +34,25 @@ function packSubscribe(){
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_breaks'},packLiveRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_shifts'},packLiveRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_dish_import'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_settings'},packLiveRefresh)
     .subscribe()
 }
 function packLiveRefresh(){
-  const et=$('packTab'); if(!et||et.classList.contains('hidden')) return        // not looking at packing
-  if(packDragging){ clearTimeout(packLiveT); packLiveT=setTimeout(packLiveRefresh,800); return }  // mid drag
+  const et=$('packTab'); if(!et||et.classList.contains('hidden')) return
+  if(packDragging){ clearTimeout(packLiveT); packLiveT=setTimeout(packLiveRefresh,800); return }
   const ae=document.activeElement
   if(ae && (ae.tagName==='INPUT'||ae.tagName==='SELECT'||ae.tagName==='TEXTAREA') && $('packBody') && $('packBody').contains(ae)){
-    clearTimeout(packLiveT); packLiveT=setTimeout(packLiveRefresh,1500); return  // someone's typing/selecting — defer
+    clearTimeout(packLiveT); packLiveT=setTimeout(packLiveRefresh,1500); return
   }
   clearTimeout(packLiveT); packLiveT=setTimeout(()=>{ loadPacking() },300)
 }
 function packMemberName(id){const m=packMembers.find(x=>x.id===id);return m?m.full_name:'—'}
 function packMemberOptions(sel){return '<option value="">— unassigned —</option>'+packMembers.map(m=>`<option value="${m.id}" ${sel===m.id?'selected':''}>${m.full_name}</option>`).join('')}
+function packRate(r){ // meals per hour for a finished dish
+  const q=(r.qty_packed!=null?r.qty_packed:r.planned_qty)
+  if(!r.total_minutes||r.total_minutes<=0||q==null) return null
+  return q/(r.total_minutes/60)
+}
 function renderPacking(){
   const box=$('packBody'); if(!box)return
   const done=packRuns.filter(r=>r.status==='done'), packing=packRuns.find(r=>r.status==='packing')
@@ -65,6 +72,7 @@ function renderPacking(){
       <div class="stat"><div class="n">${plannedMeals}</div><div class="l">Planned</div></div>
     </div>
     <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min</span>${skipped?' · '+skipped+' skipped':''}</p>
+    <p class="muted" style="margin-top:2px">Target: <b style="color:var(--txt)">${packTarget}/hr</b> <a class="link" onclick="packSetTarget()">adjust</a></p>
   </div>`
 
   html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">Dish list</h2>`
@@ -100,11 +108,14 @@ function renderPacking(){
 }
 function packActionPanel(packing,next){
   if(packing){
+    const tmin=(packTarget&&packing.planned_qty)?(packing.planned_qty/packTarget*60):null
     return `<div class="card" style="background:var(--panel2);border-color:var(--accent);text-align:center;margin:6px 0 0">
       <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}${packing.line_count?' · '+packing.line_count+' on line':''}</div>
       <div style="font-size:19px;font-weight:800;margin:2px 0">${packing.dish_name}</div>
       <div class="timer" id="packCurElapsed">00:00:00</div>
-      <div style="max-width:240px;margin:6px auto 0"><input id="qty_${packing.id}" type="number" inputmode="numeric" placeholder="qty packed" value="${packing.planned_qty??''}" style="text-align:center" /></div>
+      <div class="muted" style="font-size:12px">Target ${packTarget}/hr${tmin?' · '+tmin.toFixed(1)+' min for '+packing.planned_qty:''}</div>
+      <div id="packPaceInfo" style="font-weight:800;font-size:15px;margin:6px 0 2px">&nbsp;</div>
+      <div style="max-width:240px;margin:4px auto 0"><input id="qty_${packing.id}" type="number" inputmode="numeric" placeholder="qty packed" value="${packing.planned_qty??''}" style="text-align:center" /></div>
       <button class="red" onclick="packStopDish('${packing.id}')">■ STOP — finish dish</button>
     </div>`
   }
@@ -133,7 +144,7 @@ function packRunRow(r){
   let act=''
   if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
   else if(r.status==='skipped'){ act=`<button class="ghost sm" onclick="packUnskip('${r.id}')">Un-skip</button>` }
-  else if(r.status==='done'){ act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.line_count?' · '+r.line_count+'p':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
+  else if(r.status==='done'){ const rt=packRate(r); const rtTxt=rt!=null?` · <span class="${rt>=packTarget?'vs-good':'vs-bad'}">${Math.round(rt)}/hr</span>`:''; act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.line_count?' · '+r.line_count+'p':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}${rtTxt}</span>` }
   const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
   const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
@@ -160,9 +171,17 @@ function packRulesCard(){
 }
 function packTick(){
   const r=packRuns.find(x=>x.status==='packing'); const el=$('packCurElapsed')
-  if(r&&el&&r.start_time){ el.textContent=fmtClock((Date.now()-new Date(r.start_time))/1000) }
+  if(r&&el&&r.start_time){
+    const sec=(Date.now()-new Date(r.start_time))/1000
+    el.textContent=fmtClock(sec)
+    const info=$('packPaceInfo')
+    if(info && packTarget>0 && r.planned_qty){
+      const elapsedMin=sec/60, targetMin=r.planned_qty/packTarget*60
+      if(elapsedMin<=targetMin){ const left=Math.max(0,targetMin-elapsedMin); info.innerHTML='<span class="vs-good">On pace ✓ — '+left.toFixed(1)+' min left to hit '+packTarget+'/hr</span>' }
+      else { const over=elapsedMin-targetMin; info.innerHTML='<span class="vs-bad">Behind by '+over.toFixed(1)+' min vs '+packTarget+'/hr</span>' }
+    }
+  }
 }
-// drag-and-drop reordering (pointer events = works on touch + mouse)
 function packAttachDnD(){
   const list=$('packDishList'); if(!list)return
   list.querySelectorAll('.drag-h').forEach(h=>{
@@ -191,6 +210,14 @@ async function packPersistOrder(orderIds){
   orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update({sort_order:i}).eq('id',id)) } })
   if(ups.length) await Promise.all(ups)
   await loadPacking()
+}
+window.packSetTarget=async function(){
+  const v=prompt('Packing target — meals per hour:', packTarget)
+  if(v===null)return
+  const n=Number(v); if(!n||isNaN(n)||n<=0){alert('Enter a number greater than 0.');return}
+  const {error}=await sb.from('sim_pack_settings').update({target_per_hour:n}).eq('id',1)
+  if(error){alert(error.message);return}
+  packTarget=n; await loadPacking()
 }
 window.packNote=async function(id){
   const r=packRuns.find(x=>x.id===id); if(!r)return
@@ -272,6 +299,11 @@ window.packStopDish=async function(id){
   const mins=r.start_time?Math.round(((new Date(fin)-new Date(r.start_time))/60000)*100)/100:null
   const {error}=await sb.from('sim_pack_runs').update({finish_time:fin,total_minutes:mins,qty_packed:qty,status:'done'}).eq('id',id)
   if(error){alert(error.message);return}
+  const usedQty=(qty!=null?qty:r.planned_qty)
+  const rate=(mins&&mins>0&&usedQty!=null)?(usedQty/(mins/60)):null
+  if(rate!=null){
+    alert(r.dish_name+'\n\n'+Math.round(rate)+' meals/hr  (target '+packTarget+'/hr)\n\n'+(rate>=packTarget?'Great — above target! 🎉':'Below target — room to improve.'))
+  }
   await loadPacking()
 }
 window.packSaveDefault=async function(){
