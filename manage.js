@@ -119,21 +119,37 @@ window.addPackMember=async function(){
   $('pmName').value='';msg($('pmMsg'),'Added.',true);loadPackRoster()
 }
 
-// ---- wall display link (admin) ----
+// ---- wall display links (admin) ----
+function ensurePackWallEl(){
+  if($('packWallUrl')) return
+  const host=$('wallUrl'); if(!host||!host.parentNode) return
+  const wrap=document.createElement('div')
+  wrap.innerHTML='<label for="packWallUrl" style="display:block;margin-top:14px">Packing line wall link</label>'+
+    '<input id="packWallUrl" type="text" readonly style="width:100%" value="(generate the link above first)" />'+
+    '<div class="row" style="margin-top:6px"><button class="ghost" onclick="copyPackWall()">Copy packing wall link</button></div>'
+  const anchor=$('wallMsg')
+  if(anchor&&anchor.parentNode===host.parentNode) host.parentNode.insertBefore(wrap,anchor)
+  else host.parentNode.appendChild(wrap)
+}
 async function loadWallUrl(){
   if(!isAdmin()) return
+  ensurePackWallEl()
   const {data}=await sb.from('sim_settings').select('value').eq('key','wall_token').maybeSingle()
   const tok=data&&data.value
   $('wallUrl').value = tok ? (location.origin+'/wall.html?t='+tok) : '(not generated yet — tap Generate)'
+  if($('packWallUrl')) $('packWallUrl').value = tok ? (location.origin+'/packwall.html?t='+tok) : '(generate the link above first)'
 }
 window.genWallToken=async function(){
   if(!confirm('Generate a new wall link? Any existing link will stop working.'))return
   const {data,error}=await sb.rpc('sim_set_wall_token')
   if(error){msg($('wallMsg'),error.message,false);return}
+  ensurePackWallEl()
   $('wallUrl').value=location.origin+'/wall.html?t='+data
-  msg($('wallMsg'),'New wall link ready. Open it on the office screen.',true)
+  if($('packWallUrl')) $('packWallUrl').value=location.origin+'/packwall.html?t='+data
+  msg($('wallMsg'),'New links ready — office board (wall.html) and packing line (packwall.html).',true)
 }
-window.copyWall=function(){const v=$('wallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Copied to clipboard.',true)}}
+window.copyWall=function(){const v=$('wallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Office wall link copied.',true)}}
+window.copyPackWall=function(){const v=$('packWallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Packing wall link copied.',true)}}
 
 // ---- history / reports (manager/admin) ----
 let historyRows=[], histLogs=[], histProfs=[], histStaffs=[], leCurrentId=null
