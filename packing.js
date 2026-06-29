@@ -78,14 +78,21 @@ function packRunRow(r){
   const started=r.status!=='pending'
   const coVal=r.changeover_mins!=null?r.changeover_mins.toFixed(1)+'m':'–'
   const coCls=(r.changeover_mins!=null&&r.changeover_mins>PACK_CO_TARGET)?'vs-bad':'vs-good'
-  const co=started?` · CO <span class="${coCls}">${coVal}</span> <a class="link" style="font-size:13px" onclick="packEditChangeover('${r.id}')">✎</a>`:''
+  const co=started?`CO <span class="${coCls}">${coVal}</span> <a class="link" style="font-size:13px" onclick="packEditChangeover('${r.id}')">✎</a>`:''
   const statusPill=r.status==='done'?'<span class="pill done">done</span>':(r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill off">pending</span>')
-  let action=''
-  if(r.status==='pending'){ action=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
-  else if(r.status==='packing'){ action=`<input id="qty_${r.id}" type="number" inputmode="numeric" placeholder="qty" value="${r.planned_qty??''}" style="width:64px;padding:8px;margin:0" /><button class="red sm" onclick="packStopDish('${r.id}')">Stop</button>` }
-  else { action=`<span class="muted" style="font-size:13px">${r.total_minutes!=null?r.total_minutes+'m':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
-  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:4px 6px;font-size:18px;color:var(--muted)">⠿</span>`:''
-  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}"><div style="min-width:0"><b>${r.dish_name}</b> ${statusPill}<div class="meta">SKU ${r.sku||'–'} · plan ${r.planned_qty??'–'}${co}</div></div><div style="display:flex;gap:6px;align-items:center;flex-shrink:0">${handle}${action}</div></div>`
+  let right=''
+  if(r.status==='pending'){ right=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button>` }
+  else if(r.status==='packing'){ right=`<input id="qty_${r.id}" type="number" inputmode="numeric" placeholder="qty" value="${r.planned_qty??''}" style="width:62px;padding:8px;margin:0" /><button class="red sm" onclick="packStopDish('${r.id}')">Stop</button>` }
+  else { right=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+'m':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}</span>` }
+  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
+  const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:10px;color:var(--muted);letter-spacing:.5px">SKU</div><div style="font-size:22px;font-weight:900;color:var(--accent);line-height:1.05">${r.sku||'–'}</div></div>`
+  const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:48px"><div style="font-size:22px;font-weight:900;line-height:1.05">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted);letter-spacing:.5px">TO PACK</div></div>`
+  return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}">
+    <div style="display:flex;align-items:center;gap:10px;min-width:0">${handle}${skuBlock}
+      <div style="min-width:0"><b style="font-size:15px">${r.dish_name}</b> ${statusPill}${co?'<div class="meta" style="margin-top:2px">'+co+'</div>':''}</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-shrink:0">${planBlock}${right}</div>
+  </div>`
 }
 function packRulesCard(){
   return `<div class="card"><h2>Packing Team Rules</h2><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)">
