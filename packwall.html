@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Packing Wall — Chefly</title>
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--panel2:#273548;--line:#334155;--txt:#f1f5f9;--muted:#94a3b8;--accent:#f97316;--green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:24px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:14px;font-weight:900;font-size:30px;letter-spacing:.5px}
+  .dot{width:16px;height:16px;border-radius:50%;background:var(--accent);box-shadow:0 0 18px var(--accent)}
+  .clock{font-size:22px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;text-align:center}
+  .stat .n{font-size:54px;font-weight:900;line-height:1}
+  .stat .s{font-size:16px;color:var(--muted);margin-top:6px}
+  .stat .l{font-size:15px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:1px}
+  .hero{background:var(--panel);border:2px solid var(--accent);border-radius:22px;padding:26px;margin-bottom:18px;text-align:center}
+  .hero .ey{font-size:18px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .hero .nm{font-size:46px;font-weight:900;margin:6px 0}
+  .hero .tmr{font-size:78px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1;margin:6px 0}
+  .hero .pace{font-size:30px;font-weight:900;margin-top:8px}
+  .hero.idle{border-color:var(--line)}
+  .good{color:#86efac}.bad{color:#fca5a5}.amberT{color:#fcd34d}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px}
+  .panel h2{font-size:22px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+  .live{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;margin-bottom:10px;background:var(--panel2)}
+  .row .name{font-size:23px;font-weight:800}
+  .row .sub{font-size:16px;color:var(--muted);margin-top:3px}
+  .badge{font-size:21px;font-weight:900;padding:6px 14px;border-radius:999px;white-space:nowrap}
+  .badge.good{background:rgba(34,197,94,.18);color:#86efac}
+  .badge.low{background:rgba(239,68,68,.2);color:#fca5a5}
+  .sku{display:inline-block;background:rgba(249,115,22,.18);color:#fdba74;font-weight:900;border-radius:8px;padding:1px 9px;margin-right:8px}
+  .empty{color:var(--muted);font-size:20px;padding:16px}
+  .err{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4);padding:24px;border-radius:16px;font-size:20px;max-width:760px;margin:60px auto;text-align:center}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}.stat-grid{grid-template-columns:repeat(2,1fr)}.hero .tmr{font-size:60px}.hero .nm{font-size:34px}}
+</style>
+</head>
+<body>
+<div id="root"><div class="err" id="err" style="display:none"></div><div id="content" style="display:none">
+  <header>
+    <div class="brand"><span class="dot"></span> Packing Line — Chefly</div>
+    <div class="clock"><span id="tgt"></span> &nbsp; <span id="clock"></span></div>
+  </header>
+  <div class="stat-grid">
+    <div class="stat"><div class="n" id="stDishes">0/0</div><div class="l">Dishes packed</div></div>
+    <div class="stat"><div class="n" id="stMeals">0</div><div class="s" id="stPlanned">of 0 planned</div><div class="l">Meals</div></div>
+    <div class="stat"><div class="n" id="stCo">–</div><div class="s" id="stCoOver"></div><div class="l">Avg changeover</div></div>
+    <div class="stat"><div class="n" id="stPct">0%</div><div class="l">of plan complete</div></div>
+  </div>
+  <div class="hero idle" id="hero">
+    <div class="ey" id="heroEy">No dish running</div>
+    <div class="nm" id="heroNm">Waiting to start…</div>
+    <div class="tmr" id="heroTmr">00:00</div>
+    <div class="pace" id="heroPace">&nbsp;</div>
+  </div>
+  <div class="cols">
+    <div class="panel"><h2>Just finished</h2><div id="done"></div></div>
+    <div class="panel"><h2>Up next</h2><div id="next"></div></div>
+  </div>
+</div></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
+const token = new URLSearchParams(location.search).get('t') || ''
+const $=id=>document.getElementById(id)
+const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+function fmtClock(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;const p=n=>String(n).padStart(2,'0');return (h>0?p(h)+':':'')+p(m)+':'+p(s)}
+
+let snap=null
+function showErr(m){ $('err').style.display='block'; $('err').textContent=m; $('content').style.display='none' }
+
+async function refresh(){
+  if(!token){ showErr('Missing access token. Open the packing wall link from Manage → Wall display.'); return }
+  const {data,error}=await sb.rpc('sim_public_packing',{p_token:token})
+  if(error){ showErr('Could not load (check the link / token). '+error.message); return }
+  snap=data
+  $('err').style.display='none'; $('content').style.display='block'
+  const st=data.stats||{}
+  $('tgt').textContent='🎯 Target '+ (data.target||500) +'/hr'
+  $('stDishes').textContent=(st.dishes_done||0)+'/'+(st.dishes_total||0)
+  $('stMeals').textContent=st.meals_packed||0
+  $('stPlanned').textContent='of '+(st.meals_planned||0)+' planned'
+  $('stCo').textContent=st.avg_changeover!=null?st.avg_changeover+'m':'–'
+  $('stCoOver').innerHTML=st.over_changeover?('<span class="bad">'+st.over_changeover+' over 3-min</span>'):'<span class="good">all under 3-min</span>'
+  const pct=st.meals_planned? Math.round((st.meals_packed/st.meals_planned)*100):0
+  $('stPct').textContent=pct+'%'
+
+  const done=data.done||[]
+  $('done').innerHTML = done.length? done.map(d=>{
+    const ok=d.rate!=null && d.rate>=(data.target||500)
+    const badge=d.rate!=null?`<div class="badge ${ok?'good':'low'}">${d.rate}/hr</div>`:''
+    return `<div class="row"><div><div class="name"><span class="sku">${d.sku||'–'}</span>${d.dish_name}</div><div class="sub">${d.qty_packed??d.planned_qty??'–'} packed · ${d.total_minutes??'–'} min${d.line_count?' · '+d.line_count+' on line':''} · ${fmtTime(d.finish_time)}</div></div>${badge}</div>`
+  }).join('') : '<div class="empty">No dishes finished yet today.</div>'
+
+  const nx=data.next
+  $('next').innerHTML = nx? `<div class="row"><div><div class="name"><span class="sku">${nx.sku||'–'}</span>${nx.dish_name}</div><div class="sub">${nx.planned_qty??'–'} to pack</div></div></div>` : (data.current?'<div class="empty">Last dish in progress.</div>':'<div class="empty">All dishes done 🎉</div>')
+
+  renderHero()
+}
+function renderHero(){
+  const h=$('hero'), c=snap&&snap.current
+  if(!c){ h.classList.add('idle'); $('heroEy').textContent='No dish running'; $('heroNm').textContent= (snap&&snap.stats&&snap.stats.dishes_total&&snap.stats.dishes_done>=snap.stats.dishes_total)?'All dishes done 🎉':'Waiting to start…'; $('heroTmr').textContent='00:00'; $('heroPace').innerHTML='&nbsp;'; return }
+  h.classList.remove('idle')
+  $('heroEy').innerHTML='<span class="live"></span> NOW PACKING'+(c.line_count?' · '+c.line_count+' on line':'')
+  $('heroNm').innerHTML='<span class="sku">'+(c.sku||'–')+'</span>'+c.dish_name
+}
+function tickHero(){
+  const c=snap&&snap.current
+  if(!c||!c.start_time){ return }
+  const sec=(Date.now()-new Date(c.start_time))/1000
+  $('heroTmr').textContent=fmtClock(sec)
+  const tgt=(snap&&snap.target)||500
+  if(c.planned_qty){
+    const elapsedMin=sec/60, targetMin=c.planned_qty/tgt*60
+    if(elapsedMin<=targetMin){ const left=Math.max(0,targetMin-elapsedMin); $('heroPace').innerHTML='<span class="good">● On pace — '+left.toFixed(1)+' min left to hit '+tgt+'/hr</span>' }
+    else { const over=elapsedMin-targetMin; $('heroPace').innerHTML='<span class="bad">▲ Behind by '+over.toFixed(1)+' min vs '+tgt+'/hr</span>' }
+  }
+}
+function tickClock(){ $('clock').textContent=new Date().toLocaleString([], {weekday:'short', hour:'2-digit', minute:'2-digit'}) }
+tickClock(); setInterval(tickClock,1000)
+setInterval(tickHero,1000)
+refresh(); setInterval(refresh, 10000)
+</script>
+</body>
+</html>
