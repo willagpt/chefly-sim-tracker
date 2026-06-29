@@ -88,6 +88,7 @@ function renderPacking(){
   }
   html+='</div>'
 
+  html+=packActualOrderCard()
   html+=`<div class="card"><h2>Team &amp; positions</h2>`
   if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
   packPositions.forEach(p=>{
@@ -160,6 +161,22 @@ function packRunRow(r){
     ${notesLine}
     ${photoStrip}
   </div>`
+}
+function packActualOrderCard(){
+  const started=packRuns.filter(r=>r.pack_seq!=null).sort((a,b)=>a.pack_seq-b.pack_seq)
+  if(!started.length) return ''
+  const plannedSorted=[...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
+  const plannedRank={}; plannedSorted.forEach((r,i)=>{plannedRank[r.id]=i+1})
+  const movedAny=started.some((r,i)=>plannedRank[r.id]!=null && plannedRank[r.id]!==(i+1))
+  const rows=started.map((r,i)=>{
+    const actual=i+1, planned=plannedRank[r.id]
+    const moved=planned!=null&&planned!==actual
+    const movedBadge=moved?`<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">moved from #${planned}</span>`:''
+    const reason=r.out_of_sequence_reason?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">↳ ${r.out_of_sequence_reason}</div>`:''
+    const status=r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill done">done</span>'
+    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;min-width:26px">#${actual}</b><span style="background:rgba(249,115,22,.18);color:var(--accent);font-weight:900;border-radius:6px;padding:1px 8px">${r.sku||'–'}</span><b style="flex:1;min-width:0">${r.dish_name}</b>${status}${movedBadge}</div>${reason}</div>`
+  }).join('')
+  return `<div class="card"><h2>Actual packed order</h2><p class="muted" style="margin-top:-8px">The real sequence packed today${movedAny?' — dishes that moved from the plan are flagged with the reason given':''}.</p>${rows}</div>`
 }
 function packRulesCard(){
   return `<div class="card"><h2>Packing Team Rules</h2><ul style="margin:0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)">
@@ -303,22 +320,34 @@ window.packImportDishes=async function(){
   const orderBy={}; (ord||[]).forEach(o=>{orderBy[o.sku]=o.sort_order})
   const rows=imp.map(d=>({sku:d.sku,dish_name:d.dish_name,planned_qty:d.qty,_o:(orderBy[d.sku]!=null?orderBy[d.sku]:1000+d.sort_order)})).sort((a,b)=>a._o-b._o)
   await sb.from('sim_pack_runs').delete().eq('shift_id',packShift.id)
-  const ins=rows.map((d,i)=>({shift_id:packShift.id,dish_name:d.dish_name,sku:d.sku,planned_qty:d.planned_qty,sort_order:i,status:'pending'}))
+  const ins=rows.map((d,i)=>({shift_id:packShift.id,dish_name:d.dish_name,sku:d.sku,planned_qty:d.planned_qty,sort_order:i,planned_seq:i,status:'pending'}))
   const {error}=await sb.from('sim_pack_runs').insert(ins)
   if(error){alert(error.message);return}
   await loadPacking()
 }
 window.packStartDish=async function(id){
   if(packRuns.some(r=>r.status==='packing')){alert('Finish the current dish first.');return}
-  const lastLine=(packRuns.find(r=>r.line_count)||{}).line_count
+  const r=packRuns.find(x=>x.id===id); if(!r)return
+  const pendings=packRuns.filter(x=>x.status==='pending').sort((a,b)=>a.sort_order-b.sort_order)
+  const expected=pendings[0]
+  let reason=null
+  if(expected && expected.id!==id){
+    reason=prompt('OUT OF SEQUENCE\n\n"'+expected.dish_name+'" (SKU '+(expected.sku||'–')+') is next on the plan but is not done.\n\nWhy are you packing "'+r.dish_name+'" first?')
+    if(reason===null)return
+    if(!reason.trim()){alert('A reason is required to pack out of sequence.');return}
+  }
+  const lastLine=(packRuns.find(x=>x.line_count)||{}).line_count
   const def=lastLine||Object.keys(packAssignments).length||''
   const v=prompt('How many people on the line for this dish?', def)
   if(v===null)return
   const n=Math.round(Number(v))
   if(!n||isNaN(n)||n<1){alert('Enter the number of people on the line (1 or more) to start.');return}
-  const done=packRuns.filter(r=>r.status==='done'&&r.finish_time).sort((a,b)=>new Date(b.finish_time)-new Date(a.finish_time))
+  const done=packRuns.filter(x=>x.status==='done'&&x.finish_time).sort((a,b)=>new Date(b.finish_time)-new Date(a.finish_time))
   const co=done.length?Math.round(((Date.now()-new Date(done[0].finish_time))/60000)*10)/10:null
-  const {error}=await sb.from('sim_pack_runs').update({start_time:new Date().toISOString(),status:'packing',changeover_mins:co,line_count:n}).eq('id',id)
+  const maxSeq=packRuns.reduce((m,x)=>Math.max(m,x.pack_seq||0),0)
+  const upd={start_time:new Date().toISOString(),status:'packing',changeover_mins:co,line_count:n,pack_seq:maxSeq+1}
+  if(reason!==null) upd.out_of_sequence_reason=reason.trim()
+  const {error}=await sb.from('sim_pack_runs').update(upd).eq('id',id)
   if(error){alert(error.message);return}
   await loadPacking()
 }
