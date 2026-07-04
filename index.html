@@ -175,32 +175,11 @@
 
     <div id="planTab" class="hidden">
       <div class="card">
-        <h2>Weekly production plan</h2>
-        <p class="muted" style="margin-top:-8px">Enter what needs making, assign each job to a day and a vessel, and watch each vessel's daily load. Durations use standard times from history — you can override any of them.</p>
+        <h2>Production plan</h2>
         <div class="row">
           <div><label for="planWeek">Week of (Mon)</label><input id="planWeek" type="date" onchange="loadPlan()" /></div>
           <div style="display:flex;align-items:flex-end;gap:8px"><button class="ghost" onclick="planPrevWeek()">‹ Prev</button><button class="ghost" onclick="planNextWeek()">Next ›</button></div>
         </div>
-        <div id="planMsg" class="msg"></div>
-      </div>
-      <div class="card">
-        <h2>Add a job</h2>
-        <label for="pjTask">Recipe / task</label>
-        <select id="pjTask" onchange="pjRecalc()"></select>
-        <div class="row">
-          <div><label for="pjProduct">Product (optional)</label><input id="pjProduct" type="text" placeholder="exact name for sheets" /></div>
-          <div><label for="pjQty">Target qty</label><input id="pjQty" type="number" inputmode="decimal" oninput="pjRecalc()" placeholder="e.g. 300" /></div>
-        </div>
-        <div class="row">
-          <div><label for="pjDay">Day</label><select id="pjDay"></select></div>
-          <div><label for="pjEquip">Vessel</label><select id="pjEquip"></select></div>
-        </div>
-        <div class="row">
-          <div><label for="pjMins">Est. minutes</label><input id="pjMins" type="number" inputmode="decimal" oninput="pjMinsTouched()" /></div>
-          <div><label for="pjStaff">People</label><input id="pjStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
-        </div>
-        <p class="muted" id="pjHint"></p>
-        <button class="green" onclick="addPlanJob()">Add to plan</button>
       </div>
       <div id="planBoard"></div>
     </div>
