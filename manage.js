@@ -186,10 +186,36 @@ window.loadHistory=async function(){
 }
 
 // ---- full log editor (manager/admin) ----
+window.leTaskChanged=function(){
+  const cat=catalog.find(c=>c.id===$('leTask').value)
+  const _eu=cat?(cat.uom||'kg'):'kg'
+  const kl=$('leKgLabel'); if(kl)kl.textContent=_eu+' produced'
+  const wl=$('leWasteLabel'); if(wl)wl.textContent='Waste ('+_eu+')'
+}
+window.newLog=async function(){
+  if(!isManagerUp()) return
+  leCurrentId=null
+  if(!histProfs.length){const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email');histProfs=profs||[]}
+  if(!histStaffs.length){const {data:staffs}=await sb.from('sim_staff').select('id,full_name');histStaffs=staffs||[]}
+  const ts=$('leTask'); ts.innerHTML=''
+  catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;ts.appendChild(o)})
+  const ws=$('leWho'); ws.innerHTML='<option value="">— pick who —</option>'
+  histProfs.forEach(p=>{const o=document.createElement('option');o.value='u:'+p.id;o.textContent=(p.full_name||p.email);ws.appendChild(o)})
+  histStaffs.forEach(s=>{const o=document.createElement('option');o.value='s:'+s.id;o.textContent=s.full_name+' (floor)';ws.appendChild(o)})
+  $('leDate').value=new Date().toISOString().slice(0,10)
+  $('leProduct').value='';$('leKg').value='';$('leWaste').value='';$('lePeople').value=1;$('leMins').value='';$('leChange').value='';$('leComments').value=''
+  leTaskChanged()
+  const t=$('leTitle'); if(t)t.textContent='Add manual entry'
+  const db=$('leDelBtn'); if(db)db.style.display='none'
+  clearMsg($('leMsg'))
+  $('logEdit').classList.remove('hidden')
+}
 window.editLog=function(id){
   if(!isManagerUp()) return
   const l=histLogs.find(x=>x.id===id); if(!l) return
   leCurrentId=id
+  const _t=$('leTitle'); if(_t)_t.textContent='Edit log'
+  const _db=$('leDelBtn'); if(_db)_db.style.display=''
   const ts=$('leTask'); ts.innerHTML=''; let hasCat=false
   catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;if(t.id===l.catalog_id){o.selected=true;hasCat=true}ts.appendChild(o)})
   if(!hasCat){const o=document.createElement('option');o.value=l.catalog_id||'';o.textContent=(l.task_name||'(this task)')+' — current';o.selected=true;ts.insertBefore(o,ts.firstChild)}
@@ -212,13 +238,33 @@ window.editLog=function(id){
 }
 window.closeLogEdit=function(){ $('logEdit').classList.add('hidden'); leCurrentId=null }
 window.saveLogEdit=async function(){
-  const id=leCurrentId; if(!id) return
-  const l=histLogs.find(x=>x.id===id); if(!l) return
+  const id=leCurrentId
+  const l=id?histLogs.find(x=>x.id===id):null
+  if(id && !l) return
   const numOrNull=v=>{v=String(v).trim();return v===''?null:Number(v)}
   const units=numOrNull($('leKg').value), waste=numOrNull($('leWaste').value)
   if((units!=null&&isNaN(units))||(waste!=null&&isNaN(waste))){msg($('leMsg'),'Amount and waste must be numbers.',false);return}
-  const _eu=uomFor(l)
+  const _cat=catalog.find(c=>c.id===$('leTask').value)
+  const _eu=l?uomFor(l):(_cat?(_cat.uom||'kg'):'kg')
   if(_eu==='kg' && ((units!=null&&units>1000)||(waste!=null&&waste>1000))){msg($('leMsg'),'A value is over the 1000 kg limit — please re-check (e.g. a dropped decimal point).',false);return}
+  if(!id){
+    // ---- create a manual entry ----
+    if(!_cat){msg($('leMsg'),'Pick a task.',false);return}
+    const who=$('leWho').value; if(!who){msg($('leMsg'),'Pick who did the task.',false);return}
+    const mm=numOrNull($('leMins').value)
+    if(mm==null||isNaN(mm)||mm<=0){msg($('leMsg'),'Enter how many minutes it took.',false);return}
+    const date=$('leDate').value||new Date().toISOString().slice(0,10)
+    const start=new Date(date+'T12:00:00'); const finish=new Date(start.getTime()+mm*60000)
+    const row={catalog_id:_cat.id,task_name:_cat.name,station:_cat.station,uom:_eu,
+      product:$('leProduct').value.trim()||null,units,waste_kg:waste,
+      staff_count:Number($('lePeople').value)||1,changeover_mins:numOrNull($('leChange').value),
+      comments:$('leComments').value.trim()||null,log_date:date,
+      start_time:start.toISOString(),finish_time:finish.toISOString(),paused_seconds:0,status:'completed'}
+    if(who.startsWith('u:'))row.user_id=who.slice(2); else if(who.startsWith('s:'))row.staff_id=who.slice(2)
+    const {error}=await sb.from('sim_task_logs').insert(row)
+    if(error){msg($('leMsg'),finishErr(error),false);return}
+    closeLogEdit(); loadHistory(); return
+  }
   const upd={
     product:$('leProduct').value.trim()||null,
     units, waste_kg:waste,

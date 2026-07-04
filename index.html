@@ -148,6 +148,9 @@
           <button class="green" onclick="loadHistory()">Load</button>
           <button class="ghost" onclick="exportCsv()">Export CSV</button>
         </div>
+        <div class="row">
+          <button class="ghost" onclick="newLog()">➕ Add manual entry</button>
+        </div>
         <p class="muted" id="hSummary" style="margin-top:12px"></p>
       </div>
       <div class="card"><div id="hBody"><p class="muted">Pick a date range and tap Load.</p></div></div>
@@ -331,9 +334,9 @@
 <!-- ============ EDIT LOG (manager/admin) ============ -->
 <div id="logEdit" class="hidden">
   <div class="le-card">
-    <h2>Edit log</h2>
+    <h2 id="leTitle">Edit log</h2>
     <label for="leTask">Task</label>
-    <select id="leTask"></select>
+    <select id="leTask" onchange="leTaskChanged()"></select>
     <label for="leWho">Who</label>
     <select id="leWho"></select>
     <div class="row">
@@ -356,7 +359,7 @@
       <button class="green" onclick="saveLogEdit()">Save changes</button>
       <button class="ghost" onclick="closeLogEdit()">Cancel</button>
     </div>
-    <button class="red" onclick="delLog(leCurrentId)">Delete this log</button>
+    <button class="red" id="leDelBtn" onclick="delLog(leCurrentId)">Delete this log</button>
   </div>
 </div>
 
