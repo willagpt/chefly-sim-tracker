@@ -6,8 +6,9 @@
 let planWeekStart=null, planWeekId=null, planItems=[], planStd={}, planVessels=[]
 const DAY_LBL=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
-function mondayOf(d){const dt=new Date(d+'T00:00:00');const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);return dt.toISOString().slice(0,10)}
-function addDaysIso(iso,n){const dt=new Date(iso+'T00:00:00');dt.setDate(dt.getDate()+n);return dt.toISOString().slice(0,10)}
+function isoLocal(dt){const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');return y+'-'+m+'-'+d}
+function mondayOf(d){const dt=new Date(d+'T00:00:00');const off=(dt.getDay()+6)%7;dt.setDate(dt.getDate()-off);return isoLocal(dt)}
+function addDaysIso(iso,n){const dt=new Date(iso+'T00:00:00');dt.setDate(dt.getDate()+n);return isoLocal(dt)}
 function ddmm(iso){const dt=new Date(iso+'T00:00:00');return dt.getDate()+'/'+(dt.getMonth()+1)}
 function stdFor(id){return planStd[id]||null}
 function estMinutes(catId,qty){const s=stdFor(catId);if(!s||!qty)return s&&s.eff_minutes?Math.round(s.eff_minutes):null;if(s.eff_uph&&s.eff_uph>0)return Math.round(qty/s.eff_uph*60);if(s.eff_minutes)return Math.round(s.eff_minutes);return null}
@@ -15,7 +16,7 @@ function estMinutes(catId,qty){const s=stdFor(catId);if(!s||!qty)return s&&s.eff
 window.loadPlan=async function(){
   if(!isManagerUp())return
   if(!catalog.length) await loadCatalog()
-  if(!$('planWeek').value) $('planWeek').value=mondayOf(new Date().toISOString().slice(0,10))
+  if(!$('planWeek').value) $('planWeek').value=mondayOf(isoLocal(new Date()))
   planWeekStart=mondayOf($('planWeek').value); $('planWeek').value=planWeekStart
   // standard times
   const {data:std}=await sb.rpc('sim_standard_times')
