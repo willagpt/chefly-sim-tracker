@@ -173,7 +173,7 @@ function groupsFor(items){
 function listRowHtml(it){
   const t=catOfItem(it)
   const sel=planSel.has(it.id)
-  const qty=it.target_qty!=null?(it.target_qty+' '+esc(it.uom||'')):''
+  const qty=it.target_qty!=null?(Number(it.target_qty)+' '+esc(it.uom||'')):''
   let right=''
   if(t&&t.is_batch){const total=loadsFor(t,it.target_qty)||0;const done=Math.min(it.loads_done||0,total);right=`<span style="font-size:12px;color:var(--muted);white-space:nowrap">${done}/${total} loads <button class="ghost sm" style="padding:1px 6px" onclick="tickLoad('${it.id}',1)">＋</button></span>`}
   else {const m=itemMins(it);right=`<span style="font-size:12px;color:var(--muted);white-space:nowrap">${m?('~'+m+'m'):'—'}</span>`}
@@ -254,7 +254,7 @@ function boardHtml(){
   const cols=[]
   for(let d=0;d<7;d++){const iso=addDaysIso(planWeekStart,d);cols.push({day:iso,label:DAY_LBL[d]+' '+ddmm(iso),items:planItems.filter(i=>i.plan_date===iso)})}
   cols.push({day:'',label:'Unscheduled',items:planItems.filter(i=>!i.plan_date)})
-  const chip=i=>{const warn=(i.assigned_user||i.assigned_staff)?'':' <span style="color:var(--amber)">⚠</span>';return `<div class="jobchip" data-id="${i.id}" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab;font-size:13px"><b>${esc(i.task_name||'')}</b>${i.target_qty!=null?' · '+i.target_qty+' '+esc(i.uom||''):''}${warn}</div>`}
+  const chip=i=>{const warn=(i.assigned_user||i.assigned_staff)?'':' <span style="color:var(--amber)">⚠</span>';return `<div class="jobchip" data-id="${i.id}" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab;font-size:13px"><b>${esc(i.task_name||'')}</b>${i.target_qty!=null?' · '+Number(i.target_qty)+' '+esc(i.uom||''):''}${warn}</div>`}
   const col=c=>`<div class="dragcol" data-day="${c.day}" style="min-width:150px;flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;min-height:60px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">${c.label}</div>${c.items.map(chip).join('')}</div>`
   const palette=catalog.map(t=>`<div class="recipechip" data-catalog-id="${t.id}" style="background:var(--accent);color:#0b1220;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;cursor:grab;white-space:nowrap">${esc(t.name)}${t.is_batch?' 🔥':''}</div>`).join('')
   return `<div class="card"><p class="muted" style="margin:0 0 10px;font-size:13px">Drag a recipe onto a day to add it. Drag a job between days to reschedule.</p><div class="recipepalette" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px">${palette||'<span class="muted">No recipes yet.</span>'}</div><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">${cols.map(col).join('')}</div></div>`
