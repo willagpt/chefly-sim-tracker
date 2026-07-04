@@ -38,6 +38,7 @@ window.kioskVerify=async function(){
   const sel=$('kSelTask'); sel.innerHTML=''; catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;sel.appendChild(o)})
   populateProductSelects()
   await loadEquipState(); populateEquipSelect('kEquip')
+  if(typeof loadMyDayKiosk==='function') loadMyDayKiosk()
   await kioskLoadActive()
 }
 async function kioskLoadActive(){
@@ -73,5 +74,6 @@ window.kioskStopFor=async function(id){
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
   kActiveLogs=kActiveLogs.filter(x=>x.id!==id); await loadEquipState(); populateEquipSelect('kEquip'); kioskRenderRunning()
+  if(typeof loadMyDayKiosk==='function') loadMyDayKiosk()
   alert('Logged — thanks '+kStaff.full_name+'!')
 }
