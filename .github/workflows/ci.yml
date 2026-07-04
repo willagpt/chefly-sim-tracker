@@ -26,3 +26,15 @@ jobs:
             if [ ! -f "$f" ]; then echo "MISSING referenced script: $f"; exit 1; fi
           done
           echo "all referenced scripts present"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install dev deps
+        run: npm install --no-audit --no-fund
+      - name: ESLint (bug-catching rules)
+        run: npx eslint --config eslint.config.mjs core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js boot.js MODULE_TEMPLATE.js
