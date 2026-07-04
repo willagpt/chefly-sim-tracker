@@ -133,14 +133,21 @@
         </div>
         <div class="row">
           <button class="green" onclick="loadHistory()">Load</button>
-          <button class="ghost" onclick="exportCsv()">Export CSV</button>
+          <button class="ghost" onclick="histToday()">Today</button>
+          <button class="ghost" onclick="histThisWeek()">This week</button>
         </div>
         <div class="row">
+          <button class="ghost" onclick="exportCsv()">Export CSV</button>
           <button class="ghost" onclick="newLog()">➕ Add manual entry</button>
+        </div>
+        <div class="tabs" style="margin-top:12px">
+          <div class="tab active" id="hv_summary" onclick="setHistView('summary')">Summary</div>
+          <div class="tab" id="hv_detail" onclick="setHistView('detail')">Detail log</div>
         </div>
         <p class="muted" id="hSummary" style="margin-top:12px"></p>
       </div>
-      <div class="card"><div id="hBody"><p class="muted">Pick a date range and tap Load.</p></div></div>
+      <div class="card" id="hSummaryCard"><div id="hSummaryBody"><p class="muted">Pick a range (or tap Today) to see the summary.</p></div></div>
+      <div class="card hidden" id="hDetailCard"><div id="hBody"><p class="muted">Pick a date range and tap Load.</p></div></div>
     </div>
 
     <div id="perfTab" class="hidden">
