@@ -152,7 +152,7 @@ window.copyWall=function(){const v=$('wallUrl').value; if(v&&!v.startsWith('(')&
 window.copyPackWall=function(){const v=$('packWallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Packing wall link copied.',true)}}
 
 // ---- history / reports (manager/admin) ----
-let historyRows=[], histLogs=[], histProfs=[], histStaffs=[], leCurrentId=null
+let historyRows=[], histLogs=[], histProfs=[], histStaffs=[], leCurrentId=null, histView='summary'
 function initHistory(){
   if(!$('hTo').value) $('hTo').value=new Date().toISOString().slice(0,10)
   if(!$('hFrom').value) $('hFrom').value=new Date(Date.now()-6*864e5).toISOString().slice(0,10)
@@ -172,6 +172,7 @@ window.loadHistory=async function(){
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
   $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
+  renderHistorySummary()
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
   const canEdit=isManagerUp()
   box.innerHTML=histLogs.map(l=>{
@@ -192,6 +193,53 @@ window.loadHistory=async function(){
   }).join('')
 }
 
+// ---- consolidated shift / team summary ----
+function _isoLocalH(d){const y=d.getFullYear(),mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+mm+'-'+dd}
+function niceDate(iso){if(!iso)return '';const d=new Date(iso+'T00:00:00');return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1)}
+function sumOf(map){return Object.values(map).reduce((s,v)=>s+v,0)}
+function addAmt(map,uom,val){if(!val)return;const u=uom||'kg';map[u]=(map[u]||0)+val}
+function fmtAmt(map){const parts=Object.keys(map).filter(u=>map[u]).map(u=>`${Math.round(map[u]*10)/10} ${u}`);return parts.length?parts.join(' · '):'–'}
+function sumTable(title,rows,headers){
+  if(!rows.length)return ''
+  const th='<tr>'+headers.map((hd,i)=>`<th style="text-align:${i===0?'left':'right'};padding:6px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)">${hd}</th>`).join('')+'</tr>'
+  const trs=rows.map(r=>`<tr>${r.map((c,i)=>`<td style="text-align:${i===0?'left':'right'};padding:6px 8px;border-bottom:1px solid var(--line);${i===1?'font-weight:700':''}">${c}</td>`).join('')}</tr>`).join('')
+  return `<div style="margin-top:16px"><div style="font-weight:700;margin-bottom:4px">${title}</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px">${th}${trs}</table></div></div>`
+}
+window.setHistView=function(v){
+  histView=v
+  const s=$('hv_summary'),dt=$('hv_detail'),sc=$('hSummaryCard'),dc=$('hDetailCard')
+  if(s)s.classList.toggle('active',v==='summary'); if(dt)dt.classList.toggle('active',v==='detail')
+  if(sc)sc.classList.toggle('hidden',v!=='summary'); if(dc)dc.classList.toggle('hidden',v!=='detail')
+}
+window.histToday=function(){const t=_isoLocalH(new Date());$('hFrom').value=t;$('hTo').value=t;loadHistory()}
+window.histThisWeek=function(){const now=new Date();const off=(now.getDay()+6)%7;const mon=new Date(now);mon.setDate(now.getDate()-off);$('hFrom').value=_isoLocalH(mon);$('hTo').value=_isoLocalH(now);loadHistory()}
+function renderHistorySummary(){
+  const box=$('hSummaryBody'); if(!box)return
+  const from=$('hFrom').value,to=$('hTo').value
+  if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
+  const num=v=>Number(v)||0
+  const totMap={},byPerson={},byTask={},byProduct={},byDay={}
+  let totMin=0,totWaste=0,totPeopleMin=0
+  historyRows.forEach(r=>{
+    const kg=num(r.kg),mins=num(r.mins),waste=num(r.waste),staff=num(r.staff)||1
+    addAmt(totMap,r.uom,kg); totMin+=mins; totWaste+=waste; totPeopleMin+=mins*staff
+    const P=byPerson[r.who]||(byPerson[r.who]={amt:{},mins:0,tasks:0}); addAmt(P.amt,r.uom,kg);P.mins+=mins;P.tasks++
+    const T=byTask[r.task]||(byTask[r.task]={amt:{},mins:0,times:0,uom:r.uom}); addAmt(T.amt,r.uom,kg);T.mins+=mins;T.times++
+    if(r.product){const Pr=byProduct[r.product]||(byProduct[r.product]={amt:{}});addAmt(Pr.amt,r.uom,kg)}
+    const D=byDay[r.date]||(byDay[r.date]={amt:{},tasks:0});addAmt(D.amt,r.uom,kg);D.tasks++
+  })
+  const days=Object.keys(byDay).sort()
+  const rangeLbl = from===to ? niceDate(from) : `${niceDate(from)} → ${niceDate(to)}`
+  let h=`<div style="margin-bottom:14px"><div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">${from===to?'Shift report':'Team output'} · ${rangeLbl}</div>
+    <div style="font-size:26px;font-weight:800;margin-top:4px">${fmtAmt(totMap)}</div>
+    <div class="muted">${historyRows.length} tasks · ${(totMin/60).toFixed(1)} h logged · ${(totPeopleMin/60).toFixed(1)} people-h · ${totWaste?totWaste.toFixed(1)+' waste':'no waste logged'}</div></div>`
+  h+=sumTable('By person', Object.entries(byPerson).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt)).map(([k,v])=>[esc(k),fmtAmt(v.amt),v.tasks,(v.mins/60).toFixed(1)+' h']), ['Name','Produced','Tasks','Time'])
+  h+=sumTable('By task', Object.entries(byTask).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt)).map(([k,v])=>{const hrs=v.mins/60;const rate=hrs>0?Math.round(sumOf(v.amt)/hrs):null;return [esc(k),fmtAmt(v.amt),v.times,rate!=null?rate+' '+(v.uom||'kg')+'/hr':'–']}), ['Task','Produced','Times','Avg rate'])
+  const prodRows=Object.entries(byProduct).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt))
+  if(prodRows.length) h+=sumTable('By product', prodRows.map(([k,v])=>[esc(k),fmtAmt(v.amt)]), ['Product','Produced'])
+  if(days.length>1) h+=sumTable('By day', days.map(d=>[niceDate(d),fmtAmt(byDay[d].amt),byDay[d].tasks]), ['Day','Produced','Tasks'])
+  box.innerHTML=h
+}
 // ---- full log editor (manager/admin) ----
 window.leTaskChanged=function(){
   const cat=catalog.find(c=>c.id===$('leTask').value)
