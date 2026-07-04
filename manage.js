@@ -41,7 +41,7 @@ async function loadAccess(){
     const packLead=packingByEmail.get(em)===true
     const stateBadge = sus ? '<span class="pill off">suspended</span>' : (active?'<span class="pill live">● active</span>':'<span class="pill off">not logged in</span>')
     const packBadge = packLead ? ' · <span class="pill" style="background:rgba(249,115,22,.2);color:#fdba74">packing lead</span>' : ''
-    d.innerHTML=`<div><div class="name">${u.full_name||u.email} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${u.email} · ${stateBadge}${packBadge}</div></div>`
+    d.innerHTML=`<div><div class="name">${esc(u.full_name||u.email)} ${self?'<span class="muted">(you)</span>':''}</div><div class="sub">${esc(u.email)} · ${stateBadge}${packBadge}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
     const sel=document.createElement('select'); ['staff','manager','admin'].forEach(r=>{const o=document.createElement('option');o.value=r;o.textContent=r;if(u.role===r)o.selected=true;sel.appendChild(o)}); sel.disabled=self
     sel.onchange=async()=>{const {error}=await sb.rpc('sim_set_user_role',{p_email:u.email,p_role:sel.value});if(error){msg($('memberMsg'),error.message,false);sel.value=u.role}else{msg($('memberMsg'),`${u.full_name||u.email} is now ${sel.value}.`,true);u.role=sel.value}}
@@ -74,7 +74,7 @@ async function loadStaff(){
   box.innerHTML=''
   ;(data||[]).forEach(s=>{
     const d=document.createElement('div'); d.className='member'
-    d.innerHTML=`<div><div class="name">${s.full_name}</div><div class="sub">${s.station||'—'} · ${s.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'} · ${s.pin_hash?'PIN set':'<span style="color:#fca5a5">no PIN</span>'}</div></div>`
+    d.innerHTML=`<div><div class="name">${esc(s.full_name)}</div><div class="sub">${esc(s.station)||'—'} · ${s.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'} · ${s.pin_hash?'PIN set':'<span style="color:#fca5a5">no PIN</span>'}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
     const pinB=document.createElement('button'); pinB.className='ghost sm'; pinB.textContent='Set PIN'
     pinB.onclick=async()=>{const p=prompt('New 4-digit PIN for '+s.full_name+':');if(!p)return;if(!/^\d{4}$/.test(p)){alert('PIN must be 4 digits');return}const {error}=await sb.rpc('sim_save_staff',{p_id:s.id,p_name:s.full_name,p_station:s.station,p_pin:p});if(error){msg($('fsMsg'),error.message,false)}else{msg($('fsMsg'),'PIN updated for '+s.full_name,true);loadStaff()}}
@@ -102,7 +102,7 @@ async function loadPackRoster(){
   box.innerHTML=''
   ;(data||[]).forEach(m=>{
     const d=document.createElement('div'); d.className='member'
-    d.innerHTML=`<div><div class="name">${m.full_name}</div><div class="sub">${m.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'}</div></div>`
+    d.innerHTML=`<div><div class="name">${esc(m.full_name)}</div><div class="sub">${m.active?'<span class="pill live">active</span>':'<span class="pill off">inactive</span>'}</div></div>`
     const ctl=document.createElement('div'); ctl.className='ctl'
     const ed=document.createElement('button'); ed.className='ghost sm'; ed.textContent='Rename'
     ed.onclick=async()=>{const nn=prompt('Edit name:', m.full_name);if(nn===null)return;const name=nn.trim();if(!name){alert('Name cannot be blank.');return}const {error}=await sb.from('sim_pack_members').update({full_name:name}).eq('id',m.id);if(error){msg($('pmMsg'),error.message,false)}else{msg($('pmMsg'),'Renamed.',true);loadPackRoster()}}
@@ -177,14 +177,13 @@ window.loadHistory=async function(){
   box.innerHTML=histLogs.map(l=>{
     const who=nameFor(l), u=uomFor(l)
     const photos=l.photos||[]
-    const lb=photos.map(photoUrl).join('|')
-    const strip=photos.length?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">`+photos.map((p,i)=>`<img src="${photoUrl(p)}" loading="lazy" data-lb="${lb}" data-i="${i}" onclick="openLightboxEl(this)" style="width:54px;height:54px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line)">`).join('')+`</div>`:''
+    const strip=photoThumbs(photos,54)
     const rate=l.units_per_hour!=null?` · <b style="color:var(--accent)">${l.units_per_hour} ${u}/hr</b>`:''
     const wasteTxt=l.waste_kg?` · ${l.waste_kg} ${u} waste`:''
     const editLink=canEdit?`<a class="link" style="flex-shrink:0;font-size:13px" onclick="editLog('${l.id}')">✏️ Edit</a>`:''
     return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="min-width:0"><b style="font-size:15px">${l.task_name}</b> <span class="muted">· ${who}</span><div class="muted" style="font-size:12px;margin-top:1px">${l.log_date}${l.product?' · '+l.product:''}${l.station?' · '+l.station:''}</div></div>
+        <div style="min-width:0"><b style="font-size:15px">${esc(l.task_name)}</b> <span class="muted">· ${esc(who)}</span><div class="muted" style="font-size:12px;margin-top:1px">${l.log_date}${l.product?' · '+esc(l.product):''}${l.station?' · '+esc(l.station):''}</div></div>
         ${editLink}
       </div>
       <div style="font-size:14px"><b>${l.units??'–'} ${u}</b>${rate} · ${l.total_minutes??'–'} min${wasteTxt} · ${l.staff_count??1} ppl${photos.length?' · 📷 '+photos.length:''}</div>

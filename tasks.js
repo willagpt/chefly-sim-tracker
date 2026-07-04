@@ -13,7 +13,7 @@ window.renderTaskList=function(){
     const wasteMeta=t.require_waste?' · waste required':(t.track_waste?' · waste optional':'')
     const _u=t.uom||'kg'
     const prodMeta=t.requires_product?' · product required':''
-    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}</div></div>`
+    d.innerHTML=`<div><b>${esc(t.name)}</b><div class="meta">${esc(t.station)||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
@@ -74,11 +74,11 @@ async function loadProducts(){
   populateProductSelects(); renderProductList()
 }
 function populateProductSelects(){
-  ['sProduct','kProduct'].forEach(id=>{const sel=$(id); if(!sel)return; const cur=sel.value; sel.innerHTML='<option value="">— select product —</option>'+products.map(p=>`<option>${p.name}</option>`).join(''); if(cur)sel.value=cur})
+  ['sProduct','kProduct'].forEach(id=>{const sel=$(id); if(!sel)return; const cur=sel.value; sel.innerHTML='<option value="">— select product —</option>'+products.map(p=>`<option>${esc(p.name)}</option>`).join(''); if(cur)sel.value=cur})
 }
 function renderProductList(){
   const box=$('productList'); if(!box) return; box.innerHTML=''
-  products.forEach(p=>{const d=document.createElement('div');d.className='task-item';d.innerHTML='<div><b>'+p.name+'</b></div>';const b=document.createElement('button');b.className='ghost sm';b.textContent='Remove';b.onclick=async()=>{if(!confirm('Remove '+p.name+'?'))return;await sb.from('sim_products').update({active:false}).eq('id',p.id);await loadProducts()};d.appendChild(b);box.appendChild(d)})
+  products.forEach(p=>{const d=document.createElement('div');d.className='task-item';d.innerHTML='<div><b>'+esc(p.name)+'</b></div>';const b=document.createElement('button');b.className='ghost sm';b.textContent='Remove';b.onclick=async()=>{if(!confirm('Remove '+p.name+'?'))return;await sb.from('sim_products').update({active:false}).eq('id',p.id);await loadProducts()};d.appendChild(b);box.appendChild(d)})
   if(!products.length) box.innerHTML='<p class="muted">No products yet. Add one above.</p>'
 }
 window.addProductInline=async function(which){
@@ -114,8 +114,8 @@ function runCardHTML(l,m){
   const stopFn=m==='k'?'kioskStopFor':'stopTaskFor'
   const md=m==='k'?'kiosk':'main'
   return `<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">${l.task_name}</h2><span class="pill ${paused?'off':'live'}">${paused?'❚❚ PAUSED':'● RUNNING'}</span></div>
-    <div class="muted">${l.product?l.product+' · ':''}${l.staff_count||1} ppl · started ${fmtTime(l.start_time)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">${esc(l.task_name)}</h2><span class="pill ${paused?'off':'live'}">${paused?'❚❚ PAUSED':'● RUNNING'}</span></div>
+    <div class="muted">${l.product?esc(l.product)+' · ':''}${l.staff_count||1} ppl · started ${fmtTime(l.start_time)}</div>
     <div class="timer" id="timer_${p}">00:00:00</div>
     ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
     ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
@@ -173,5 +173,5 @@ async function refreshMyRecent(){
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
   const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='completed'?'<span class="pill done">done</span>':(l.status==='paused'?'<span class="pill off">❚❚ paused</span>':'<span class="pill live">● running</span>');const _u=uomFor(l);const uph=l.units_per_hour?`${l.units_per_hour} ${_u}/hr`:'';d.innerHTML=`<div><b>${l.task_name}</b> ${status}<div class="meta">${l.product?l.product+' · ':''}${l.units??'–'} ${_u} · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' '+_u+' waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='completed'?'<span class="pill done">done</span>':(l.status==='paused'?'<span class="pill off">❚❚ paused</span>':'<span class="pill live">● running</span>');const _u=uomFor(l);const uph=l.units_per_hour?`${l.units_per_hour} ${_u}/hr`:'';d.innerHTML=`<div><b>${esc(l.task_name)}</b> ${status}<div class="meta">${l.product?esc(l.product)+' · ':''}${l.units??'–'} ${_u} · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' '+_u+' waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
 }
