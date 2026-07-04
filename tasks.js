@@ -13,7 +13,8 @@ window.renderTaskList=function(){
     const wasteMeta=t.require_waste?' · waste required':(t.track_waste?' · waste optional':'')
     const _u=t.uom||'kg'
     const prodMeta=t.requires_product?' · product required':''
-    d.innerHTML=`<div><b>${esc(t.name)}</b><div class="meta">${esc(t.station)||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}</div></div>`
+    const batchMeta=t.is_batch?` · 🔥 batch ${t.capacity_per_load??'?'}${_u}/load · ${t.cook_minutes??'?'}min · ${t.equipment_kind||'?'}`:''
+    d.innerHTML=`<div><b>${esc(t.name)}</b><div class="meta">${esc(t.station)||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}${batchMeta}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
@@ -38,6 +39,12 @@ window.editTask=function(id){
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqproduct_${id}" style="width:auto" ${t.requires_product?'checked':''}/> Requires a product (e.g. what's being packed)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste (show the box, optional)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqwaste_${id}" style="width:auto" ${t.require_waste?'checked':''}/> Require a waste figure to finish</label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_batch_${id}" style="width:auto" ${t.is_batch?'checked':''}/> Batch/cook step (fills a vessel to capacity for a fixed cook time)</label>
+    <div class="row" style="margin-top:8px">
+      <input id="et_cap_${id}" type="number" value="${t.capacity_per_load??''}" placeholder="Capacity/load" />
+      <input id="et_cook_${id}" type="number" value="${t.cook_minutes??''}" placeholder="Cook mins" />
+      <select id="et_kind_${id}">${['','oven','sous_vide','combi','blast_chiller','freezer','other'].map(k=>`<option value="${k}" ${t.equipment_kind===k?'selected':''}>${k||'— vessel type —'}</option>`).join('')}</select>
+    </div>
     <div class="row" style="margin-top:8px">
       <button class="green sm" style="flex:1" onclick="saveTask('${id}')">Save</button>
       <button class="ghost sm" style="flex:1" onclick="renderTaskList()">Cancel</button>
@@ -53,7 +60,11 @@ window.saveTask=async function(id){
   const reqUnits=$('et_requnits_'+id).checked
   const uom=($('et_uom_'+id).value||'kg').trim()||'kg'
   const reqProduct=$('et_reqproduct_'+id).checked
-  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,requires_product:reqProduct,uom}).eq('id',id)
+  const isBatch=$('et_batch_'+id).checked
+  const cap=$('et_cap_'+id).value?Number($('et_cap_'+id).value):null
+  const cook=$('et_cook_'+id).value?Number($('et_cook_'+id).value):null
+  const kind=$('et_kind_'+id).value||null
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,requires_product:reqProduct,uom,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind}).eq('id',id)
   if(error){msg($('addMsg'),error.message,false);return}
   await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
@@ -62,9 +73,13 @@ window.addTask=async function(){
   const station=$('ntStation').value.trim()||null, units=$('ntUnits').value?Number($('ntUnits').value):null
   const order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order)):0)+1
   const uom=($('ntUom').value||'kg').trim()||'kg'
-  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,requires_product:$('ntReqProduct').checked,sort_order:order})
+  const isBatch=$('ntBatch')?$('ntBatch').checked:false
+  const cap=($('ntCap')&&$('ntCap').value)?Number($('ntCap').value):null
+  const cook=($('ntCook')&&$('ntCook').value)?Number($('ntCook').value):null
+  const kind=($('ntKind')&&$('ntKind').value)||null
+  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,requires_product:$('ntReqProduct').checked,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;$('ntReqProduct').checked=false;msg($('addMsg'),'Task added.',true);await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;$('ntReqProduct').checked=false;if($('ntBatch'))$('ntBatch').checked=false;if($('ntCap'))$('ntCap').value='';if($('ntCook'))$('ntCook').value='';if($('ntKind'))$('ntKind').value='';msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---- products / recipes ----
