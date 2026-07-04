@@ -103,7 +103,7 @@
         <label for="selTask">Task</label>
         <select id="selTask"></select>
         <div class="row">
-          <div><label for="sProduct">Product / recipe</label><select id="sProduct"></select></div>
+          <div><label for="sProduct">Product / recipe <a class="link" style="font-size:12px" onclick="addProductInline('s')">+ new</a></label><select id="sProduct"></select></div>
           <div><label for="sStaff">People on task</label><input id="sStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
         </div>
         <button class="green" onclick="startTask()">▶ START NOW</button>
@@ -265,6 +265,7 @@
         </div>
         <datalist id="uomList"><option value="kg"><option value="units"><option value="each"><option value="trays"><option value="packs"><option value="sleeves"><option value="litres"></datalist>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:14px"><input type="checkbox" id="ntReqUnits" style="width:auto" checked /> Records amount produced (required to finish)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqProduct" style="width:auto" /> Requires a product (e.g. what's being packed)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste (show the box, optional)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqWaste" style="width:auto" /> Require a waste figure to finish</label>
         <button class="ghost" onclick="addTask()">Add task</button>
@@ -320,7 +321,7 @@
         <label for="kSelTask">Task</label>
         <select id="kSelTask"></select>
         <div class="row">
-          <div><label for="kProduct">Product / recipe</label><select id="kProduct"></select></div>
+          <div><label for="kProduct">Product / recipe <a class="link" style="font-size:12px" onclick="addProductInline('k')">+ new</a></label><select id="kProduct"></select></div>
           <div><label for="kCount">People on task</label><input id="kCount" type="number" inputmode="numeric" min="1" value="1" /></div>
         </div>
         <button class="green" onclick="kioskStart()">▶ START NOW</button>

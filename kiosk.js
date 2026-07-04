@@ -60,6 +60,7 @@ function kioskRenderActive(){
 window.kioskShowWaste=function(){$('kWasteWrap').classList.remove('hidden');$('kWasteToggleP').classList.add('hidden')}
 window.kioskStart=async function(){
   const t=catalog.find(c=>c.id===$('kSelTask').value); if(!t){msg($('kTaskMsg'),'Pick a task.',false);return}
+  if(t.requires_product && !($('kProduct').value||'').trim()){msg($('kTaskMsg'),'Choose or + add the product you\'re working on before starting.',false);return}
   const {data,error}=await sb.from('sim_task_logs').insert({staff_id:kStaff.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('kProduct').value.trim()||null,staff_count:Number($('kCount').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
   if(error){msg($('kTaskMsg'),error.message,false);return}
   kActiveLog=data; $('kProduct').value=''; clearMsg($('kTaskMsg')); kioskRenderActive()

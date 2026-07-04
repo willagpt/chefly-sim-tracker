@@ -12,7 +12,8 @@ window.renderTaskList=function(){
     const d=document.createElement('div'); d.className='task-item'; d.id='task_'+t.id
     const wasteMeta=t.require_waste?' · waste required':(t.track_waste?' · waste optional':'')
     const _u=t.uom||'kg'
-    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}</div></div>`
+    const prodMeta=t.requires_product?' · product required':''
+    d.innerHTML=`<div><b>${t.name}</b><div class="meta">${t.station||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'; b.onclick=async()=>{if(!confirm('Remove '+t.name+'?'))return;await sb.from('sim_task_catalog').update({active:false}).eq('id',t.id);await loadCatalog()}
@@ -34,6 +35,7 @@ window.editTask=function(id){
       <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_requnits_${id}" style="width:auto" ${t.requires_units!==false?'checked':''}/> Records amount produced (required to finish)</label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqproduct_${id}" style="width:auto" ${t.requires_product?'checked':''}/> Requires a product (e.g. what's being packed)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste (show the box, optional)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqwaste_${id}" style="width:auto" ${t.require_waste?'checked':''}/> Require a waste figure to finish</label>
     <div class="row" style="margin-top:8px">
@@ -50,7 +52,8 @@ window.saveTask=async function(id){
   const reqWaste=$('et_reqwaste_'+id).checked
   const reqUnits=$('et_requnits_'+id).checked
   const uom=($('et_uom_'+id).value||'kg').trim()||'kg'
-  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,uom}).eq('id',id)
+  const reqProduct=$('et_reqproduct_'+id).checked
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,requires_product:reqProduct,uom}).eq('id',id)
   if(error){msg($('addMsg'),error.message,false);return}
   await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
@@ -59,9 +62,9 @@ window.addTask=async function(){
   const station=$('ntStation').value.trim()||null, units=$('ntUnits').value?Number($('ntUnits').value):null
   const order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order)):0)+1
   const uom=($('ntUom').value||'kg').trim()||'kg'
-  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,sort_order:order})
+  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,requires_product:$('ntReqProduct').checked,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;msg($('addMsg'),'Task added.',true);await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;$('ntReqProduct').checked=false;msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---- products / recipes ----
@@ -77,6 +80,19 @@ function renderProductList(){
   const box=$('productList'); if(!box) return; box.innerHTML=''
   products.forEach(p=>{const d=document.createElement('div');d.className='task-item';d.innerHTML='<div><b>'+p.name+'</b></div>';const b=document.createElement('button');b.className='ghost sm';b.textContent='Remove';b.onclick=async()=>{if(!confirm('Remove '+p.name+'?'))return;await sb.from('sim_products').update({active:false}).eq('id',p.id);await loadProducts()};d.appendChild(b);box.appendChild(d)})
   if(!products.length) box.innerHTML='<p class="muted">No products yet. Add one above.</p>'
+}
+window.addProductInline=async function(which){
+  const nm=prompt('New product / recipe — use the exact name for production sheets:')
+  if(nm===null)return
+  const n=nm.trim(); if(!n)return
+  let prod=products.find(p=>(p.name||'').toLowerCase()===n.toLowerCase())
+  if(!prod){
+    const order=(products.length?Math.max(...products.map(p=>p.sort_order)):0)+1
+    const {data,error}=await sb.from('sim_products').insert({name:n,sort_order:order}).select().single()
+    if(error){alert(error.message);return}
+    prod=data; products.push(prod); populateProductSelects()
+  }
+  const sel=$(which==='k'?'kProduct':'sProduct'); if(sel) sel.value=prod.name
 }
 window.addProduct=async function(){
   const name=$('npName').value.trim(); if(!name){msg($('prMsg'),'Enter a product/recipe name.',false);return}
@@ -110,6 +126,7 @@ window.togglePause=async function(mode){
 }
 window.startTask=async function(){
   const t=catalog.find(c=>c.id===$('selTask').value); if(!t){msg($('logMsg'),'Pick a task.',false);return}
+  if(t.requires_product && !($('sProduct').value||'').trim()){msg($('logMsg'),'Choose or + add the product you\'re working on before starting.',false);return}
   const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
   if(error){msg($('logMsg'),error.message,false);return}
   activeLog=data;$('sProduct').value='';clearMsg($('logMsg'));renderActive()
