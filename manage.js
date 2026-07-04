@@ -174,15 +174,23 @@ window.loadHistory=async function(){
   $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
   const canEdit=isManagerUp()
-  const th='style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:var(--muted);white-space:nowrap"'
-  const td='style="padding:8px;border-bottom:1px solid var(--line);white-space:nowrap"'
-  const heads=(canEdit?`<th ${th}></th>`:'')+['Date','Who','Task','Product','Qty','Unit','kg/hr','min','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')
-  const rowsHtml=historyRows.map(r=>{
-    const act=canEdit?`<td ${td}><a class="link" onclick="editLog('${r.id}')">✏️ Edit</a></td>`:''
-    const cells=[r.date,r.who,r.task,r.product,r.kg,r.uom,r.uph,r.mins,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
-    return '<tr>'+act+cells+'</tr>'
+  box.innerHTML=histLogs.map(l=>{
+    const who=nameFor(l), u=uomFor(l)
+    const photos=l.photos||[]
+    const lb=photos.map(photoUrl).join('|')
+    const strip=photos.length?`<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">`+photos.map((p,i)=>`<img src="${photoUrl(p)}" loading="lazy" data-lb="${lb}" data-i="${i}" onclick="openLightboxEl(this)" style="width:54px;height:54px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line)">`).join('')+`</div>`:''
+    const rate=l.units_per_hour!=null?` · <b style="color:var(--accent)">${l.units_per_hour} ${u}/hr</b>`:''
+    const wasteTxt=l.waste_kg?` · ${l.waste_kg} ${u} waste`:''
+    const editLink=canEdit?`<a class="link" style="flex-shrink:0;font-size:13px" onclick="editLog('${l.id}')">✏️ Edit</a>`:''
+    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="min-width:0"><b style="font-size:15px">${l.task_name}</b> <span class="muted">· ${who}</span><div class="muted" style="font-size:12px;margin-top:1px">${l.log_date}${l.product?' · '+l.product:''}${l.station?' · '+l.station:''}</div></div>
+        ${editLink}
+      </div>
+      <div style="font-size:14px"><b>${l.units??'–'} ${u}</b>${rate} · ${l.total_minutes??'–'} min${wasteTxt} · ${l.staff_count??1} ppl${photos.length?' · 📷 '+photos.length:''}</div>
+      ${strip}
+    </div>`
   }).join('')
-  box.innerHTML='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+heads+'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
 }
 
 // ---- full log editor (manager/admin) ----
