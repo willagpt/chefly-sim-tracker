@@ -78,28 +78,10 @@
     <div class="tabs" id="tabBar"></div>
 
     <div id="logTab">
-      <div id="activeCard" class="card hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="activeName">Task</h2><span class="pill live" id="activePill">● RUNNING</span></div>
-        <div class="muted" id="activeMeta"></div>
-        <div class="timer" id="activeTimer">00:00:00</div>
-        <div id="unitsWrap"><label id="fUnitsLabel" for="fUnits">Kilograms produced (kg)</label>
-        <input id="fUnits" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
-        <div id="wasteWrap" class="hidden"><label id="fWasteLabel" for="fWaste">Waste (kg)</label><input id="fWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
-        <p id="wasteToggleP" style="margin:10px 0 0"><a class="link" onclick="showWaste()">+ Record waste (kg)</a></p>
-        <div class="row">
-          <div><label for="fStaff">People on task</label><input id="fStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
-          <div><label for="fChange">Change over (mins)</label><input id="fChange" type="number" inputmode="numeric" placeholder="0" /></div>
-        </div>
-        <label for="fComments">Comments</label>
-        <textarea id="fComments" rows="2" placeholder="Anything notable?"></textarea>
-        <label>Photos of the work (required to finish)</label>
-        <div id="photoStrip" class="photo-strip"></div>
-        <input id="photoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'main')" style="padding:10px" />
-        <button class="ghost" id="pauseBtn" onclick="togglePause('main')">⏸ Pause</button>
-        <button class="red" onclick="stopTask()">■ STOP &amp; FINISH TASK</button>
-      </div>
+      <div id="runningList"></div>
       <div id="startCard" class="card">
         <h2>Start a task</h2>
+        <p class="muted" style="margin-top:-8px">You can run more than one at once — start a long job, then start another while it runs.</p>
         <label for="selTask">Task</label>
         <select id="selTask"></select>
         <div class="row">
@@ -296,28 +278,10 @@
       </div>
     </div>
     <div id="kTaskStep" class="hidden">
-      <div id="kActiveCard" class="card hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0" id="kActiveName">Task</h2><span class="pill live" id="kActivePill">● RUNNING</span></div>
-        <div class="muted" id="kActiveMeta"></div>
-        <div class="timer" id="kTimer">00:00:00</div>
-        <div id="kUnitsWrap"><label id="kUnitsLabel" for="kUnits">Kilograms produced (kg)</label>
-        <input id="kUnits" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
-        <div id="kWasteWrap" class="hidden"><label id="kWasteLabel" for="kWaste">Waste (kg)</label><input id="kWaste" type="number" inputmode="decimal" placeholder="e.g. 3" /></div>
-        <p id="kWasteToggleP" style="margin:10px 0 0"><a class="link" onclick="kioskShowWaste()">+ Record waste (kg)</a></p>
-        <div class="row">
-          <div><label for="kStaffCount">People on task</label><input id="kStaffCount" type="number" inputmode="numeric" min="1" value="1" /></div>
-          <div><label for="kChange">Change over (mins)</label><input id="kChange" type="number" inputmode="numeric" placeholder="0" /></div>
-        </div>
-        <label for="kComments">Comments</label>
-        <textarea id="kComments" rows="2"></textarea>
-        <label>Photos of the work (required to finish)</label>
-        <div id="kPhotoStrip" class="photo-strip"></div>
-        <input id="kPhotoInput" type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotos(event,'kiosk')" style="padding:10px" />
-        <button class="ghost" id="kPauseBtn" onclick="togglePause('kiosk')">⏸ Pause</button>
-        <button class="red" onclick="kioskStop()">■ STOP &amp; FINISH</button>
-      </div>
+      <div id="kRunningList"></div>
       <div id="kStartCard" class="card">
         <h2 id="kWho">Start a task</h2>
+        <p class="muted" style="margin-top:-8px">You can run more than one at once — start a long job, then start another while it runs.</p>
         <label for="kSelTask">Task</label>
         <select id="kSelTask"></select>
         <div class="row">

@@ -1,4 +1,4 @@
-/* TASKS: task catalog, products/recipes, and the My Task logging flow. */
+/* TASKS: task catalog, products/recipes, and the My Task logging flow (multiple concurrent). */
 
 async function loadCatalog(){
   const {data}=await sb.from('sim_task_catalog').select('*').eq('active',true).order('sort_order')
@@ -102,48 +102,71 @@ window.addProduct=async function(){
   $('npName').value='';msg($('prMsg'),'Added.',true);await loadProducts()
 }
 
-// ---- My Task logging ----
+// ---- My Task logging (multiple concurrent tasks per person) ----
 async function loadActive(){
-  const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).in('status',['in_progress','paused']).order('start_time',{ascending:false}).limit(1)
-  activeLog=(data&&data[0])||null; renderActive()
+  const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).in('status',['in_progress','paused']).order('start_time',{ascending:false})
+  activeLogs=data||[]; renderRunning()
 }
-function renderActive(){
-  if(activeLog){hide($('startCard'));show($('activeCard'));$('activeName').textContent=activeLog.task_name;$('activeMeta').textContent=`${activeLog.product?activeLog.product+' · ':''}${activeLog.staff_count||1} ppl · started ${fmtTime(activeLog.start_time)}`;$('fStaff').value=activeLog.staff_count||1;const _cat=catFor(activeLog);const _ru=!_cat||_cat.requires_units!==false;const _sw=!!(_cat&&(_cat.track_waste||_cat.require_waste));const _rw=!!(_cat&&_cat.require_waste);$('unitsWrap').classList.toggle('hidden',!_ru);$('fWaste').value='';$('wasteWrap').classList.toggle('hidden',!_sw);$('wasteToggleP').classList.toggle('hidden',_sw);const _uom=uomFor(activeLog);const _ul=$('fUnitsLabel');if(_ul)_ul.textContent='Amount produced ('+_uom+')';const _uin=$('fUnits');if(_uin)_uin.placeholder=_uom==='kg'?'e.g. 22.5':'e.g. 150';const _wl=$('fWasteLabel');if(_wl)_wl.textContent=_rw?'Waste ('+_uom+') — required':'Waste ('+_uom+')';const _wtp=document.querySelector('#wasteToggleP a');if(_wtp)_wtp.textContent='+ Record waste ('+_uom+')';renderPhotoStrip('photoStrip',activeLog);updatePauseUI(activeLog,'activePill','pauseBtn');if(timerInt)clearInterval(timerInt);const tick=()=>{$('activeTimer').textContent=fmtClock(workedSeconds(activeLog))};tick();timerInt=setInterval(tick,1000)}
-  else{show($('startCard'));hide($('activeCard'));if(timerInt)clearInterval(timerInt)}
+function runCardHTML(l,m){
+  const p=m+'_'+l.id
+  const cat=catFor(l); const ru=!cat||cat.requires_units!==false; const sw=!!(cat&&(cat.track_waste||cat.require_waste)); const rw=!!(cat&&cat.require_waste); const u=uomFor(l)
+  const paused=l.status==='paused'
+  const stopFn=m==='k'?'kioskStopFor':'stopTaskFor'
+  const md=m==='k'?'kiosk':'main'
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">${l.task_name}</h2><span class="pill ${paused?'off':'live'}">${paused?'❚❚ PAUSED':'● RUNNING'}</span></div>
+    <div class="muted">${l.product?l.product+' · ':''}${l.staff_count||1} ppl · started ${fmtTime(l.start_time)}</div>
+    <div class="timer" id="timer_${p}">00:00:00</div>
+    ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
+    ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
+    <div class="row"><div><label>People on task</label><input id="st_${p}" type="number" inputmode="numeric" min="1" value="${l.staff_count||1}" /></div><div><label>Change over (mins)</label><input id="ch_${p}" type="number" inputmode="numeric" placeholder="0" /></div></div>
+    <label>Comments</label><textarea id="cm_${p}" rows="2" placeholder="Anything notable?"></textarea>
+    <label>Photos of the work (required to finish)</label>
+    <div id="ph_${p}" class="photo-strip"></div>
+    <input type="file" accept="image/*" capture="environment" multiple onchange="uploadPhotosFor(event,'${l.id}','${md}')" style="padding:10px" />
+    <button class="ghost" onclick="togglePauseFor('${l.id}','${md}')">${paused?'▶ Resume':'⏸ Pause'}</button>
+    <button class="red" onclick="${stopFn}('${l.id}')">■ STOP &amp; FINISH</button>
+  </div>`
 }
-window.showWaste=function(){$('wasteWrap').classList.remove('hidden');$('wasteToggleP').classList.add('hidden')}
-window.togglePause=async function(mode){
-  const log=mode==='kiosk'?kActiveLog:activeLog; if(!log) return
-  if(log.status==='paused'){
-    const add=(Date.now()-new Date(log.pause_started_at))/1000
-    log.paused_seconds=(log.paused_seconds||0)+add; log.pause_started_at=null; log.status='in_progress'
-    await sb.from('sim_task_logs').update({status:'in_progress',paused_seconds:log.paused_seconds,pause_started_at:null}).eq('id',log.id)
-  } else {
-    log.status='paused'; log.pause_started_at=new Date().toISOString()
-    await sb.from('sim_task_logs').update({status:'paused',pause_started_at:log.pause_started_at}).eq('id',log.id)
-  }
-  mode==='kiosk'?kioskRenderActive():renderActive()
+function renderRunning(){
+  const box=$('runningList'); if(box){ box.innerHTML=activeLogs.map(l=>runCardHTML(l,'s')).join(''); activeLogs.forEach(l=>renderPhotoStrip('ph_s_'+l.id,l)) }
+  startTaskTicker()
+}
+function startTaskTicker(){
+  if(timerInt)clearInterval(timerInt)
+  timerInt=setInterval(()=>{
+    activeLogs.forEach(l=>{const el=$('timer_s_'+l.id); if(el)el.textContent=fmtClock(workedSeconds(l))})
+    kActiveLogs.forEach(l=>{const el=$('timer_k_'+l.id); if(el)el.textContent=fmtClock(workedSeconds(l))})
+  },1000)
+}
+window.togglePauseFor=async function(id,mode){
+  const arr=mode==='kiosk'?kActiveLogs:activeLogs; const log=arr.find(x=>x.id===id); if(!log)return
+  if(log.status==='paused'){const add=(Date.now()-new Date(log.pause_started_at))/1000; log.paused_seconds=(log.paused_seconds||0)+add; log.pause_started_at=null; log.status='in_progress'; await sb.from('sim_task_logs').update({status:'in_progress',paused_seconds:log.paused_seconds,pause_started_at:null}).eq('id',id)}
+  else {log.status='paused'; log.pause_started_at=new Date().toISOString(); await sb.from('sim_task_logs').update({status:'paused',pause_started_at:log.pause_started_at}).eq('id',id)}
+  mode==='kiosk'?kioskRenderRunning():renderRunning()
 }
 window.startTask=async function(){
   const t=catalog.find(c=>c.id===$('selTask').value); if(!t){msg($('logMsg'),'Pick a task.',false);return}
-  if(t.requires_product && !($('sProduct').value||'').trim()){msg($('logMsg'),'Choose or + add the product you\'re working on before starting.',false);return}
+  if(t.requires_product && !($('sProduct').value||'').trim()){msg($('logMsg'),'Choose or + add a product before starting.',false);return}
   const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
   if(error){msg($('logMsg'),error.message,false);return}
-  activeLog=data;$('sProduct').value='';clearMsg($('logMsg'));renderActive()
+  activeLogs.unshift(data);$('sProduct').value='';clearMsg($('logMsg'));renderRunning()
 }
-window.stopTask=async function(){
-  if(!activeLog) return
-  const units=$('fUnits').value?Number($('fUnits').value):null
-  const waste=$('fWaste').value?Number($('fWaste').value):null
-  const he=numberHardError(units,waste,uomFor(activeLog)); if(he){ alert(he); return }
+window.stopTaskFor=async function(id){
+  const l=activeLogs.find(x=>x.id===id); if(!l)return
+  const p='s_'+id
+  const gv=pre=>{const e=$(pre+'_'+p); return (e&&e.value!=='')?Number(e.value):null}
+  const units=gv('u'), waste=gv('w')
+  const he=numberHardError(units,waste,uomFor(l)); if(he){ alert(he); return }
   if(!numberSanityOK(units,waste)) return
-  if(requiresUnits(activeLog) && (units==null||isNaN(units))){ unitsGateOK(); return }
-  if(requiresWaste(activeLog) && (waste==null||isNaN(waste))){ wasteGateOK(); return }
-  if(!photoGateOK(activeLog)) return
-  let ps=activeLog.paused_seconds||0; if(activeLog.status==='paused'&&activeLog.pause_started_at) ps+=(Date.now()-new Date(activeLog.pause_started_at))/1000
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('fStaff').value)||1,changeover_mins:$('fChange').value?Number($('fChange').value):null,comments:$('fComments').value.trim()||null,status:'completed'}).eq('id',activeLog.id)
+  if(requiresUnits(l) && (units==null||isNaN(units))){ unitsGateOK(); return }
+  if(requiresWaste(l) && (waste==null||isNaN(waste))){ wasteGateOK(); return }
+  if(!photoGateOK(l)) return
+  let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
+  const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
-  activeLog=null;$('fUnits').value='';$('fWaste').value='';$('fChange').value='';$('fComments').value='';renderActive();await refreshMyRecent();if(isManagerUp())await refreshDashboard()
+  activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await refreshMyRecent(); if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
   const today=new Date().toISOString().slice(0,10)

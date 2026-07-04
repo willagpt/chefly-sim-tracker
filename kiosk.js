@@ -1,4 +1,4 @@
-/* KIOSK: shared-device flow for floor staff (tap name + PIN, log time). */
+/* KIOSK: shared-device flow for floor staff (tap name + PIN, log time). Supports multiple concurrent tasks. */
 
 window.enterKiosk=async function(){
   hide($('appView')); hide($('loginView')); show($('kioskView'))
@@ -6,9 +6,9 @@ window.enterKiosk=async function(){
   if(!products.length) await loadProducts()
   kioskBackToGrid()
 }
-window.exitKiosk=function(){ kStaff=null; kActiveLog=null; if(kTimerInt)clearInterval(kTimerInt); hide($('kioskView')); show($('appView')) }
+window.exitKiosk=function(){ kStaff=null; kActiveLogs=[]; if(kTimerInt)clearInterval(kTimerInt); hide($('kioskView')); show($('appView')) }
 window.kioskBackToGrid=function(){
-  kStaff=null; kActiveLog=null; if(kTimerInt)clearInterval(kTimerInt)
+  kStaff=null; kActiveLogs=[]; if(kTimerInt)clearInterval(kTimerInt)
   $('kPin').value=''; clearMsg($('kPinMsg')); clearMsg($('kTaskMsg'))
   $('kPinStep').classList.add('hidden'); $('kTaskStep').classList.add('hidden'); $('kStaffStep').classList.remove('hidden')
   loadKioskStaff()
@@ -40,46 +40,35 @@ window.kioskVerify=async function(){
   await kioskLoadActive()
 }
 async function kioskLoadActive(){
-  const {data}=await sb.from('sim_task_logs').select('*').eq('staff_id',kStaff.id).in('status',['in_progress','paused']).order('start_time',{ascending:false}).limit(1)
-  kActiveLog=(data&&data[0])||null; kioskRenderActive()
+  const {data}=await sb.from('sim_task_logs').select('*').eq('staff_id',kStaff.id).in('status',['in_progress','paused']).order('start_time',{ascending:false})
+  kActiveLogs=data||[]; kioskRenderRunning()
 }
-function kioskRenderActive(){
-  if(kActiveLog){
-    $('kStartCard').classList.add('hidden'); $('kActiveCard').classList.remove('hidden')
-    $('kActiveName').textContent=kActiveLog.task_name
-    $('kActiveMeta').textContent=`${kActiveLog.product?kActiveLog.product+' · ':''}${kActiveLog.staff_count||1} ppl · started ${fmtTime(kActiveLog.start_time)}`
-    $('kStaffCount').value=kActiveLog.staff_count||1
-    const c=catFor(kActiveLog); const ru=!c||c.requires_units!==false; const sw=!!(c&&(c.track_waste||c.require_waste)); const rw=!!(c&&c.require_waste)
-    $('kUnitsWrap').classList.toggle('hidden',!ru)
-    $('kWaste').value=''; $('kWasteWrap').classList.toggle('hidden',!sw); $('kWasteToggleP').classList.toggle('hidden',sw)
-    const kuom=uomFor(kActiveLog); const kul=$('kUnitsLabel'); if(kul)kul.textContent='Amount produced ('+kuom+')'; const kui=$('kUnits'); if(kui)kui.placeholder=kuom==='kg'?'e.g. 22.5':'e.g. 150'; const kwl=$('kWasteLabel'); if(kwl)kwl.textContent=rw?'Waste ('+kuom+') — required':'Waste ('+kuom+')'; const kwtp=document.querySelector('#kWasteToggleP a'); if(kwtp)kwtp.textContent='+ Record waste ('+kuom+')'
-    renderPhotoStrip('kPhotoStrip',kActiveLog); updatePauseUI(kActiveLog,'kActivePill','kPauseBtn')
-    if(kTimerInt)clearInterval(kTimerInt); const tick=()=>{$('kTimer').textContent=fmtClock(workedSeconds(kActiveLog))}; tick(); kTimerInt=setInterval(tick,1000)
-  } else { $('kStartCard').classList.remove('hidden'); $('kActiveCard').classList.add('hidden'); if(kTimerInt)clearInterval(kTimerInt) }
+function kioskRenderRunning(){
+  const box=$('kRunningList'); if(box){ box.innerHTML=kActiveLogs.map(l=>runCardHTML(l,'k')).join(''); kActiveLogs.forEach(l=>renderPhotoStrip('ph_k_'+l.id,l)) }
+  startTaskTicker()
 }
-window.kioskShowWaste=function(){$('kWasteWrap').classList.remove('hidden');$('kWasteToggleP').classList.add('hidden')}
 window.kioskStart=async function(){
   const t=catalog.find(c=>c.id===$('kSelTask').value); if(!t){msg($('kTaskMsg'),'Pick a task.',false);return}
-  if(t.requires_product && !($('kProduct').value||'').trim()){msg($('kTaskMsg'),'Choose or + add the product you\'re working on before starting.',false);return}
+  if(t.requires_product && !($('kProduct').value||'').trim()){msg($('kTaskMsg'),'Choose or + add a product before starting.',false);return}
   const {data,error}=await sb.from('sim_task_logs').insert({staff_id:kStaff.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('kProduct').value.trim()||null,staff_count:Number($('kCount').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
   if(error){msg($('kTaskMsg'),error.message,false);return}
-  kActiveLog=data; $('kProduct').value=''; clearMsg($('kTaskMsg')); kioskRenderActive()
+  kActiveLogs.unshift(data); $('kProduct').value=''; clearMsg($('kTaskMsg')); kioskRenderRunning()
 }
-window.kioskStop=async function(){
-  if(!kActiveLog) return
-  const units=$('kUnits').value?Number($('kUnits').value):null
-  const waste=$('kWaste').value?Number($('kWaste').value):null
-  const kuom=uomFor(kActiveLog)
+window.kioskStopFor=async function(id){
+  const l=kActiveLogs.find(x=>x.id===id); if(!l)return
+  const p='k_'+id
+  const gv=pre=>{const e=$(pre+'_'+p); return (e&&e.value!=='')?Number(e.value):null}
+  const units=gv('u'), waste=gv('w'); const kuom=uomFor(l)
   const he=numberHardError(units,waste,kuom); if(he){ alert(he); return }
   if(!numberSanityOK(units,waste)) return
-  // Kiosk is used by floor staff directly, so amount + waste + photo are strictly required (no skip).
-  if(requiresUnits(kActiveLog) && (units==null||isNaN(units))){ alert('Please enter the amount produced ('+kuom+') before finishing this task.'); return }
-  if(requiresWaste(kActiveLog) && (waste==null||isNaN(waste))){ alert('Please enter the waste ('+kuom+') for this task before finishing. If there was none, enter 0.'); return }
-  if(!(kActiveLog.photos&&kActiveLog.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
-  let ps=kActiveLog.paused_seconds||0; if(kActiveLog.status==='paused'&&kActiveLog.pause_started_at) ps+=(Date.now()-new Date(kActiveLog.pause_started_at))/1000
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:Number($('kStaffCount').value)||1,changeover_mins:$('kChange').value?Number($('kChange').value):null,comments:$('kComments').value.trim()||null,status:'completed'}).eq('id',kActiveLog.id)
+  // Kiosk: amount + waste + photo are strictly required (no manager override).
+  if(requiresUnits(l) && (units==null||isNaN(units))){ alert('Please enter the amount produced ('+kuom+') before finishing this task.'); return }
+  if(requiresWaste(l) && (waste==null||isNaN(waste))){ alert('Please enter the waste ('+kuom+') for this task before finishing. If there was none, enter 0.'); return }
+  if(!(l.photos&&l.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
+  let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
+  const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
-  $('kUnits').value='';$('kWaste').value='';$('kChange').value='';$('kComments').value=''
+  kActiveLogs=kActiveLogs.filter(x=>x.id!==id); kioskRenderRunning()
   alert('Logged — thanks '+kStaff.full_name+'!')
-  kioskBackToGrid()
 }

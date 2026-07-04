@@ -7,8 +7,8 @@ const SUPABASE_KEY = 'sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 // ---- shared state ----
-let me=null, profile=null, catalog=[], products=[], activeLog=null, timerInt=null
-let lastFinishIds=new Set(), notifyReady=false, booting=false, kStaff=null, kActiveLog=null, kTimerInt=null
+let me=null, profile=null, catalog=[], products=[], activeLogs=[], timerInt=null
+let lastFinishIds=new Set(), notifyReady=false, booting=false, kStaff=null, kActiveLogs=[], kTimerInt=null
 
 // ---- tiny helpers ----
 const $ = id => document.getElementById(id)
@@ -91,8 +91,9 @@ window.delPhoto=async function(log,path,stripId){
   await sb.storage.from('sim-photos').remove([path])
   renderPhotoStrip(stripId,log)
 }
-window.uploadPhotos=async function(ev,mode){
-  const log=mode==='kiosk'?kActiveLog:activeLog
+window.uploadPhotosFor=async function(ev,logId,mode){
+  const arr=mode==='kiosk'?kActiveLogs:activeLogs
+  const log=arr.find(x=>x.id===logId)
   if(!log){alert('Start the task first.');return}
   const files=[...(ev.target.files||[])]; ev.target.value=''
   for(const f of files){
@@ -104,7 +105,7 @@ window.uploadPhotos=async function(ev,mode){
     const u=await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
     if(u.error){alert('Saved photo but could not attach it: '+u.error.message);continue}
   }
-  renderPhotoStrip(mode==='kiosk'?'kPhotoStrip':'photoStrip', log)
+  renderPhotoStrip((mode==='kiosk'?'ph_k_':'ph_s_')+log.id, log)
 }
 
 // ---- photo lightbox ----
