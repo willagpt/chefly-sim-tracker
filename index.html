@@ -287,6 +287,12 @@
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqProduct" style="width:auto" /> Requires a product (e.g. what's being packed)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste (show the box, optional)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqWaste" style="width:auto" /> Require a waste figure to finish</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntBatch" style="width:auto" /> Batch/cook step (fills a vessel to capacity for a fixed cook time)</label>
+        <div class="row">
+          <div><label for="ntCap">Capacity / load</label><input id="ntCap" type="number" inputmode="decimal" placeholder="e.g. 100" /></div>
+          <div><label for="ntCook">Cook time (mins)</label><input id="ntCook" type="number" inputmode="numeric" placeholder="e.g. 120" /></div>
+          <div><label for="ntKind">Vessel type</label><select id="ntKind"><option value="">—</option><option value="oven">Oven</option><option value="sous_vide">Sous-vide</option><option value="combi">Combi</option><option value="blast_chiller">Blast chiller</option><option value="freezer">Freezer</option><option value="other">Other</option></select></div>
+        </div>
         <button class="ghost" onclick="addTask()">Add task</button>
         <div id="addMsg" class="msg"></div>
         <div id="taskList" style="margin-top:14px"></div>
