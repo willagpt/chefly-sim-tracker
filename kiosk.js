@@ -37,6 +37,7 @@ window.kioskVerify=async function(){
   $('kWho').textContent='Start a task — '+kStaff.full_name
   const sel=$('kSelTask'); sel.innerHTML=''; catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;sel.appendChild(o)})
   populateProductSelects()
+  await loadEquipState(); populateEquipSelect('kEquip')
   await kioskLoadActive()
 }
 async function kioskLoadActive(){
@@ -50,9 +51,11 @@ function kioskRenderRunning(){
 window.kioskStart=async function(){
   const t=catalog.find(c=>c.id===$('kSelTask').value); if(!t){msg($('kTaskMsg'),'Pick a task.',false);return}
   if(t.requires_product && !($('kProduct').value||'').trim()){msg($('kTaskMsg'),'Choose or + add a product before starting.',false);return}
-  const {data,error}=await sb.from('sim_task_logs').insert({staff_id:kStaff.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('kProduct').value.trim()||null,staff_count:Number($('kCount').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
-  if(error){msg($('kTaskMsg'),error.message,false);return}
-  kActiveLogs.unshift(data); $('kProduct').value=''; clearMsg($('kTaskMsg')); kioskRenderRunning()
+  const eqId=($('kEquip')&&$('kEquip').value)||null
+  const planMin=($('kPlanMin')&&$('kPlanMin').value)?Number($('kPlanMin').value):null
+  const {data,error}=await sb.from('sim_task_logs').insert({staff_id:kStaff.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('kProduct').value.trim()||null,staff_count:Number($('kCount').value)||1,equipment_id:eqId,planned_minutes:planMin,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
+  if(error){msg($('kTaskMsg'),equipBusyErr(error),false);await loadEquipState();populateEquipSelect('kEquip');return}
+  kActiveLogs.unshift(data); $('kProduct').value=''; if($('kPlanMin'))$('kPlanMin').value=''; clearMsg($('kTaskMsg')); await loadEquipState(); populateEquipSelect('kEquip'); kioskRenderRunning()
 }
 window.kioskStopFor=async function(id){
   const l=kActiveLogs.find(x=>x.id===id); if(!l)return
@@ -69,6 +72,6 @@ window.kioskStopFor=async function(id){
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
-  kActiveLogs=kActiveLogs.filter(x=>x.id!==id); kioskRenderRunning()
+  kActiveLogs=kActiveLogs.filter(x=>x.id!==id); await loadEquipState(); populateEquipSelect('kEquip'); kioskRenderRunning()
   alert('Logged — thanks '+kStaff.full_name+'!')
 }

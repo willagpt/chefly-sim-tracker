@@ -15,6 +15,7 @@ async function refreshDashboard(){
   const fb=$('dashFeed')
   if(!done.length){fb.innerHTML='<p class="muted">No completed tasks yet today.</p>'}
   else{fb.innerHTML='';done.slice(0,20).forEach(l=>{const cat=catalog.find(c=>c.id===l.catalog_id);let vs='';if(cat&&cat.expected_units&&l.units){const pct=Math.round((l.units/cat.expected_units)*100);vs=pct>=100?`<span class="vs-good">${pct}% of target</span>`:`<span class="vs-bad">${pct}% of target</span>`}const el=document.createElement('div');el.className='feed-item';const thumbs=(l.photos&&l.photos.length)?(()=>{const us=l.photos.map(photoUrl);const lb=us.join('|');return '<div class="feed-thumbs">'+us.slice(0,5).map((u,i)=>'<img loading="lazy" src="'+u+'" data-lb="'+lb+'" data-i="'+i+'" onclick="openLightboxEl(this)" style="cursor:zoom-in">').join('')+'</div>'})():'';const _u=uomFor(l);el.innerHTML=`<b>${esc(nameFor(l))}</b> finished <b>${esc(l.task_name)}</b> · ${l.units??'–'} ${_u} in ${l.total_minutes??'–'} min ${l.units_per_hour?'('+l.units_per_hour+' '+_u+'/hr)':''}${l.waste_kg?' · '+l.waste_kg+' '+_u+' waste':''} ${vs} <span class="muted">· ${fmtTime(l.finish_time)}</span>${thumbs}`;fb.appendChild(el)});done.forEach(l=>lastFinishIds.add(l.id))}
+  await loadEquipState(); const vb=$('dashVessels'); if(vb) vb.innerHTML=equipBoardHtml()
 }
 
 function subscribeRealtime(){
@@ -25,6 +26,7 @@ function subscribeRealtime(){
   }).subscribe()
   sb.channel('sim-cooks').on('postgres_changes',{event:'*',schema:'public',table:'sim_cook_sessions'},()=>{
     const et=$('equipTab'); if(et&&!et.classList.contains('hidden')) loadEquip()
+    if(isManagerUp()&&!$('dashTab').classList.contains('hidden')) refreshDashboard()
   }).subscribe()
   setInterval(()=>{if(isManagerUp()&&!$('dashTab').classList.contains('hidden'))refreshDashboard()},30000)
 }
