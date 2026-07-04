@@ -4,7 +4,7 @@
    from sim_standard_times() (median of history, override-aware), editable per job.
    Batch/cook steps auto-split into loads across the vessel-kind pool. */
 
-let planWeekStart=null, planWeekId=null, planItems=[], planStd={}, planVessels=[]
+let planWeekStart=null, planWeekId=null, planItems=[], planStd={}, planVessels=[], planPeople=[], planActual={}
 const DAY_LBL=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 function isoLocal(dt){const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');return y+'-'+m+'-'+d}
@@ -34,6 +34,8 @@ window.loadPlan=async function(){
   planStd={}; (std||[]).forEach(r=>{planStd[r.catalog_id]=r})
   // vessels (active, with daily_hours)
   await loadEquipState(); planVessels=equipState.slice()
+  const {data:_pf}=await sb.from('sim_profiles').select('id,full_name,email'); const {data:_st}=await sb.from('sim_staff').select('id,full_name')
+  planPeople=[...(_pf||[]).map(x=>({v:'u:'+x.id,label:(x.full_name||x.email)})),...(_st||[]).map(x=>({v:'s:'+x.id,label:x.full_name+' (floor)'}))]
   // populate add-job controls
   const ts=$('pjTask'); ts.innerHTML=''; catalog.forEach(t=>{const o=document.createElement('option');o.value=t.id;o.textContent=t.station?`${t.name} — ${t.station}`:t.name;ts.appendChild(o)})
   fillDaySelect('pjDay'); fillVesselSelect('pjEquip')
@@ -43,6 +45,8 @@ window.loadPlan=async function(){
   planWeekId = wk?wk.id:null
   if(planWeekId){const {data:items}=await sb.from('sim_plan_items').select('*').eq('week_id',planWeekId).order('sort_order'); planItems=items||[]}
   else planItems=[]
+  const {data:acts}=await sb.from('sim_task_logs').select('catalog_id,units').gte('log_date',planWeekStart).lte('log_date',addDaysIso(planWeekStart,6)).eq('status','completed')
+  planActual={}; (acts||[]).forEach(a=>{ if(a.catalog_id){ planActual[a.catalog_id]=(planActual[a.catalog_id]||0)+(Number(a.units)||0) } })
   renderPlanBoard()
 }
 function fillDaySelect(id,cur){const sel=$(id);if(!sel)return;const c=cur||sel.value;sel.innerHTML='<option value="">Unscheduled</option>'+DAY_LBL.map((lbl,i)=>{const iso=addDaysIso(planWeekStart,i);return `<option value="${iso}"${iso===c?' selected':''}>${lbl} ${ddmm(iso)}</option>`}).join('')}
@@ -94,6 +98,16 @@ function utilBar(mins,capMins){
   const col=pct>100?'var(--red)':(pct>85?'var(--amber)':'var(--green)')
   return `<div style="background:var(--panel2);border-radius:6px;height:10px;overflow:hidden;margin:4px 0"><div style="width:${Math.min(100,pct)}%;height:100%;background:${col}"></div></div><div class="muted" style="font-size:12px">${(mins/60).toFixed(1)}h / ${(capMins/60).toFixed(0)}h · <b style="color:${col}">${pct}%</b>${pct>100?' — over capacity':''}</div>`
 }
+function assigneeSelectHtml(it){
+  const cur=it.assigned_user?('u:'+it.assigned_user):(it.assigned_staff?('s:'+it.assigned_staff):'')
+  return `<select onchange="updatePlanAssignee('${it.id}',this.value)"><option value="">Unassigned</option>`+planPeople.map(pp=>`<option value="${pp.v}"${pp.v===cur?' selected':''}>${esc(pp.label)}</option>`).join('')+'</select>'
+}
+window.updatePlanAssignee=async function(id,val){
+  const patch={assigned_user:null,assigned_staff:null}
+  if(val.indexOf('u:')===0)patch.assigned_user=val.slice(2)
+  else if(val.indexOf('s:')===0)patch.assigned_staff=val.slice(2)
+  await sb.from('sim_plan_items').update(patch).eq('id',id); await loadPlan()
+}
 function daySelectHtml(it){return `<select onchange="updatePlanJob('${it.id}','plan_date',this.value)">`+'<option value="">Unscheduled</option>'+DAY_LBL.map((lbl,i)=>{const iso=addDaysIso(planWeekStart,i);return `<option value="${iso}"${it.plan_date===iso?' selected':''}>${lbl} ${ddmm(iso)}</option>`}).join('')+'</select>'}
 function batchJobCard(it){
   const t=catalog.find(c=>c.id===it.catalog_id)
@@ -111,7 +125,7 @@ function batchJobCard(it){
       <button class="ghost sm" onclick="tickLoad('${it.id}',1)">＋</button>
       <div style="flex:1;background:var(--panel2);border-radius:6px;height:8px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--green)"></div></div>
     </div>
-    <div class="row" style="gap:8px">${daySelectHtml(it)}</div>
+    <div class="row" style="gap:8px">${daySelectHtml(it)}${assigneeSelectHtml(it)}</div>
   </div>`
 }
 window.tickLoad=async function(id,delta){
@@ -128,14 +142,58 @@ function jobCard(it){
       <div><b>${esc(it.task_name||'')}</b>${it.product?' · '+esc(it.product):''}<div class="muted" style="font-size:12px">${it.target_qty??'–'} ${esc(it.uom||'')} · ${it.est_minutes??'–'} min · ${it.staff_count||1} ppl</div></div>
       <a class="link" style="font-size:13px;flex-shrink:0" onclick="delPlanJob('${it.id}')">Remove</a>
     </div>
-    <div class="row" style="gap:8px">${daySel}${vesSel}</div>
+    <div class="row" style="gap:8px">${daySel}${vesSel}${assigneeSelectHtml(it)}</div>
   </div>`
 }
+function healthWarnings(){
+  const w=[]
+  catalog.forEach(t=>{
+    if(t.is_batch){
+      if(!t.capacity_per_load) w.push('“'+esc(t.name)+'” is a batch step but has no capacity/load.')
+      if(!t.cook_minutes) w.push('“'+esc(t.name)+'” is a batch step but has no cook time.')
+      if(!t.equipment_kind) w.push('“'+esc(t.name)+'” is a batch step but has no vessel type.')
+      else if(!planVessels.some(v=>v.kind===t.equipment_kind)) w.push('“'+esc(t.name)+'” uses vessel type “'+esc(kindLabel(t.equipment_kind))+'” but no active vessel of that type exists.')
+    }
+  })
+  planVessels.forEach(v=>{ if(!v.kind) w.push('Vessel “'+esc(v.name)+'” has no type set.') })
+  return w
+}
+function healthCard(){
+  const w=healthWarnings()
+  if(!w.length) return '<div class="card"><span class="muted">✓ Setup checks pass — batch steps and vessels look configured.</span></div>'
+  return `<div class="card" style="border-color:var(--amber)"><h2 style="margin:0 0 6px">⚠ Setup check</h2>${w.map(x=>'<div style="font-size:13px;margin-bottom:3px">• '+x+'</div>').join('')}</div>`
+}
+function planVsActualCard(){
+  const byCat={}
+  planItems.forEach(i=>{ if(!i.catalog_id)return; const b=byCat[i.catalog_id]||(byCat[i.catalog_id]={name:i.task_name,planned:0,uom:i.uom||'kg'}); b.planned+=Number(i.target_qty)||0 })
+  const rows=Object.keys(byCat).map(cid=>{const b=byCat[cid];b.actual=planActual[cid]||0;return b}).filter(b=>b.planned>0)
+  if(!rows.length) return ''
+  rows.sort((a,b)=>b.planned-a.planned)
+  const cell=(txt,i,bold)=>`<td style="text-align:${i===0?'left':'right'};padding:6px 8px;border-bottom:1px solid var(--line);${bold?'font-weight:700':''}">${txt}</td>`
+  const trs=rows.map(b=>{
+    const pct=b.planned>0?Math.round(b.actual/b.planned*100):0
+    const col=pct>=95?'var(--green)':(pct>=70?'var(--amber)':'var(--red)')
+    return `<tr>${cell(esc(b.name),0)}${cell(Math.round(b.planned)+' '+esc(b.uom),1)}${cell(Math.round(b.actual)+' '+esc(b.uom),2,true)}<td style="text-align:right;padding:6px 8px;border-bottom:1px solid var(--line);font-weight:700;color:${col}">${pct}%</td></tr>`
+  }).join('')
+  const th=['Task','Planned','Actual','Hit'].map((h,i)=>`<th style="text-align:${i===0?'left':'right'};padding:6px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)">${h}</th>`).join('')
+  return `<div class="card"><h2 style="margin:0 0 6px">Plan vs actual · this week</h2><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><tr>${th}</tr>${trs}</table></div></div>`
+}
+function dragBoardHtml(){
+  if(!planItems.length) return ''
+  const cols=[]
+  for(let d=0;d<7;d++){const iso=addDaysIso(planWeekStart,d);cols.push({day:iso,label:DAY_LBL[d]+' '+ddmm(iso),items:planItems.filter(i=>i.plan_date===iso)})}
+  cols.push({day:'',label:'Unscheduled',items:planItems.filter(i=>!i.plan_date)})
+  const chip=i=>{const warn=(i.assigned_user||i.assigned_staff)?'':' <span style="color:var(--amber)">⚠</span>';return `<div class="jobchip" data-id="${i.id}" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab;font-size:13px"><b>${esc(i.task_name||'')}</b>${i.target_qty!=null?' · '+i.target_qty+' '+esc(i.uom||''):''}${warn}</div>`}
+  const col=c=>`<div class="dragcol" data-day="${c.day}" style="min-width:150px;flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">${c.label}</div>${c.items.map(chip).join('')}</div>`
+  return `<div class="card"><h2 style="margin:0 0 4px">Drag jobs onto a day</h2><p class="muted" style="margin:0 0 10px;font-size:13px">Drag a job between columns to reschedule it. ⚠ = nobody assigned yet.</p><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">${cols.map(col).join('')}</div></div>`
+}
+function onPlanDrop(evt){ const id=evt.item.dataset.id; const day=evt.to.dataset.day||''; if(id) updatePlanJob(id,'plan_date',day) }
 function renderPlanBoard(){
   const box=$('planBoard'); if(!box)return
   const totJobs=planItems.length
   const unsched=planItems.filter(i=>!i.plan_date)
   let html=`<div class="card"><b>${totJobs}</b> job${totJobs===1?'':'s'} planned for week of ${ddmm(planWeekStart)}. Flow steps sit on a named vessel; batch/cook steps auto-split into loads across the vessel pool.</div>`
+  html += healthCard() + planVsActualCard() + dragBoardHtml()
   for(let d=0; d<7; d++){
     const iso=addDaysIso(planWeekStart,d)
     const dayItems=planItems.filter(i=>i.plan_date===iso)
@@ -172,4 +230,5 @@ function renderPlanBoard(){
   if(unsched.length){html+=`<div class="card"><h2 style="margin:0 0 8px">Unscheduled (${unsched.length})</h2>`;unsched.forEach(i=>html+=(batchOf(i.catalog_id)?batchJobCard(i):jobCard(i)));html+='</div>'}
   if(!totJobs) html+='<div class="card"><p class="muted">No jobs yet. Add one above to start planning the week.</p></div>'
   box.innerHTML=html
+  if(typeof Sortable!=='undefined'){ document.querySelectorAll('#planBoard .dragcol').forEach(col=>{ new Sortable(col,{group:'plandrag',draggable:'.jobchip',animation:150,onEnd:onPlanDrop}) }) }
 }
