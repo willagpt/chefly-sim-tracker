@@ -122,6 +122,7 @@ async function loadActive(){
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).in('status',['in_progress','paused']).order('start_time',{ascending:false})
   activeLogs=data||[]; renderRunning()
   await loadEquipState(); populateEquipSelect('sEquip')
+  if(typeof loadMyDay==='function') loadMyDay()
 }
 function runCardHTML(l,m){
   const p=m+'_'+l.id
@@ -185,7 +186,7 @@ window.stopTaskFor=async function(id){
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
-  activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await loadEquipState(); populateEquipSelect('sEquip'); await refreshMyRecent(); if(isManagerUp())await refreshDashboard()
+  activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await loadEquipState(); populateEquipSelect('sEquip'); await refreshMyRecent(); if(typeof loadMyDay==='function') loadMyDay(); if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
   const today=new Date().toISOString().slice(0,10)
@@ -193,4 +194,69 @@ async function refreshMyRecent(){
   const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
   data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='completed'?'<span class="pill done">done</span>':(l.status==='paused'?'<span class="pill off">❚❚ paused</span>':'<span class="pill live">● running</span>');const _u=uomFor(l);const uph=l.units_per_hour?`${l.units_per_hour} ${_u}/hr`:'';d.innerHTML=`<div><b>${esc(l.task_name)}</b> ${status}<div class="meta">${l.product?esc(l.product)+' · ':''}${l.units??'–'} ${_u} · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' '+_u+' waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
+}
+
+// ---- bulk CSV import / export (task catalog) ----
+function parseCsv(text){
+  const rows=[]; let i=0, field='', row=[], inQ=false
+  const pushF=()=>{row.push(field);field=''}
+  const pushR=()=>{rows.push(row);row=[]}
+  while(i<text.length){
+    const c=text[i]
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){field+='"';i+=2;continue} inQ=false;i++;continue }
+      field+=c;i++;continue
+    }
+    if(c==='"'){inQ=true;i++;continue}
+    if(c===','){pushF();i++;continue}
+    if(c==='\r'){i++;continue}
+    if(c==='\n'){pushF();pushR();i++;continue}
+    field+=c;i++
+  }
+  if(field.length||row.length){pushF();pushR()}
+  return rows.filter(r=>!(r.length===1&&r[0].trim()===''))
+}
+const _csvBool=v=>['1','true','yes','y'].includes(String(v||'').trim().toLowerCase())
+window.taskCsvFile=function(ev){const f=ev.target.files&&ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$('taskCsvText').value=r.result;msg($('impMsg'),'File loaded — review below, then Import.',true)};r.readAsText(f)}
+window.importTasksCsv=async function(){
+  const text=($('taskCsvText').value||'').trim(); if(!text){msg($('impMsg'),'Choose a file or paste CSV first.',false);return}
+  const rows=parseCsv(text); if(rows.length<2){msg($('impMsg'),'Need a header row plus at least one task.',false);return}
+  const hdr=rows[0].map(h=>h.trim().toLowerCase())
+  const idx=(...names)=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k}return -1}
+  const iName=idx('name','task','task name'); if(iName<0){msg($('impMsg'),'CSV must have a "name" column.',false);return}
+  const C={station:idx('station'),expected:idx('expected_units','expected'),uom:idx('uom','unit'),requnits:idx('requires_units','records_amount'),reqproduct:idx('requires_product','product'),trackwaste:idx('track_waste'),reqwaste:idx('require_waste'),batch:idx('is_batch','batch'),cap:idx('capacity_per_load','capacity'),cook:idx('cook_minutes','cook'),kind:idx('equipment_kind','vessel_type')}
+  const get=(r,i)=>(i>=0&&i<r.length)?String(r[i]).trim():''
+  const numOr=v=>v===''?null:(isNaN(Number(v))?null:Number(v))
+  const existing=new Map(catalog.map(c=>[(c.name||'').toLowerCase(),c]))
+  let added=0,updated=0,skipped=0,order=(catalog.length?Math.max(...catalog.map(c=>c.sort_order||0)):0)
+  for(let ri=1;ri<rows.length;ri++){
+    const r=rows[ri]; const name=get(r,iName); if(!name){skipped++;continue}
+    const rec={name,
+      station:C.station>=0?(get(r,C.station)||null):null,
+      expected_units:C.expected>=0?numOr(get(r,C.expected)):null,
+      uom:(C.uom>=0?get(r,C.uom):'')||'kg',
+      requires_units:C.requnits>=0?_csvBool(get(r,C.requnits)):true,
+      requires_product:C.reqproduct>=0?_csvBool(get(r,C.reqproduct)):false,
+      track_waste:C.trackwaste>=0?_csvBool(get(r,C.trackwaste)):false,
+      require_waste:C.reqwaste>=0?_csvBool(get(r,C.reqwaste)):false,
+      is_batch:C.batch>=0?_csvBool(get(r,C.batch)):false,
+      capacity_per_load:C.cap>=0?numOr(get(r,C.cap)):null,
+      cook_minutes:C.cook>=0?numOr(get(r,C.cook)):null,
+      equipment_kind:C.kind>=0?(get(r,C.kind)||null):null}
+    const ex=existing.get(name.toLowerCase())
+    if(ex){const {error}=await sb.from('sim_task_catalog').update(rec).eq('id',ex.id);if(error){skipped++}else{updated++}}
+    else{order++;const {error}=await sb.from('sim_task_catalog').insert(Object.assign({},rec,{expected_staff:1,active:true,sort_order:order}));if(error){skipped++}else{added++}}
+  }
+  msg($('impMsg'),`Imported — ${added} added, ${updated} updated${skipped?', '+skipped+' skipped':''}.`,true)
+  $('taskCsvText').value=''; await loadCatalog()
+}
+window.exportTasksCsv=function(){
+  const cols=['name','station','expected_units','uom','requires_units','requires_product','track_waste','require_waste','is_batch','capacity_per_load','cook_minutes','equipment_kind']
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"'
+  const lines=[cols.join(',')].concat(catalog.map(t=>cols.map(c=>q(t[c])).join(',')))
+  const blob=new Blob([lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chefly-tasks.csv';a.click()
+}
+window.downloadTaskTemplate=function(){
+  const tmpl='name,station,expected_units,uom,requires_units,requires_product,track_waste,require_waste,is_batch,capacity_per_load,cook_minutes,equipment_kind\nGrilled Chicken Sous Vide,Kitchen,,kg,yes,no,no,no,yes,100,120,sous_vide\nVacuum Tumble,Prep,,kg,yes,yes,no,no,no,,,\n'
+  const blob=new Blob([tmpl],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chefly-tasks-template.csv';a.click()
 }
