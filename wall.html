@@ -57,6 +57,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
 const token = new URLSearchParams(location.search).get('t') || ''
 const $=id=>document.getElementById(id)
+function esc(v){if(v==null)return '';return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
 const elapsedMin=t=>Math.floor((Date.now()-new Date(t))/60000)
 
@@ -72,10 +73,10 @@ async function refresh(){
   $('stKg').textContent=data.stats.kg
   const rb=$('running')
   if(!data.running.length){ rb.innerHTML='<div class="empty">Nobody is on a task right now.</div>' }
-  else rb.innerHTML=data.running.map(r=>`<div class="row"><div><div class="name">${r.who}</div><div class="sub">${r.task}${r.product?' · '+r.product:''} · ${r.staff||1} ppl</div></div>${r.paused?'<div class="badge low">❚❚ paused</div>':'<div class="badge run">● '+elapsedMin(r.start_time)+' min</div>'}</div>`).join('')
+  else rb.innerHTML=data.running.map(r=>`<div class="row"><div><div class="name">${esc(r.who)}</div><div class="sub">${esc(r.task)}${r.product?' · '+esc(r.product):''} · ${r.staff||1} ppl</div></div>${r.paused?'<div class="badge low">❚❚ paused</div>':'<div class="badge run">● '+elapsedMin(r.start_time)+' min</div>'}</div>`).join('')
   const db=$('done')
   if(!data.done.length){ db.innerHTML='<div class="empty">No completed tasks yet today.</div>' }
-  else db.innerHTML=data.done.slice(0,8).map(d=>{const _u=d.uom||'kg';const pct=d.pct!=null?`<div class="badge ${d.pct>=100?'good':'low'}">${d.pct}%</div>`:'';return `<div class="row"><div><div class="name">${d.who}</div><div class="sub">${d.task} · ${d.units??'–'} ${_u} · ${d.minutes??'–'} min${d.uph?' · '+d.uph+' '+_u+'/hr':''}${d.waste?' · '+d.waste+' '+_u+' waste':''} · ${fmtTime(d.finish_time)}</div></div>${pct}</div>`}).join('')
+  else db.innerHTML=data.done.slice(0,8).map(d=>{const _u=d.uom||'kg';const pct=d.pct!=null?`<div class="badge ${d.pct>=100?'good':'low'}">${d.pct}%</div>`:'';return `<div class="row"><div><div class="name">${esc(d.who)}</div><div class="sub">${esc(d.task)} · ${d.units??'–'} ${_u} · ${d.minutes??'–'} min${d.uph?' · '+d.uph+' '+_u+'/hr':''}${d.waste?' · '+d.waste+' '+_u+' waste':''} · ${fmtTime(d.finish_time)}</div></div>${pct}</div>`}).join('')
   refreshEquip()
 }
 async function refreshEquip(){
@@ -92,7 +93,7 @@ async function refreshEquip(){
         if(rem<0){ over=true; badge='<div class="badge over">⏰ OVERDUE '+Math.floor(-rem/60000)+'m</div>' }
         else badge='<div class="badge good">due in '+Math.ceil(rem/60000)+'m</div>'
       } else badge='<div class="badge run">'+elapsedMin(v.start_time)+'m</div>'
-      return `<div class="row${over?' over':''}"><div><div class="name">${v.name}</div><div class="sub">${v.product||'In use'}${v.who?' · '+v.who:''} · in for ${elapsedMin(v.start_time)} min</div></div>${badge}</div>`
+      return `<div class="row${over?' over':''}"><div><div class="name">${esc(v.name)}</div><div class="sub">${esc(v.product)||'In use'}${v.who?' · '+esc(v.who):''} · in for ${elapsedMin(v.start_time)} min</div></div>${badge}</div>`
     }).join('')
   }catch(e){}
 }

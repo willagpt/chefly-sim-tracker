@@ -23,17 +23,17 @@ function renderEquipBoard(){
   const locs=[...new Set(equipList.map(e=>e.location||'Other'))]
   let html=`<div class="card"><b>${busyN}</b> of <b>${equipList.length}</b> vessels in use right now.</div>`
   locs.forEach(loc=>{
-    html+=`<h2 style="margin:16px 0 8px">${loc}</h2>`
+    html+=`<h2 style="margin:16px 0 8px">${esc(loc)}</h2>`
     equipList.filter(e=>(e.location||'Other')===loc).forEach(e=>{html+=equipCardHtml(e,equipCooks[e.id])})
   })
   box.innerHTML=html
 }
 function equipCardHtml(e,c){
-  const sub=`${equipKindLabel(e.kind)}${e.capacity?' · '+e.capacity:''}`
+  const sub=`${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}`
   if(!c){
     return `<div class="card" style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div><b>${e.name}</b><div class="muted">${sub} · <span style="color:var(--green)">empty</span></div></div>
+        <div><b>${esc(e.name)}</b><div class="muted">${sub} · <span style="color:var(--green)">empty</span></div></div>
         <button class="green sm" onclick="equipPutIn('${e.id}')">Put in</button>
       </div>
       <div id="ef_${e.id}" class="hidden" style="margin-top:10px">
@@ -51,9 +51,9 @@ function equipCardHtml(e,c){
   return `<div class="card" id="ec_${c.id}" style="margin-bottom:10px;border-color:var(--accent)">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
       <div style="min-width:0">
-        <b>${e.name}</b><div class="muted">${sub}</div>
-        <div style="margin-top:6px"><b>${c.product||'In use'}</b>${c.process?' · '+c.process:''}</div>
-        <div class="muted">by ${cookName(c)} · in for <span id="el_${c.id}">–</span>${c.target_temp?' · '+c.target_temp:''}</div>
+        <b>${esc(e.name)}</b><div class="muted">${sub}</div>
+        <div style="margin-top:6px"><b>${esc(c.product)||'In use'}</b>${c.process?' · '+esc(c.process):''}</div>
+        <div class="muted">by ${esc(cookName(c))} · in for <span id="el_${c.id}">–</span>${c.target_temp?' · '+esc(c.target_temp):''}</div>
         <div id="ed_${c.id}" style="margin-top:4px;font-weight:700"></div>
       </div>
       <button class="red sm" onclick="equipTakeOut('${c.id}')">Take out</button>
@@ -92,7 +92,7 @@ async function loadEquipReg(){
   equipRegData=data||[]; box.innerHTML=''
   equipRegData.forEach(e=>{
     const d=document.createElement('div');d.className='task-item';d.id='eqr_'+e.id
-    d.innerHTML=`<div><b>${e.name}</b><div class="meta">${equipKindLabel(e.kind)}${e.capacity?' · '+e.capacity:''}${e.location?' · '+e.location:''}${e.active?'':' · <span style="color:#fca5a5">inactive</span>'}</div></div>`
+    d.innerHTML=`<div><b>${esc(e.name)}</b><div class="meta">${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}${e.location?' · '+esc(e.location):''}${e.active?'':' · <span style="color:#fca5a5">inactive</span>'}</div></div>`
     const ctl=document.createElement('div');ctl.style.display='flex';ctl.style.gap='8px';ctl.style.flexShrink='0'
     const ed=document.createElement('button');ed.className='ghost sm';ed.textContent='Edit';ed.onclick=()=>editEquip(e.id)
     const rm=document.createElement('button');rm.className='ghost sm';rm.textContent=e.active?'Remove':'Restore';rm.onclick=async()=>{await sb.from('sim_equipment').update({active:!e.active}).eq('id',e.id);loadEquipReg()}

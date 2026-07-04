@@ -73,6 +73,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
 const token = new URLSearchParams(location.search).get('t') || ''
 const $=id=>document.getElementById(id)
+function esc(v){if(v==null)return '';return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const fmtTime=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
 function fmtClock(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;const p=n=>String(n).padStart(2,'0');return (h>0?p(h)+':':'')+p(m)+':'+p(s)}
 
@@ -99,23 +100,23 @@ async function refresh(){
   $('done').innerHTML = done.length? done.map(d=>{
     const ok=d.rate!=null && d.rate>=(data.target||500)
     const badge=d.rate!=null?`<div class="badge ${ok?'good':'low'}">${d.rate}/hr</div>`:''
-    return `<div class="row"><div><div class="name"><span class="sku">${d.sku||'–'}</span>${d.dish_name}</div><div class="sub">${d.qty_packed??d.planned_qty??'–'} packed · ${d.total_minutes??'–'} min${d.line_count?' · '+d.line_count+' on line':''} · ${fmtTime(d.finish_time)}</div></div>${badge}</div>`
+    return `<div class="row"><div><div class="name"><span class="sku">${d.sku||'–'}</span>${esc(d.dish_name)}</div><div class="sub">${d.qty_packed??d.planned_qty??'–'} packed · ${d.total_minutes??'–'} min${d.line_count?' · '+d.line_count+' on line':''} · ${fmtTime(d.finish_time)}</div></div>${badge}</div>`
   }).join('') : '<div class="empty">No dishes finished yet today.</div>'
 
   const nx=data.next
-  $('next').innerHTML = nx? `<div class="row"><div><div class="name"><span class="sku">${nx.sku||'–'}</span>${nx.dish_name}</div><div class="sub">${nx.planned_qty??'–'} to pack</div></div></div>` : (data.current?'<div class="empty">Last dish in progress.</div>':'<div class="empty">All dishes done 🎉</div>')
+  $('next').innerHTML = nx? `<div class="row"><div><div class="name"><span class="sku">${nx.sku||'–'}</span>${esc(nx.dish_name)}</div><div class="sub">${nx.planned_qty??'–'} to pack</div></div></div>` : (data.current?'<div class="empty">Last dish in progress.</div>':'<div class="empty">All dishes done 🎉</div>')
 
   const all=data.breaks_today||[]
   const onNow=all.filter(b=>!b.ended_at)
   const doneB=all.filter(b=>b.ended_at)
   $('breakCount').textContent = onNow.length? '('+onNow.length+')' : ''
   $('breaks').innerHTML = onNow.length
-    ? onNow.map(b=>`<div class="row"><div class="name">${b.name}</div><span class="badge" style="background:rgba(245,158,11,.2);color:#fcd34d" data-since="${b.started_at}">0:00</span></div>`).join('')
+    ? onNow.map(b=>`<div class="row"><div class="name">${esc(b.name)}</div><span class="badge" style="background:rgba(245,158,11,.2);color:#fcd34d" data-since="${b.started_at}">0:00</span></div>`).join('')
     : '<div class="empty">Everyone on the line — nobody on break.</div>'
   const totMin=doneB.reduce((s,b)=>s+(Number(b.duration_min)||0),0)
   $('breakDoneCount').textContent = doneB.length? '('+doneB.length+' · '+totMin+' min total)' : ''
   $('breaksDone').innerHTML = doneB.length
-    ? doneB.slice().reverse().map(b=>`<div class="row"><div><div class="name">${b.name}</div><div class="sub">${fmtTime(b.started_at)}–${fmtTime(b.ended_at)}</div></div><span class="badge good">${b.duration_min} min</span></div>`).join('')
+    ? doneB.slice().reverse().map(b=>`<div class="row"><div><div class="name">${esc(b.name)}</div><div class="sub">${fmtTime(b.started_at)}–${fmtTime(b.ended_at)}</div></div><span class="badge good">${b.duration_min} min</span></div>`).join('')
     : '<div class="empty">No breaks taken yet today.</div>'
 
   renderHero()
@@ -126,7 +127,7 @@ function renderHero(){
   if(!c){ h.classList.add('idle'); $('heroEy').textContent='No dish running'; $('heroNm').textContent= (snap&&snap.stats&&snap.stats.dishes_total&&snap.stats.dishes_done>=snap.stats.dishes_total)?'All dishes done 🎉':'Waiting to start…'; $('heroTmr').textContent='00:00'; $('heroPace').innerHTML='&nbsp;'; return }
   h.classList.remove('idle')
   $('heroEy').innerHTML='<span class="live"></span> NOW PACKING'+(c.line_count?' · '+c.line_count+' on line':'')
-  $('heroNm').innerHTML='<span class="sku">'+(c.sku||'–')+'</span>'+c.dish_name
+  $('heroNm').innerHTML='<span class="sku">'+(c.sku||'–')+'</span>'+esc(c.dish_name)
 }
 function tickHero(){
   const c=snap&&snap.current
