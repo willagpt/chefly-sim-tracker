@@ -1,0 +1,28 @@
+name: checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax-check all classic scripts
+        run: |
+          set -e
+          for f in core.js ui.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js boot.js; do
+            if [ -f "$f" ]; then echo "checking $f"; node --check "$f"; fi
+          done
+      - name: Every module script referenced by index.html must exist
+        run: |
+          set -e
+          for f in $(grep -oE 'src="[a-zA-Z0-9_.-]+\.js"' index.html | sed -E 's/src="(.*)"/\1/'); do
+            if [ ! -f "$f" ]; then echo "MISSING referenced script: $f"; exit 1; fi
+          done
+          echo "all referenced scripts present"
