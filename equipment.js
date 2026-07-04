@@ -12,6 +12,7 @@ window.loadEquip=async function(){
     sb.from('sim_staff').select('id,full_name')
   ])
   equipList=eq||[]; equipCooks={}; (cooks||[]).forEach(c=>{equipCooks[c.equipment_id]=c})
+  await loadEquipState()
   equipNames={}; (profs||[]).forEach(p=>equipNames['u:'+p.id]=p.full_name||p.email); (staffs||[]).forEach(s=>equipNames['s:'+s.id]=s.full_name)
   renderEquipBoard()
   if(equipTimer)clearInterval(equipTimer); equipTimer=setInterval(tickEquip,1000); tickEquip()
@@ -19,7 +20,7 @@ window.loadEquip=async function(){
 function renderEquipBoard(){
   const box=$('equipBoard'); if(!box)return
   if(!equipList.length){box.innerHTML='<div class="card"><p class="muted">No equipment set up yet. An admin can add it in Manage → Cooking equipment.</p></div>';return}
-  const busyN=Object.keys(equipCooks).length
+  const busyN=equipState&&equipState.length?equipState.filter(e=>e.busy).length:Object.keys(equipCooks).length
   const locs=[...new Set(equipList.map(e=>e.location||'Other'))]
   let html=`<div class="card"><b>${busyN}</b> of <b>${equipList.length}</b> vessels in use right now.</div>`
   locs.forEach(loc=>{
@@ -31,6 +32,16 @@ function renderEquipBoard(){
 function equipCardHtml(e,c){
   const sub=`${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}`
   if(!c){
+    const es=(typeof equipById==='function')?equipById(e.id):null
+    if(es&&es.busy&&es.source==='task'){
+      return `<div class="card" style="margin-bottom:10px;border-color:var(--accent)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+          <div style="min-width:0"><b>${esc(e.name)}</b><div class="muted">${sub}</div>
+          <div style="margin-top:6px"><b>${esc(es.activity||'In use')}</b>${es.product?' · '+esc(es.product):''}</div>
+          <div class="muted">by ${esc(es.occupant||'')} · task in progress</div></div>
+          <div class="pill live">● in use</div>
+        </div></div>`
+    }
     return `<div class="card" style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><b>${esc(e.name)}</b><div class="muted">${sub} · <span style="color:var(--green)">empty</span></div></div>

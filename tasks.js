@@ -106,6 +106,7 @@ window.addProduct=async function(){
 async function loadActive(){
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).in('status',['in_progress','paused']).order('start_time',{ascending:false})
   activeLogs=data||[]; renderRunning()
+  await loadEquipState(); populateEquipSelect('sEquip')
 }
 function runCardHTML(l,m){
   const p=m+'_'+l.id
@@ -116,6 +117,7 @@ function runCardHTML(l,m){
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">${esc(l.task_name)}</h2><span class="pill ${paused?'off':'live'}">${paused?'❚❚ PAUSED':'● RUNNING'}</span></div>
     <div class="muted">${l.product?esc(l.product)+' · ':''}${l.staff_count||1} ppl · started ${fmtTime(l.start_time)}</div>
+    ${l.equipment_id?'<div class="muted">🔧 '+esc(((typeof equipById==='function'&&equipById(l.equipment_id))||{}).name||'vessel')+(l.planned_minutes?' · '+l.planned_minutes+'m planned':'')+'</div>':''}
     <div class="timer" id="timer_${p}">00:00:00</div>
     ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
     ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
@@ -148,9 +150,11 @@ window.togglePauseFor=async function(id,mode){
 window.startTask=async function(){
   const t=catalog.find(c=>c.id===$('selTask').value); if(!t){msg($('logMsg'),'Pick a task.',false);return}
   if(t.requires_product && !($('sProduct').value||'').trim()){msg($('logMsg'),'Choose or + add a product before starting.',false);return}
-  const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
-  if(error){msg($('logMsg'),error.message,false);return}
-  activeLogs.unshift(data);$('sProduct').value='';clearMsg($('logMsg'));renderRunning()
+  const eqId=($('sEquip')&&$('sEquip').value)||null
+  const planMin=($('sPlanMin')&&$('sPlanMin').value)?Number($('sPlanMin').value):null
+  const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,equipment_id:eqId,planned_minutes:planMin,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
+  if(error){msg($('logMsg'),equipBusyErr(error),false);await loadEquipState();populateEquipSelect('sEquip');return}
+  activeLogs.unshift(data);$('sProduct').value='';if($('sPlanMin'))$('sPlanMin').value='';clearMsg($('logMsg'));await loadEquipState();populateEquipSelect('sEquip');renderRunning()
 }
 window.stopTaskFor=async function(id){
   const l=activeLogs.find(x=>x.id===id); if(!l)return
@@ -166,7 +170,7 @@ window.stopTaskFor=async function(id){
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
-  activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await refreshMyRecent(); if(isManagerUp())await refreshDashboard()
+  activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await loadEquipState(); populateEquipSelect('sEquip'); await refreshMyRecent(); if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
   const today=new Date().toISOString().slice(0,10)
