@@ -88,6 +88,10 @@
           <div><label for="sProduct">Product / recipe <a class="link" style="font-size:12px" onclick="addProductInline('s')">+ new</a></label><select id="sProduct"></select></div>
           <div><label for="sStaff">People on task</label><input id="sStaff" type="number" inputmode="numeric" min="1" value="1" /></div>
         </div>
+        <div class="row">
+          <div><label for="sEquip">Equipment (optional)</label><select id="sEquip"><option value="">— none —</option></select></div>
+          <div><label for="sPlanMin">Planned mins (optional)</label><input id="sPlanMin" type="number" inputmode="numeric" placeholder="e.g. 40" /></div>
+        </div>
         <button class="green" onclick="startTask()">▶ START NOW</button>
         <div id="logMsg" class="msg"></div>
       </div>
@@ -115,6 +119,7 @@
           <div class="stat"><div class="n" id="stUnits">0</div><div class="l">Kg today</div></div>
         </div>
       </div>
+      <div class="card"><h2>Vessels in use</h2><div id="dashVessels"><p class="muted">Loading…</p></div></div>
       <div class="card"><h2>Running now</h2><div id="dashRunning"><p class="muted">Nobody is on a task right now.</p></div></div>
       <div class="card"><h2>Just finished</h2><div id="dashFeed"><p class="muted">No completed tasks yet today.</p></div></div>
     </div>
@@ -288,6 +293,10 @@
           <div><label for="kProduct">Product / recipe <a class="link" style="font-size:12px" onclick="addProductInline('k')">+ new</a></label><select id="kProduct"></select></div>
           <div><label for="kCount">People on task</label><input id="kCount" type="number" inputmode="numeric" min="1" value="1" /></div>
         </div>
+        <div class="row">
+          <div><label for="kEquip">Equipment (optional)</label><select id="kEquip"><option value="">— none —</option></select></div>
+          <div><label for="kPlanMin">Planned mins (optional)</label><input id="kPlanMin" type="number" inputmode="numeric" placeholder="e.g. 40" /></div>
+        </div>
         <button class="green" onclick="kioskStart()">▶ START NOW</button>
         <button class="ghost" onclick="kioskBackToGrid()">Switch person</button>
         <div id="kTaskMsg" class="msg"></div>
@@ -349,11 +358,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="core.js"></script>
 <script src="ui.js"></script>
+<script src="equipstate.js"></script>
 <script src="auth.js"></script>
 <script src="tasks.js"></script>
 <script src="kiosk.js"></script>
 <script src="dashboard.js"></script>
-<script src="equipment.js"></script>
 <script src="packing.js"></script>
 <script src="performance.js"></script>
 <script src="manage.js"></script>
