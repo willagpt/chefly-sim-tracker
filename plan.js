@@ -179,15 +179,33 @@ function planVsActualCard(){
   return `<div class="card"><h2 style="margin:0 0 6px">Plan vs actual · this week</h2><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><tr>${th}</tr>${trs}</table></div></div>`
 }
 function dragBoardHtml(){
-  if(!planItems.length) return ''
+  if(!catalog.length) return ''
   const cols=[]
   for(let d=0;d<7;d++){const iso=addDaysIso(planWeekStart,d);cols.push({day:iso,label:DAY_LBL[d]+' '+ddmm(iso),items:planItems.filter(i=>i.plan_date===iso)})}
   cols.push({day:'',label:'Unscheduled',items:planItems.filter(i=>!i.plan_date)})
   const chip=i=>{const warn=(i.assigned_user||i.assigned_staff)?'':' <span style="color:var(--amber)">⚠</span>';return `<div class="jobchip" data-id="${i.id}" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-bottom:6px;cursor:grab;font-size:13px"><b>${esc(i.task_name||'')}</b>${i.target_qty!=null?' · '+i.target_qty+' '+esc(i.uom||''):''}${warn}</div>`}
-  const col=c=>`<div class="dragcol" data-day="${c.day}" style="min-width:150px;flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">${c.label}</div>${c.items.map(chip).join('')}</div>`
-  return `<div class="card"><h2 style="margin:0 0 4px">Drag jobs onto a day</h2><p class="muted" style="margin:0 0 10px;font-size:13px">Drag a job between columns to reschedule it. ⚠ = nobody assigned yet.</p><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">${cols.map(col).join('')}</div></div>`
+  const col=c=>`<div class="dragcol" data-day="${c.day}" style="min-width:150px;flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px;min-height:60px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">${c.label}</div>${c.items.map(chip).join('')}</div>`
+  const palette=catalog.map(t=>`<div class="recipechip" data-catalog-id="${t.id}" style="background:var(--accent);color:#0b1220;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700;cursor:grab;white-space:nowrap">${esc(t.name)}${t.is_batch?' 🔥':''}</div>`).join('')
+  return `<div class="card"><h2 style="margin:0 0 4px">Plan by dragging</h2><p class="muted" style="margin:0 0 10px;font-size:13px">Drag a recipe (top row) onto a day to add it — it asks the quantity. Drag a job between days to reschedule. ⚠ = nobody assigned yet.</p><div class="recipepalette" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:10px">${palette||'<span class="muted">No recipes yet — add tasks in Manage.</span>'}</div><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">${cols.map(col).join('')}</div></div>`
 }
-function onPlanDrop(evt){ const id=evt.item.dataset.id; const day=evt.to.dataset.day||''; if(id) updatePlanJob(id,'plan_date',day) }
+window.addPlanJobFromPalette=async function(catId,day){
+  const t=catalog.find(c=>c.id===catId); if(!t)return
+  const qtyStr=prompt('Quantity of '+t.name+' ('+(t.uom||'kg')+')'+(day?'':' — blank = unscheduled')+':')
+  if(qtyStr===null)return
+  const qty=(qtyStr.trim()===''?null:Number(qtyStr))
+  const mins=estMinutes(t.id,qty)
+  if(!planWeekId){ const {data:wk,error:we}=await sb.from('sim_plan_weeks').insert({week_start:planWeekStart,created_by:me.id}).select('id').single(); if(we){alert(we.message);return} planWeekId=wk.id }
+  const order=(planItems.length?Math.max(...planItems.map(i=>i.sort_order||0)):0)+1
+  const {error}=await sb.from('sim_plan_items').insert({week_id:planWeekId,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',plan_date:day||null,equipment_id:null,est_minutes:mins,staff_count:1,sort_order:order})
+  if(error){alert(error.message);return}
+  await loadPlan()
+}
+function onDayAdd(evt){
+  const el=evt.item; const day=evt.to.dataset.day||''
+  const cat=el.dataset.catalogId
+  if(cat){ if(el.parentNode) el.parentNode.removeChild(el); addPlanJobFromPalette(cat,day) }
+  else if(el.dataset.id){ updatePlanJob(el.dataset.id,'plan_date',day) }
+}
 function renderPlanBoard(){
   const box=$('planBoard'); if(!box)return
   const totJobs=planItems.length
@@ -230,5 +248,9 @@ function renderPlanBoard(){
   if(unsched.length){html+=`<div class="card"><h2 style="margin:0 0 8px">Unscheduled (${unsched.length})</h2>`;unsched.forEach(i=>html+=(batchOf(i.catalog_id)?batchJobCard(i):jobCard(i)));html+='</div>'}
   if(!totJobs) html+='<div class="card"><p class="muted">No jobs yet. Add one above to start planning the week.</p></div>'
   box.innerHTML=html
-  if(typeof Sortable!=='undefined'){ document.querySelectorAll('#planBoard .dragcol').forEach(col=>{ new Sortable(col,{group:'plandrag',draggable:'.jobchip',animation:150,onEnd:onPlanDrop}) }) }
+  if(typeof Sortable!=='undefined'){
+    const pal=document.querySelector('#planBoard .recipepalette')
+    if(pal) new Sortable(pal,{group:{name:'plan',pull:'clone',put:false},draggable:'.recipechip',sort:false,animation:150})
+    document.querySelectorAll('#planBoard .dragcol').forEach(col=>{ new Sortable(col,{group:{name:'plan',pull:true,put:true},draggable:'.jobchip',animation:150,onAdd:onDayAdd}) })
+  }
 }
