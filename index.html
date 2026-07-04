@@ -79,6 +79,7 @@
 
     <div id="logTab">
       <div id="runningList"></div>
+      <div class="card hidden" id="myDayCard"><h2>Your jobs today</h2><div id="myDayBody"></div></div>
       <div id="startCard" class="card">
         <h2>Start a task</h2>
         <p class="muted" style="margin-top:-8px">You can run more than one at once — start a long job, then start another while it runs.</p>
@@ -281,6 +282,18 @@
         <div id="equipRegList" style="margin-top:14px"></div>
       </div>
       <div class="card">
+        <h2>Bulk import tasks (CSV)</h2>
+        <p class="muted" style="margin-top:-8px">Load your whole process list at once. Download the template (or export what you have), fill it in a spreadsheet, then upload. Rows whose <b>name</b> matches an existing task will update it; new names are added.</p>
+        <div class="row">
+          <button class="ghost" onclick="downloadTaskTemplate()">Download template</button>
+          <button class="ghost" onclick="exportTasksCsv()">Export current tasks</button>
+        </div>
+        <input type="file" accept=".csv,text/csv" onchange="taskCsvFile(event)" style="padding:10px" />
+        <textarea id="taskCsvText" rows="4" placeholder="…or paste CSV here"></textarea>
+        <button class="green" onclick="importTasksCsv()">Import tasks</button>
+        <div id="impMsg" class="msg"></div>
+      </div>
+      <div class="card">
         <h2>Tasks</h2>
         <label for="ntName">New task name</label>
         <input id="ntName" type="text" placeholder="e.g. Marinate" />
@@ -329,6 +342,7 @@
     </div>
     <div id="kTaskStep" class="hidden">
       <div id="kRunningList"></div>
+      <div class="card hidden" id="kMyDayCard"><h2>Your jobs today</h2><div id="kMyDayBody"></div></div>
       <div id="kStartCard" class="card">
         <h2 id="kWho">Start a task</h2>
         <p class="muted" style="margin-top:-8px">You can run more than one at once — start a long job, then start another while it runs.</p>
@@ -401,6 +415,7 @@
 <!-- App is split into feature modules (classic scripts share global scope).
      Order matters: core first, ui next, boot last. Supabase is the UMD global. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
 <script src="core.js"></script>
 <script src="ui.js"></script>
 <script src="equipstate.js"></script>
@@ -413,6 +428,7 @@
 <script src="performance.js"></script>
 <script src="manage.js"></script>
 <script src="plan.js"></script>
+<script src="myday.js"></script>
 <script src="boot.js"></script>
 </body>
 </html>
