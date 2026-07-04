@@ -176,10 +176,10 @@ window.loadHistory=async function(){
   const canEdit=isManagerUp()
   const th='style="text-align:left;padding:8px;border-bottom:1px solid var(--line);color:var(--muted);white-space:nowrap"'
   const td='style="padding:8px;border-bottom:1px solid var(--line);white-space:nowrap"'
-  const heads=(canEdit?`<th ${th}></th>`:'')+['Date','Who','Task','Product','Qty','Unit','min','/hr','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')
+  const heads=(canEdit?`<th ${th}></th>`:'')+['Date','Who','Task','Product','Qty','Unit','kg/hr','min','Waste','Ppl','📷'].map(h=>`<th ${th}>${h}</th>`).join('')
   const rowsHtml=historyRows.map(r=>{
     const act=canEdit?`<td ${td}><a class="link" onclick="editLog('${r.id}')">✏️ Edit</a></td>`:''
-    const cells=[r.date,r.who,r.task,r.product,r.kg,r.uom,r.mins,r.uph,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
+    const cells=[r.date,r.who,r.task,r.product,r.kg,r.uom,r.uph,r.mins,r.waste,r.staff,r.photos].map(c=>`<td ${td}>${c===''||c==null?'–':c}</td>`).join('')
     return '<tr>'+act+cells+'</tr>'
   }).join('')
   box.innerHTML='<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>'+heads+'</tr></thead><tbody>'+rowsHtml+'</tbody></table></div>'
