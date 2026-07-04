@@ -192,6 +192,15 @@ window.leTaskChanged=function(){
   const kl=$('leKgLabel'); if(kl)kl.textContent=_eu+' produced'
   const wl=$('leWasteLabel'); if(wl)wl.textContent='Waste ('+_eu+')'
 }
+window.leTimesChanged=function(){
+  const d=$('leDate').value||new Date().toISOString().slice(0,10)
+  const st=$('leStart').value, fi=$('leFinish').value
+  if(!st||!fi) return
+  let s=new Date(d+'T'+st+':00'), f=new Date(d+'T'+fi+':00')
+  if(f<s) f=new Date(f.getTime()+864e5)
+  const mins=Math.round(((f-s)/60000)*100)/100
+  if(mins>0) $('leMins').value=mins
+}
 window.newLog=async function(){
   if(!isManagerUp()) return
   leCurrentId=null
@@ -203,7 +212,7 @@ window.newLog=async function(){
   histProfs.forEach(p=>{const o=document.createElement('option');o.value='u:'+p.id;o.textContent=(p.full_name||p.email);ws.appendChild(o)})
   histStaffs.forEach(s=>{const o=document.createElement('option');o.value='s:'+s.id;o.textContent=s.full_name+' (floor)';ws.appendChild(o)})
   $('leDate').value=new Date().toISOString().slice(0,10)
-  $('leProduct').value='';$('leKg').value='';$('leWaste').value='';$('lePeople').value=1;$('leMins').value='';$('leChange').value='';$('leComments').value=''
+  $('leProduct').value='';$('leKg').value='';$('leWaste').value='';$('lePeople').value=1;$('leMins').value='';$('leChange').value='';$('leComments').value='';$('leStart').value='';$('leFinish').value=''
   leTaskChanged()
   const t=$('leTitle'); if(t)t.textContent='Add manual entry'
   const db=$('leDelBtn'); if(db)db.style.display='none'
@@ -230,6 +239,9 @@ window.editLog=function(id){
   $('leKg').value=l.units??''
   $('leWaste').value=l.waste_kg??''
   $('lePeople').value=l.staff_count??1
+  const _hhmm=t=>{if(!t)return '';const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+  $('leStart').value=_hhmm(l.start_time)
+  $('leFinish').value=_hhmm(l.finish_time)
   $('leMins').value=l.total_minutes??''
   $('leChange').value=l.changeover_mins??''
   $('leComments').value=l.comments||''
@@ -251,10 +263,18 @@ window.saveLogEdit=async function(){
     // ---- create a manual entry ----
     if(!_cat){msg($('leMsg'),'Pick a task.',false);return}
     const who=$('leWho').value; if(!who){msg($('leMsg'),'Pick who did the task.',false);return}
-    const mm=numOrNull($('leMins').value)
-    if(mm==null||isNaN(mm)||mm<=0){msg($('leMsg'),'Enter how many minutes it took.',false);return}
     const date=$('leDate').value||new Date().toISOString().slice(0,10)
-    const start=new Date(date+'T12:00:00'); const finish=new Date(start.getTime()+mm*60000)
+    const _st=$('leStart').value, _fi=$('leFinish').value
+    let start, finish
+    if(_st&&_fi){
+      start=new Date(date+'T'+_st+':00'); finish=new Date(date+'T'+_fi+':00')
+      if(finish<start) finish=new Date(finish.getTime()+864e5)
+      if((finish-start)<=0){msg($('leMsg'),'Finish time must be after the start time.',false);return}
+    } else {
+      const mm=numOrNull($('leMins').value)
+      if(mm==null||isNaN(mm)||mm<=0){msg($('leMsg'),'Enter start & finish times, or the minutes it took.',false);return}
+      start=new Date(date+'T12:00:00'); finish=new Date(start.getTime()+mm*60000)
+    }
     const row={catalog_id:_cat.id,task_name:_cat.name,station:_cat.station,uom:_eu,
       product:$('leProduct').value.trim()||null,units,waste_kg:waste,
       staff_count:Number($('lePeople').value)||1,changeover_mins:numOrNull($('leChange').value),
@@ -278,10 +298,18 @@ window.saveLogEdit=async function(){
   else if(who.startsWith('s:')){upd.staff_id=who.slice(2);upd.user_id=null}
   const cat=catalog.find(c=>c.id===$('leTask').value)
   if(cat){upd.catalog_id=cat.id;upd.task_name=cat.name;upd.station=cat.station}
-  const m=numOrNull($('leMins').value)
-  if(m!=null && !isNaN(m) && l.start_time){
-    const startMs=new Date(l.start_time).getTime(); const paused=Number(l.paused_seconds)||0
-    upd.finish_time=new Date(startMs + (m*60 + paused)*1000).toISOString()
+  const _est=$('leStart').value, _efi=$('leFinish').value
+  const _ed=upd.log_date||l.log_date
+  if(_est && _efi){
+    let s=new Date(_ed+'T'+_est+':00'), f=new Date(_ed+'T'+_efi+':00')
+    if(f<s) f=new Date(f.getTime()+864e5)
+    upd.start_time=s.toISOString(); upd.finish_time=f.toISOString(); upd.paused_seconds=0
+  } else {
+    const m=numOrNull($('leMins').value)
+    if(m!=null && !isNaN(m) && l.start_time){
+      const startMs=new Date(l.start_time).getTime(); const paused=Number(l.paused_seconds)||0
+      upd.finish_time=new Date(startMs + (m*60 + paused)*1000).toISOString()
+    }
   }
   const {error}=await sb.from('sim_task_logs').update(upd).eq('id',id)
   if(error){msg($('leMsg'),finishErr(error),false);return}

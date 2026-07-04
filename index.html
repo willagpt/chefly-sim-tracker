@@ -340,7 +340,7 @@
     <label for="leWho">Who</label>
     <select id="leWho"></select>
     <div class="row">
-      <div><label for="leDate">Date</label><input id="leDate" type="date" /></div>
+      <div><label for="leDate">Date</label><input id="leDate" type="date" onchange="leTimesChanged()" /></div>
       <div><label for="leProduct">Product / recipe</label><input id="leProduct" type="text" /></div>
     </div>
     <div class="row">
@@ -348,8 +348,12 @@
       <div><label id="leWasteLabel" for="leWaste">Waste (kg)</label><input id="leWaste" type="number" inputmode="decimal" /></div>
     </div>
     <div class="row">
+      <div><label for="leStart">Start time</label><input id="leStart" type="time" onchange="leTimesChanged()" /></div>
+      <div><label for="leFinish">Finish time</label><input id="leFinish" type="time" onchange="leTimesChanged()" /></div>
+    </div>
+    <div class="row">
       <div><label for="lePeople">People</label><input id="lePeople" type="number" inputmode="numeric" min="1" /></div>
-      <div><label for="leMins">Minutes</label><input id="leMins" type="number" inputmode="decimal" /></div>
+      <div><label for="leMins">Minutes (auto)</label><input id="leMins" type="number" inputmode="decimal" /></div>
       <div><label for="leChange">Changeover</label><input id="leChange" type="number" inputmode="numeric" /></div>
     </div>
     <label for="leComments">Comments</label>
