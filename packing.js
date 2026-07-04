@@ -1,6 +1,7 @@
 /* PACKING: team-leader screen — start-of-day positions & breaks, and the day's
    dish run-sheet with sequential start/stop + automatic changeover timing.
-   Live: subscribes to realtime + live pace vs an adjustable meals/hour target. */
+   Live: subscribes to realtime + live pace vs an adjustable meals/hour target.
+   User-entered / imported free text is escaped with esc() (from ui.js) before innerHTML. */
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
 let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packComponents={}
@@ -50,7 +51,7 @@ function packLiveRefresh(){
   clearTimeout(packLiveT); packLiveT=setTimeout(()=>{ loadPacking() },300)
 }
 function packMemberName(id){const m=packMembers.find(x=>x.id===id);return m?m.full_name:'—'}
-function packMemberOptions(sel){return '<option value="">— unassigned —</option>'+packMembers.map(m=>`<option value="${m.id}" ${sel===m.id?'selected':''}>${m.full_name}</option>`).join('')}
+function packMemberOptions(sel){return '<option value="">— unassigned —</option>'+packMembers.map(m=>`<option value="${m.id}" ${sel===m.id?'selected':''}>${esc(m.full_name)}</option>`).join('')}
 function packCompCount(sku){return (sku!=null&&packComponents[sku]!=null)?packComponents[sku]:null}
 function packRate(r){ // meals per hour for a finished dish
   const q=(r.qty_packed!=null?r.qty_packed:r.planned_qty)
@@ -97,7 +98,7 @@ function renderPacking(){
   if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
   packPositions.forEach(p=>{
     const a=packAssignments[p.id]
-    html+=`<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:3px">${p.label}</div><select onchange="packAssign('${p.id}',this.value)">${packMemberOptions(a?a.member_id:'')}</select></div>`
+    html+=`<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:3px">${esc(p.label)}</div><select onchange="packAssign('${p.id}',this.value)">${packMemberOptions(a?a.member_id:'')}</select></div>`
   })
   html+='</div>'
 
@@ -105,13 +106,13 @@ function renderPacking(){
   const loggedBreaks=packBreaks.filter(b=>!(b.started_at&&!b.ended_at))
   html+=`<div class="card"><h2>Breaks <span class="pill ${onBreak.length?'live':'off'}">${onBreak.length} on break now</span></h2>`
   if(onBreak.length){
-    html+='<div style="margin-bottom:10px">'+onBreak.map(b=>`<div class="task-item" style="background:rgba(245,158,11,.12);border-color:var(--amber)"><div><b>${packMemberName(b.member_id)}</b><div class="meta">⏸ on break · <span class="brk-elapsed" data-start="${b.started_at}">0:00</span>${b.approved_by?' · '+b.approved_by:''}</div></div><button class="green sm" onclick="packEndBreak('${b.id}')">◀ Back</button></div>`).join('')+'</div>'
+    html+='<div style="margin-bottom:10px">'+onBreak.map(b=>`<div class="task-item" style="background:rgba(245,158,11,.12);border-color:var(--amber)"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">⏸ on break · <span class="brk-elapsed" data-start="${b.started_at}">0:00</span>${b.approved_by?' · '+esc(b.approved_by):''}</div></div><button class="green sm" onclick="packEndBreak('${b.id}')">◀ Back</button></div>`).join('')+'</div>'
   } else html+='<p class="muted">Everyone is on the line — nobody on break.</p>'
   html+=`<select id="brkMember">${packMemberOptions('')}</select>
     <div class="row" style="margin-top:8px"><input id="brkApproved" placeholder="Approved by (optional)" /></div>
     <button class="green" onclick="packStartBreak()">⏸ Send on break</button>`
   if(loggedBreaks.length){
-    html+='<p class="muted" style="margin:12px 0 4px">Earlier today</p>'+loggedBreaks.slice(-8).reverse().map(b=>`<div class="task-item"><div><b>${packMemberName(b.member_id)}</b><div class="meta">${brkDuration(b)}${b.approved_by?' · '+b.approved_by:''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')
+    html+='<p class="muted" style="margin:12px 0 4px">Earlier today</p>'+loggedBreaks.slice(-8).reverse().map(b=>`<div class="task-item"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">${brkDuration(b)}${b.approved_by?' · '+esc(b.approved_by):''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')
   }
   html+='</div>'
 
@@ -124,7 +125,7 @@ function packActionPanel(packing,next){
     const tmin=(packTarget&&packing.planned_qty)?(packing.planned_qty/packTarget*60):null
     return `<div class="card" style="background:var(--panel2);border-color:var(--accent);text-align:center;margin:6px 0 0">
       <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NOW PACKING · SKU ${packing.sku||'–'}${packCompCount(packing.sku)!=null?' · 🧩 '+packCompCount(packing.sku)+' components':''}${packing.line_count?' · '+packing.line_count+' on line':''}</div>
-      <div style="font-size:19px;font-weight:800;margin:2px 0">${packing.dish_name}</div>
+      <div style="font-size:19px;font-weight:800;margin:2px 0">${esc(packing.dish_name)}</div>
       <div class="timer" id="packCurElapsed">00:00:00</div>
       <div class="muted" style="font-size:12px">Target ${packTarget}/hr${tmin?' · '+tmin.toFixed(1)+' min for '+packing.planned_qty:''}</div>
       <div id="packPaceInfo" style="font-weight:800;font-size:15px;margin:6px 0 2px">&nbsp;</div>
@@ -139,7 +140,7 @@ function packActionPanel(packing,next){
     const coBlock=lastFin?`<div class="muted" style="font-size:12px;margin-top:8px">⏱ Changeover running — time since last dish finished (target ${PACK_CO_TARGET}m)</div><div class="timer vs-good" id="packCoElapsed" style="font-size:34px;margin:2px 0">00:00</div>`:''
     return `<div class="card" style="background:var(--panel2);text-align:center;margin:6px 0 0">
       <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NEXT UP · SKU ${next.sku||'–'}</div>
-      <div style="font-size:19px;font-weight:800;margin:2px 0">${next.dish_name}</div>
+      <div style="font-size:19px;font-weight:800;margin:2px 0">${esc(next.dish_name)}</div>
       <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack · 🧩 <b style="color:var(--txt)">${packCompCount(next.sku)!=null?packCompCount(next.sku):'–'}</b> components <a class="link" style="font-size:13px" onclick="packSetComponents('${next.sku}')">edit</a></div>
       ${coBlock}
       <button class="green" onclick="packStartDish('${next.id}')">▶ START</button>
@@ -166,16 +167,15 @@ function packRunRow(r){
   const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
   const photos=r.notes_photos||[]
   const photoLink=`<a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'Photo ('+photos.length+')':'Photo'}</a>`
-  const lbStr=photos.map(photoUrl).join('|')
-  const photoStrip=photos.length?`<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">`+photos.map((p,i)=>`<span class="pwrap" style="position:relative"><img src="${photoUrl(p)}" loading="lazy" data-lb="${lbStr}" data-i="${i}" onclick="openLightboxEl(this)" style="width:48px;height:48px;object-fit:cover;border-radius:6px;cursor:zoom-in;border:1px solid var(--line)"/><button onclick="packDelPhoto('${r.id}','${p}')" title="Remove" style="position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:1;cursor:pointer">✕</button></span>`).join('')+`</div>`:''
+  const photoStrip=photoThumbs(photos,48)
   const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
-  const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${r.notes}</div>`:''
+  const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${esc(r.notes)}</div>`:''
   const _comp=packCompCount(r.sku)
   const compChip=` · <a class="link" style="font-size:13px" onclick="packSetComponents('${r.sku}')">🧩 ${_comp!=null?_comp+' comp':'set comp'}</a>`
   return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:6px">
-    <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${r.dish_name}</b>${planBlock}</div>
+    <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${esc(r.dish_name)}</b>${planBlock}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}${compChip}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
     ${notesLine}
     ${photoStrip}
@@ -192,15 +192,15 @@ function packActualOrderCard(){
     const moved=planned!=null&&planned!==actual
     const movedBadge=moved?`<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">moved from #${planned}</span>`:''
     const coTxt=r.changeover_mins!=null?` · CO ${r.changeover_mins.toFixed(1)}m`:''
-    const reason=r.out_of_sequence_reason?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">↳ ${r.out_of_sequence_reason}</div>`:''
+    const reason=r.out_of_sequence_reason?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">↳ ${esc(r.out_of_sequence_reason)}</div>`:''
     const status=r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill done">done</span>'
-    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;min-width:26px">#${actual}</b><span style="background:rgba(249,115,22,.18);color:var(--accent);font-weight:900;border-radius:6px;padding:1px 8px">${r.sku||'–'}</span><b style="flex:1;min-width:0">${r.dish_name}</b>${status}${movedBadge}</div><div class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min pack':''}${coTxt}</div>${reason}</div>`
+    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div style="display:flex;align-items:center;gap:8px"><b style="font-size:15px;min-width:26px">#${actual}</b><span style="background:rgba(249,115,22,.18);color:var(--accent);font-weight:900;border-radius:6px;padding:1px 8px">${r.sku||'–'}</span><b style="flex:1;min-width:0">${esc(r.dish_name)}</b>${status}${movedBadge}</div><div class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min pack':''}${coTxt}</div>${reason}</div>`
   }).join('')
   return `<div class="card"><h2>Actual packed order</h2><p class="muted" style="margin-top:-8px">The real sequence packed today, with pack time and changeover (CO) into each dish${movedAny?'. Dishes that moved from the plan are flagged with the reason given':''}.</p>${rows}</div>`
 }
 function brkDuration(b){
   if(b.started_at&&b.ended_at){ return Math.max(1,Math.round((new Date(b.ended_at)-new Date(b.started_at))/60000))+' min' }
-  if(b.break_time){ return 'at '+b.break_time }
+  if(b.break_time){ return 'at '+esc(b.break_time) }
   return '—'
 }
 function packRulesCard(){
@@ -413,7 +413,6 @@ window.packStopDish=async function(id){
   const mins=r.start_time?Math.round(((new Date(fin)-new Date(r.start_time))/60000)*100)/100:null
   const usedQty=(qty!=null?qty:r.planned_qty)
   const rate=(mins&&mins>0&&usedQty!=null)?(usedQty/(mins/60)):null
-  // Data-entry guards: an accidental Stop right after Start, or an impossible rate, must not be silently recorded.
   if(mins!=null && mins<0.5){
     const sec=Math.round(mins*60)
     if(confirm('This dish has only been running '+sec+'s — too short to be a real pack.\n\nOK = mis-tap, keep packing (ignore this Stop).\nCancel = finish it anyway.')) return

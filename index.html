@@ -345,9 +345,10 @@
 </div>
 
 <!-- App is split into feature modules (classic scripts share global scope).
-     Order matters: core first, boot last. Supabase is the UMD global. -->
+     Order matters: core first, ui next, boot last. Supabase is the UMD global. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="core.js"></script>
+<script src="ui.js"></script>
 <script src="auth.js"></script>
 <script src="tasks.js"></script>
 <script src="kiosk.js"></script>
