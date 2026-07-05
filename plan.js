@@ -3,7 +3,7 @@
    optional drag Board — all over the same plan_items. No schema changes. */
 
 let planWeekStart=null, planWeekId=null, planItems=[], planStd={}, planVessels=[], planPeople=[], planActual={}
-let planView='list', planGroupBy='day', planSearch='', planFilter={unassigned:false, today:false}, planSel=new Set()
+let planView='list', planGroupBy='day', planSearch='', planFilter={unassigned:false, today:false}, planSel=new Set(), planDemand=[]
 const DAY_LBL=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 const MINI='style="font-size:12px;padding:3px 6px;max-width:150px"'
 
@@ -47,11 +47,12 @@ window.loadPlan=async function(){
   else planItems=[]
   const {data:acts}=await sb.from('sim_task_logs').select('catalog_id,units').gte('log_date',planWeekStart).lte('log_date',addDaysIso(planWeekStart,6)).eq('status','completed')
   planActual={}; (acts||[]).forEach(a=>{ if(a.catalog_id){ planActual[a.catalog_id]=(planActual[a.catalog_id]||0)+(Number(a.units)||0) } })
+  if(planWeekId){const {data:dem}=await sb.from('sim_plan_demand').select('*').eq('week_id',planWeekId).order('created_at'); planDemand=dem||[]} else planDemand=[]
   planSel=new Set(planItems.filter(i=>planSel.has(i.id)).map(i=>i.id))
   renderPlan()
 }
 
-/* ---- the detailed "Add a job" helpers (kept; card may be absent) ---- */
+/* ---- detailed add helpers (card may be absent) ---- */
 function fillDaySelect(id,cur){const sel=$(id);if(!sel)return;const c=cur||sel.value;sel.innerHTML='<option value="">Unscheduled</option>'+DAY_LBL.map((lbl,i)=>{const iso=addDaysIso(planWeekStart,i);return `<option value="${iso}"${iso===c?' selected':''}>${lbl} ${ddmm(iso)}</option>`}).join('')}
 function fillVesselSelect(id,cur){const sel=$(id);if(!sel)return;const c=cur||sel.value;sel.innerHTML='<option value="">No vessel</option>'+planVessels.map(v=>`<option value="${v.equipment_id}"${v.equipment_id===c?' selected':''}>${esc(v.name)}</option>`).join('')}
 window.pjRecalc=function(){
@@ -181,7 +182,7 @@ function listRowHtml(it){
   return `<div style="display:grid;grid-template-columns:20px 16px 1fr auto auto auto auto 24px;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line)">
     <input type="checkbox" ${sel?'checked':''} onchange="toggleSel('${it.id}')" style="width:auto;margin:0" />
     ${statusDot(it)}
-    <div style="min-width:0"><b style="font-size:13px">${esc(it.task_name||'')}</b>${it.product?'<span style="color:var(--muted);font-size:12px"> · '+esc(it.product)+'</span>':''}${qty?'<div style="font-size:11px;color:var(--muted)">'+qty+'</div>':''}</div>
+    <div style="min-width:0"><b style="font-size:13px">${esc(it.task_name||'')}</b>${it.auto?' <span style="font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 4px">auto</span>':''}${it.product?'<span style="color:var(--muted);font-size:12px"> · '+esc(it.product)+'</span>':''}${qty?'<div style="font-size:11px;color:var(--muted)">'+qty+'</div>':''}</div>
     ${daySel(it)}
     ${vessel}
     ${asgSel(it)}
@@ -203,7 +204,7 @@ function bulkBarHtml(){
 }
 function listHtml(){
   const items=filteredItems()
-  if(!planItems.length) return '<div class="card"><p class="muted">No jobs yet. Use Quick add above, or drag recipes in Board view.</p></div>'
+  if(!planItems.length) return '<div class="card"><p class="muted">No jobs yet. Use Quick add above, drag recipes in Board view, or list what you need in the Needs view and Auto-plan it.</p></div>'
   if(!items.length) return bulkBarHtml()+'<div class="card"><p class="muted">No jobs match your search / filters.</p></div>'
   let h=bulkBarHtml()
   groupsFor(items).forEach(grp=>{
@@ -272,6 +273,74 @@ function wireBoardSortable(){
   document.querySelectorAll('#planViewBody .dragcol').forEach(col=>{ new Sortable(col,{group:{name:'plan',pull:true,put:true},draggable:'.jobchip',animation:150,onAdd:onDayAdd}) })
 }
 
+/* ---- NEEDS + auto-plan (Phase 1) ---- */
+function needsHtml(){
+  const taskOpts='<option value="">Recipe…</option>'+catalog.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
+  const dueOpts='<option value="">Any day this week</option>'+DAY_LBL.map((l,i)=>`<option value="${addDaysIso(planWeekStart,i)}">by ${l} ${ddmm(addDaysIso(planWeekStart,i))}</option>`).join('')
+  const rows = planDemand.length? planDemand.map(d=>`<div style="display:grid;grid-template-columns:1fr auto auto 24px;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)">
+      <b style="font-size:13px">${esc(d.task_name||'')}</b>
+      <span style="font-size:12px;color:var(--muted)">${d.target_qty!=null?Number(d.target_qty)+' '+esc(d.uom||''):''}</span>
+      <span style="font-size:12px;color:var(--muted)">${d.due_date?('by '+dayLabelOf(d.due_date)):'this week'}</span>
+      <a class="link" style="font-size:13px;text-align:center" onclick="delDemand('${d.id}')" title="Remove">✕</a>
+    </div>`).join('') : '<p class="muted" style="padding:8px 4px">No needs yet. Add what you need above, then Auto-plan.</p>'
+  return `<div class="card">
+    <h2 style="margin:0 0 4px">Weekly needs → auto-plan</h2>
+    <p class="muted" style="margin:0 0 10px;font-size:13px">List what you need and by when. Auto-plan schedules each job on the latest safe day before its deadline, spread so ovens don't go over capacity. It proposes — tweak the result in List or Board.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <select id="ndTask" style="max-width:170px">${taskOpts}</select>
+      <input id="ndQty" type="number" inputmode="decimal" placeholder="qty" style="max-width:80px" />
+      <select id="ndDue" style="max-width:170px">${dueOpts}</select>
+      <button class="ghost sm" onclick="addDemand()">Add need</button>
+    </div>
+    <div style="border-top:1px solid var(--line)">${rows}</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="green" onclick="autoPlan()">⚡ Auto-plan the week</button>
+      <button class="ghost" onclick="clearAuto()">Clear auto jobs</button>
+    </div>
+  </div>`
+}
+window.addDemand=async function(){
+  const t=catalog.find(c=>c.id===$('ndTask').value); if(!t){msg($('planMsg'),'Pick a recipe.',false);return}
+  const qty=$('ndQty').value?Number($('ndQty').value):null
+  const due=$('ndDue').value||null
+  const id=await ensureWeek(); if(!id)return
+  const {error}=await sb.from('sim_plan_demand').insert({week_id:id,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',due_date:due})
+  if(error){msg($('planMsg'),error.message,false);return}
+  $('ndQty').value=''; clearMsg($('planMsg')); await loadPlan()
+}
+window.delDemand=async function(id){ await sb.from('sim_plan_demand').delete().eq('id',id); await loadPlan() }
+window.clearAuto=async function(){ if(!planWeekId)return; if(!confirm('Remove all auto-generated jobs for this week? Your manually-added jobs stay.'))return; await sb.from('sim_plan_items').delete().eq('week_id',planWeekId).eq('auto',true); await loadPlan() }
+window.autoPlan=async function(){
+  if(!planDemand.length){msg($('planMsg'),'Add some needs first.',false);return}
+  const id=await ensureWeek(); if(!id)return
+  await sb.from('sim_plan_items').delete().eq('week_id',id).eq('auto',true)
+  const days=[]; for(let i=0;i<7;i++)days.push(addDaysIso(planWeekStart,i))
+  const weekEnd=days[6]
+  const poolUsed={}
+  planItems.filter(i=>!i.auto).forEach(i=>{const t=catOfItem(i);if(t&&t.is_batch&&i.plan_date&&t.equipment_kind){const l=loadsFor(t,i.target_qty)||0;const need=l*(Number(t.cook_minutes)||0);poolUsed[t.equipment_kind]=poolUsed[t.equipment_kind]||{};poolUsed[t.equipment_kind][i.plan_date]=(poolUsed[t.equipment_kind][i.plan_date]||0)+need}})
+  const dem=planDemand.slice().sort((a,b)=>(a.due_date||weekEnd).localeCompare(b.due_date||weekEnd))
+  const rows=[]; let over=0; let ord=nextOrder()
+  dem.forEach(d=>{
+    const t=catalog.find(c=>c.id===d.catalog_id); if(!t)return
+    const qty=d.target_qty
+    const windowEnd=(d.due_date&&d.due_date<=weekEnd)?d.due_date:weekEnd
+    const cand=days.filter(dd=>dd<=windowEnd); if(!cand.length)cand.push(days[0])
+    let placeDay=cand[cand.length-1]
+    if(t.is_batch&&t.equipment_kind){
+      const kind=t.equipment_kind, cap=kindCapMins(kind), l=loadsFor(t,qty)||0, need=l*(Number(t.cook_minutes)||0)
+      poolUsed[kind]=poolUsed[kind]||{}
+      let chosen=null
+      for(let k=cand.length-1;k>=0;k--){const dd=cand[k];const u=poolUsed[kind][dd]||0;if(cap>0&&u+need<=cap){chosen=dd;break}}
+      if(!chosen){ let best=cand[cand.length-1],bestU=Infinity; cand.forEach(dd=>{const u=poolUsed[kind][dd]||0;if(u<bestU){bestU=u;best=dd}}); chosen=best; over++ }
+      placeDay=chosen; poolUsed[kind][placeDay]=(poolUsed[kind][placeDay]||0)+need
+    }
+    rows.push({week_id:id,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',plan_date:placeDay,equipment_id:null,est_minutes:estMinutes(t.id,qty),staff_count:1,auto:true,sort_order:ord++})
+  })
+  if(rows.length){const {error}=await sb.from('sim_plan_items').insert(rows); if(error){msg($('planMsg'),error.message,false);return}}
+  planView='list'; await loadPlan()
+  alert('Auto-planned '+rows.length+' job'+(rows.length===1?'':'s')+(over?('. '+over+" couldn't fit oven capacity in time — check the red cells in Timeline."):'. All fit within oven capacity.'))
+}
+
 /* ---- insights (health + plan vs actual) ---- */
 function healthCard(){
   const w=[]
@@ -301,7 +370,7 @@ function toolbarHtml(){
   const qaDays='<option value="">Unscheduled</option>'+DAY_LBL.map((l,i)=>`<option value="${addDaysIso(planWeekStart,i)}">${l} ${ddmm(addDaysIso(planWeekStart,i))}</option>`).join('')
   return `<div class="card">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden">${viewBtn('list','','List')}${viewBtn('timeline','','Timeline')}${viewBtn('board','','Board')}</div>
+      <div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden">${viewBtn('list','','List')}${viewBtn('timeline','','Timeline')}${viewBtn('board','','Board')}${viewBtn('needs','','Needs')}</div>
       <input placeholder="Search jobs" value="${esc(planSearch)}" oninput="planSearchInput(this.value)" style="flex:1;min-width:130px" />
       <select onchange="setPlanGroup(this.value)" style="max-width:130px">${groupOpts}</select>
     </div>
@@ -320,6 +389,7 @@ function renderViewBody(){
   const el=$('planViewBody'); if(!el)return
   if(planView==='timeline') el.innerHTML=timelineHtml()
   else if(planView==='board'){ el.innerHTML=boardHtml(); wireBoardSortable() }
+  else if(planView==='needs') el.innerHTML=needsHtml()
   else el.innerHTML=listHtml()
 }
 function renderPlan(){
