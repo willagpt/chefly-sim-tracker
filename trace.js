@@ -199,6 +199,12 @@ window.loadExpected=async function(){
   const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'expected',days_back:14,days_forward:7}})
   if(error||!data||data.error||data.ok===false){box.innerHTML='<p class="muted">'+esc((data&&data.error)||(error&&error.message)||'Could not reach MarketMan.')+'</p>';return}
   _mmOrders=data.orders||[]; _mmSel=null
+  const nums=_mmOrders.filter(o=>o.number).map(o=>'MM '+o.number)
+  if(nums.length){
+    const {data:recs}=await sb.from('sim_goods_in').select('invoice_ref,received_date').in('invoice_ref',nums).eq('active',true)
+    const seen=new Map(); (recs||[]).forEach(r=>{if(!seen.has(r.invoice_ref))seen.set(r.invoice_ref,r.received_date)})
+    _mmOrders.forEach(o=>{o.received_date=seen.get('MM '+o.number)||null})
+  }
   mmRenderList()
 }
 function mmRenderList(){
@@ -206,9 +212,11 @@ function mmRenderList(){
   if(!_mmOrders.length){box.innerHTML='<p class="muted">No open orders in the last 14 days / next 7 days.</p>';return}
   box.innerHTML=_mmOrders.map((o,i)=>{
     const exp=String(o.expected||'').split(' ')[0]
-    return `<div class="task-item">
-      <div style="min-width:0"><b style="font-size:16px">${esc(o.supplier||'?')}</b><div class="meta">expected ${esc(exp)} · ${(o.lines||[]).length} lines · #${esc(o.number||'')} · ${esc(o.status||'')}</div></div>
-      <div style="display:flex;gap:8px;flex-shrink:0"><button class="ghost sm" onclick="mmPrint(${i})">🖨 Print</button><button class="green sm" onclick="mmOpen(${i})">Check off</button></div>
+    const done=!!o.received_date
+    const badge=done?` <span class="pill done">✓ in GoodsIn · ${esc(giCode({received_date:o.received_date}))}</span>`:''
+    return `<div class="task-item"${done?' style="opacity:.75"':''}>
+      <div style="min-width:0"><b style="font-size:16px">${esc(o.supplier||'?')}</b>${badge}<div class="meta">expected ${esc(exp)} · ${(o.lines||[]).length} lines · #${esc(o.number||'')} · ${esc(o.status||'')}</div></div>
+      <div style="display:flex;gap:8px;flex-shrink:0"><button class="ghost sm" onclick="mmPrint(${i})">🖨 Print</button><button class="${done?'ghost':'green'} sm" onclick="mmOpen(${i})">${done?'Re-open':'Check off'}</button></div>
     </div>`
   }).join('')
 }
@@ -218,7 +226,7 @@ function mmRenderDetail(){
   const exp=String(o.expected||'').split(' ')[0]
   box.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
-      <div><b style="font-size:17px">${esc(o.supplier||'?')}</b><div class="muted" style="font-size:13px">#${esc(o.number||'')} · expected ${esc(exp)}</div></div>
+      <div><b style="font-size:17px">${esc(o.supplier||'?')}</b>${o.received_date?' <span class="pill done">✓ already in GoodsIn · '+esc(giCode({received_date:o.received_date}))+'</span>':''}<div class="muted" style="font-size:13px">#${esc(o.number||'')} · expected ${esc(exp)}</div></div>
       <div style="display:flex;gap:8px;flex-shrink:0"><button class="ghost sm" onclick="mmPrint(${_mmSel})">🖨 Print</button><button class="ghost sm" onclick="mmRenderList()">‹ Back</button></div>
     </div>
     <p class="muted" style="font-size:13px;margin:6px 0 2px">Tick each line as it comes off the van. Adjust the quantity if it's short. <a class="link" onclick="mmTickAll()">Tick all</a></p>
@@ -239,10 +247,13 @@ window.mmReceiveChecked=async function(){
   if(!picked.length){alert('Tick the lines that arrived first — tap a row to tick it.');return}
   const total=(o.lines||[]).length
   if(picked.length<total && !confirm('Only '+picked.length+' of '+total+' lines are ticked. Receive just those?'))return
-  if(!confirm('Log '+picked.length+' line'+(picked.length===1?'':'s')+' from '+(o.supplier||'')+' into GoodsIn with today\'s date as the traceability code?'))return
-  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'receive',date:_trIsoToday(),order:{number:o.number,supplier:o.supplier},lines:picked}})
+  if(o.received_date && !confirm('This order is already in GoodsIn ('+giCode({received_date:o.received_date})+'). Receiving again will add duplicate lines. Continue?'))return
+  const today=_trIsoToday(); const code=giCode({received_date:today})
+  if(!confirm('Log '+picked.length+' line'+(picked.length===1?'':'s')+' from '+(o.supplier||'')+' into GoodsIn?\n\nTraceability code: '+code))return
+  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'receive',date:today,order:{number:o.number,supplier:o.supplier},lines:picked}})
   if(error||!data||data.error){alert((data&&data.error)||(error&&error.message)||'Receive failed');return}
-  alert('Logged '+data.received+' lines into GoodsIn.'+(data.mm_confirmed?' Receipt confirmed in MarketMan.':' Could not auto-confirm in MarketMan — please mark it received there too.')+(data.errors&&data.errors.length?('\n\nIssues:\n'+data.errors.join('\n')):''))
+  o.received_date=today
+  alert('✓ '+data.received+' lines logged into GoodsIn.\n\nTRACEABILITY CODE: '+code+'\nWrite this date on the sticker of every item in this delivery.\n\n'+(data.mm_confirmed?'Receipt confirmed in MarketMan.':'MarketMan not auto-confirmed — mark it received in MarketMan as usual.')+(data.errors&&data.errors.length?('\n\nIssues:\n'+data.errors.join('\n')):''))
   await trEnsureIngredients(true); await trEnsureLots(true); renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
   mmRenderList()
 }
