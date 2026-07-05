@@ -1,11 +1,13 @@
 /* PLAN: weekly production plan (manager/admin).
    Redesigned around a filterable List (default), a vessel x day Timeline, and an
-   optional drag Board — all over the same plan_items. No schema changes. */
+   optional drag Board — all over the same plan_items. Auto-plan explodes recipe
+   routes (multi-step, yield-aware) and single tasks from a demand list. */
 
 let planWeekStart=null, planWeekId=null, planItems=[], planStd={}, planVessels=[], planPeople=[], planActual={}
-let planView='list', planGroupBy='day', planSearch='', planFilter={unassigned:false, today:false}, planSel=new Set(), planDemand=[]
+let planView='list', planGroupBy='day', planSearch='', planFilter={unassigned:false, today:false}, planSel=new Set(), planDemand=[], planRoutes=[]
 const DAY_LBL=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 const MINI='style="font-size:12px;padding:3px 6px;max-width:150px"'
+function uuid(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16)})}
 
 function isoLocal(dt){const y=dt.getFullYear(),m=String(dt.getMonth()+1).padStart(2,'0'),d=String(dt.getDate()).padStart(2,'0');return y+'-'+m+'-'+d}
 function todayIsoP(){return isoLocal(new Date())}
@@ -48,6 +50,7 @@ window.loadPlan=async function(){
   const {data:acts}=await sb.from('sim_task_logs').select('catalog_id,units').gte('log_date',planWeekStart).lte('log_date',addDaysIso(planWeekStart,6)).eq('status','completed')
   planActual={}; (acts||[]).forEach(a=>{ if(a.catalog_id){ planActual[a.catalog_id]=(planActual[a.catalog_id]||0)+(Number(a.units)||0) } })
   if(planWeekId){const {data:dem}=await sb.from('sim_plan_demand').select('*').eq('week_id',planWeekId).order('created_at'); planDemand=dem||[]} else planDemand=[]
+  const {data:rts}=await sb.from('sim_routes').select('*').eq('active',true).order('name'); let rsteps=[]; if((rts||[]).length){const {data:st}=await sb.from('sim_route_steps').select('*').in('route_id',rts.map(r=>r.id)).order('step_no'); rsteps=st||[]} planRoutes=(rts||[]).map(r=>Object.assign({},r,{steps:rsteps.filter(s=>s.route_id===r.id)}))
   planSel=new Set(planItems.filter(i=>planSel.has(i.id)).map(i=>i.id))
   renderPlan()
 }
@@ -273,21 +276,22 @@ function wireBoardSortable(){
   document.querySelectorAll('#planViewBody .dragcol').forEach(col=>{ new Sortable(col,{group:{name:'plan',pull:true,put:true},draggable:'.jobchip',animation:150,onAdd:onDayAdd}) })
 }
 
-/* ---- NEEDS + auto-plan (Phase 1) ---- */
+/* ---- NEEDS + auto-plan ---- */
 function needsHtml(){
-  const taskOpts='<option value="">Recipe…</option>'+catalog.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')
+  const routeOpts = planRoutes.length? ('<optgroup label="Recipes (multi-step)">'+planRoutes.map(r=>`<option value="r:${r.id}">${esc(r.name)}</option>`).join('')+'</optgroup>') : ''
+  const taskOpts='<option value="">Recipe / task…</option>'+routeOpts+'<optgroup label="Single tasks">'+catalog.map(t=>`<option value="t:${t.id}">${esc(t.name)}</option>`).join('')+'</optgroup>'
   const dueOpts='<option value="">Any day this week</option>'+DAY_LBL.map((l,i)=>`<option value="${addDaysIso(planWeekStart,i)}">by ${l} ${ddmm(addDaysIso(planWeekStart,i))}</option>`).join('')
   const rows = planDemand.length? planDemand.map(d=>`<div style="display:grid;grid-template-columns:1fr auto auto 24px;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)">
-      <b style="font-size:13px">${esc(d.task_name||'')}</b>
+      <b style="font-size:13px">${esc(d.task_name||'')}${d.route_id?' <span class="muted" style="font-size:11px">recipe</span>':''}</b>
       <span style="font-size:12px;color:var(--muted)">${d.target_qty!=null?Number(d.target_qty)+' '+esc(d.uom||''):''}</span>
       <span style="font-size:12px;color:var(--muted)">${d.due_date?('by '+dayLabelOf(d.due_date)):'this week'}</span>
       <a class="link" style="font-size:13px;text-align:center" onclick="delDemand('${d.id}')" title="Remove">✕</a>
     </div>`).join('') : '<p class="muted" style="padding:8px 4px">No needs yet. Add what you need above, then Auto-plan.</p>'
   return `<div class="card">
     <h2 style="margin:0 0 4px">Weekly needs → auto-plan</h2>
-    <p class="muted" style="margin:0 0 10px;font-size:13px">List what you need and by when. Auto-plan schedules each job on the latest safe day before its deadline, spread so ovens don't go over capacity. It proposes — tweak the result in List or Board.</p>
+    <p class="muted" style="margin:0 0 10px;font-size:13px">List what you need and by when. Recipes explode into all their steps (sized by yield); each job lands on the latest safe day before its deadline, spread so ovens don't go over capacity. It proposes — tweak the result in List or Board.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <select id="ndTask" style="max-width:170px">${taskOpts}</select>
+      <select id="ndTask" style="max-width:190px">${taskOpts}</select>
       <input id="ndQty" type="number" inputmode="decimal" placeholder="qty" style="max-width:80px" />
       <select id="ndDue" style="max-width:170px">${dueOpts}</select>
       <button class="ghost sm" onclick="addDemand()">Add need</button>
@@ -300,11 +304,14 @@ function needsHtml(){
   </div>`
 }
 window.addDemand=async function(){
-  const t=catalog.find(c=>c.id===$('ndTask').value); if(!t){msg($('planMsg'),'Pick a recipe.',false);return}
+  const v=$('ndTask').value; if(!v){msg($('planMsg'),'Pick a recipe or task.',false);return}
   const qty=$('ndQty').value?Number($('ndQty').value):null
   const due=$('ndDue').value||null
   const id=await ensureWeek(); if(!id)return
-  const {error}=await sb.from('sim_plan_demand').insert({week_id:id,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',due_date:due})
+  let row
+  if(v.indexOf('r:')===0){ const r=planRoutes.find(x=>x.id===v.slice(2)); if(!r){msg($('planMsg'),'Recipe not found.',false);return} row={week_id:id,route_id:r.id,task_name:r.name,target_qty:qty,uom:r.uom||'kg',due_date:due} }
+  else { const t=catalog.find(c=>c.id===v.slice(2)); if(!t){msg($('planMsg'),'Task not found.',false);return} row={week_id:id,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',due_date:due} }
+  const {error}=await sb.from('sim_plan_demand').insert(row)
   if(error){msg($('planMsg'),error.message,false);return}
   $('ndQty').value=''; clearMsg($('planMsg')); await loadPlan()
 }
@@ -314,31 +321,43 @@ window.autoPlan=async function(){
   if(!planDemand.length){msg($('planMsg'),'Add some needs first.',false);return}
   const id=await ensureWeek(); if(!id)return
   await sb.from('sim_plan_items').delete().eq('week_id',id).eq('auto',true)
-  const days=[]; for(let i=0;i<7;i++)days.push(addDaysIso(planWeekStart,i))
-  const weekEnd=days[6]
+  const dayIso=i=>addDaysIso(planWeekStart,i)
+  const idxOf=iso=>{for(let i=0;i<7;i++)if(dayIso(i)===iso)return i;return 6}
   const poolUsed={}
   planItems.filter(i=>!i.auto).forEach(i=>{const t=catOfItem(i);if(t&&t.is_batch&&i.plan_date&&t.equipment_kind){const l=loadsFor(t,i.target_qty)||0;const need=l*(Number(t.cook_minutes)||0);poolUsed[t.equipment_kind]=poolUsed[t.equipment_kind]||{};poolUsed[t.equipment_kind][i.plan_date]=(poolUsed[t.equipment_kind][i.plan_date]||0)+need}})
-  const dem=planDemand.slice().sort((a,b)=>(a.due_date||weekEnd).localeCompare(b.due_date||weekEnd))
-  const rows=[]; let over=0; let ord=nextOrder()
+  let over=0
+  const placeBatch=(kind,need,uptoIdx)=>{
+    const cap=kindCapMins(kind); poolUsed[kind]=poolUsed[kind]||{}
+    for(let k=uptoIdx;k>=0;k--){const dd=dayIso(k);if(cap>0&&(poolUsed[kind][dd]||0)+need<=cap){poolUsed[kind][dd]=(poolUsed[kind][dd]||0)+need;return k}}
+    let best=uptoIdx,bestU=Infinity
+    for(let k=0;k<=uptoIdx;k++){const dd=dayIso(k);const u=poolUsed[kind][dd]||0;if(u<bestU){bestU=u;best=k}}
+    poolUsed[kind][dayIso(best)]=(poolUsed[kind][dayIso(best)]||0)+need; over++; return best
+  }
+  const dem=planDemand.slice().sort((a,b)=>(a.due_date||dayIso(6)).localeCompare(b.due_date||dayIso(6)))
+  const rows=[]; let ord=nextOrder()
   dem.forEach(d=>{
-    const t=catalog.find(c=>c.id===d.catalog_id); if(!t)return
-    const qty=d.target_qty
-    const windowEnd=(d.due_date&&d.due_date<=weekEnd)?d.due_date:weekEnd
-    const cand=days.filter(dd=>dd<=windowEnd); if(!cand.length)cand.push(days[0])
-    let placeDay=cand[cand.length-1]
-    if(t.is_batch&&t.equipment_kind){
-      const kind=t.equipment_kind, cap=kindCapMins(kind), l=loadsFor(t,qty)||0, need=l*(Number(t.cook_minutes)||0)
-      poolUsed[kind]=poolUsed[kind]||{}
-      let chosen=null
-      for(let k=cand.length-1;k>=0;k--){const dd=cand[k];const u=poolUsed[kind][dd]||0;if(cap>0&&u+need<=cap){chosen=dd;break}}
-      if(!chosen){ let best=cand[cand.length-1],bestU=Infinity; cand.forEach(dd=>{const u=poolUsed[kind][dd]||0;if(u<bestU){bestU=u;best=dd}}); chosen=best; over++ }
-      placeDay=chosen; poolUsed[kind][placeDay]=(poolUsed[kind][placeDay]||0)+need
+    const windowEndIdx = d.due_date ? Math.max(0,Math.min(6, idxOf(d.due_date))) : 6
+    if(d.route_id){
+      const route=planRoutes.find(r=>r.id===d.route_id); if(!route)return
+      const ex=explodeRoute(route, d.target_qty); const rid=uuid()
+      let cursor=windowEndIdx
+      for(let i=ex.steps.length-1;i>=0;i--){
+        const s=ex.steps[i]; const t=catalog.find(c=>c.id===s.catalog_id)
+        let placeIdx=cursor
+        if(t&&t.is_batch&&t.equipment_kind){ const l=loadsFor(t,s.qty)||0; const need=l*(Number(t.cook_minutes)||0); placeIdx=placeBatch(t.equipment_kind,need,cursor) }
+        rows.push({week_id:id,catalog_id:s.catalog_id,task_name:s.task_name||(t&&t.name),product:route.name,target_qty:s.qty,uom:(t&&t.uom)||route.uom||'kg',plan_date:dayIso(placeIdx),equipment_id:null,est_minutes:estMinutes(s.catalog_id,s.qty),staff_count:1,auto:true,route_id:route.id,route_step_no:s.step_no,run_id:rid,sort_order:ord++})
+        cursor=placeIdx
+      }
+    } else {
+      const t=catalog.find(c=>c.id===d.catalog_id); if(!t)return
+      const qty=d.target_qty; let placeIdx=windowEndIdx
+      if(t.is_batch&&t.equipment_kind){ const l=loadsFor(t,qty)||0; const need=l*(Number(t.cook_minutes)||0); placeIdx=placeBatch(t.equipment_kind,need,windowEndIdx) }
+      rows.push({week_id:id,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',plan_date:dayIso(placeIdx),equipment_id:null,est_minutes:estMinutes(t.id,qty),staff_count:1,auto:true,sort_order:ord++})
     }
-    rows.push({week_id:id,catalog_id:t.id,task_name:t.name,target_qty:qty,uom:t.uom||'kg',plan_date:placeDay,equipment_id:null,est_minutes:estMinutes(t.id,qty),staff_count:1,auto:true,sort_order:ord++})
   })
   if(rows.length){const {error}=await sb.from('sim_plan_items').insert(rows); if(error){msg($('planMsg'),error.message,false);return}}
   planView='list'; await loadPlan()
-  alert('Auto-planned '+rows.length+' job'+(rows.length===1?'':'s')+(over?('. '+over+" couldn't fit oven capacity in time — check the red cells in Timeline."):'. All fit within oven capacity.'))
+  alert('Auto-planned '+rows.length+' job'+(rows.length===1?'':'s')+' from '+dem.length+' need'+(dem.length===1?'':'s')+(over?('. '+over+" batch job(s) couldn't fit oven capacity in time — see red cells in Timeline."):'. All fit within oven capacity.'))
 }
 
 /* ---- insights (health + plan vs actual) ---- */
