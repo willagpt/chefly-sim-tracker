@@ -296,6 +296,17 @@
         <div id="addMsg" class="msg"></div>
         <div id="taskList" style="margin-top:14px"></div>
       </div>
+      <div class="card">
+        <h2>Recipes (multi-step routes)</h2>
+        <p class="muted" style="margin-top:-8px">Define a finished product as an ordered list of steps (e.g. Brisket = trim → cut → pack → sous-vide → break up → chill). Set a yield % on steps that lose weight, so quantities size correctly down the chain. Auto-plan uses these to schedule the whole chain from a due date.</p>
+        <div class="row">
+          <div><label for="rtName">Recipe (finished product)</label><input id="rtName" type="text" placeholder="e.g. Brisket" /></div>
+          <div><label for="rtUom">Unit</label><input id="rtUom" list="uomList" value="kg" placeholder="kg" /></div>
+        </div>
+        <button class="green" onclick="addRoute()">Add recipe</button>
+        <div id="rtMsg" class="msg"></div>
+        <div id="routeList" style="margin-top:14px"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -406,6 +417,7 @@
 <script src="packing.js"></script>
 <script src="performance.js"></script>
 <script src="manage.js"></script>
+<script src="routes.js"></script>
 <script src="plan.js"></script>
 <script src="myday.js"></script>
 <script src="boot.js"></script>
