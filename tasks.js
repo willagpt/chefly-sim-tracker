@@ -157,6 +157,9 @@ function runCardHTML(l,m){
     ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
     ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
     ${rt?`<label>Cook/chill check${th}</label><div class="row"><div><label>Start °C</label><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><label>Start time</label><input id="tst_${p}" type="time" value="${_hhmmLocal(l.start_time)}" /></div></div><div class="row"><div><label>Finish °C</label><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div><div><label>Finish time</label><input id="tft_${p}" type="time" /></div></div>`:''}
+    <label>Traceability — ingredient lots used (goods-in code)</label>
+    <div id="bi_${p}"></div>
+    <div class="row"><div style="flex:2"><select id="lot_${p}"><option value="">— ingredient · goods-in code —</option></select></div><div><input id="lotq_${p}" type="number" inputmode="decimal" placeholder="qty" /></div><div><button class="ghost sm" style="width:100%;margin-top:0;padding:12px" onclick="addBatchInput('${l.id}','${md}')">+ Add</button></div></div>
     <div class="row"><div><label>People on task</label><input id="st_${p}" type="number" inputmode="numeric" min="1" value="${l.staff_count||1}" /></div><div><label>Change over (mins)</label><input id="ch_${p}" type="number" inputmode="numeric" placeholder="0" /></div></div>
     <label>Comments</label><textarea id="cm_${p}" rows="2" placeholder="Anything notable?"></textarea>
     <label>Photos of the work (required to finish)</label>
@@ -171,6 +174,7 @@ function renderRunning(){
   startTaskTicker()
 }
 function startTaskTicker(){
+  if(typeof refreshCardLots==='function') refreshCardLots()
   if(timerInt)clearInterval(timerInt)
   timerInt=setInterval(()=>{
     activeLogs.forEach(l=>{const el=$('timer_s_'+l.id); if(el)el.textContent=fmtClock(workedSeconds(l))})
