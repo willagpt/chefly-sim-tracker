@@ -144,11 +144,13 @@
         <div class="tabs" style="margin-top:12px">
           <div class="tab active" id="hv_summary" onclick="setHistView('summary')">Summary</div>
           <div class="tab" id="hv_detail" onclick="setHistView('detail')">Detail log</div>
+          <div class="tab" id="hv_haccp" onclick="setHistView('haccp')">HACCP</div>
         </div>
         <p class="muted" id="hSummary" style="margin-top:12px"></p>
       </div>
       <div class="card" id="hSummaryCard"><div id="hSummaryBody"><p class="muted">Pick a range (or tap Today) to see the summary.</p></div></div>
       <div class="card hidden" id="hDetailCard"><div id="hBody"><p class="muted">Pick a date range and tap Load.</p></div></div>
+      <div class="card hidden" id="hHaccpCard"><div id="hHaccpBody"><p class="muted">Cook/chill temperature records appear here.</p></div></div>
     </div>
 
     <div id="perfTab" class="hidden">
@@ -291,6 +293,12 @@
           <div><label for="ntCap">Capacity / load</label><input id="ntCap" type="number" inputmode="decimal" placeholder="e.g. 100" /></div>
           <div><label for="ntCook">Cook time (mins)</label><input id="ntCook" type="number" inputmode="numeric" placeholder="e.g. 120" /></div>
           <div><label for="ntKind">Vessel type</label><select id="ntKind"><option value="">—</option><option value="oven">Oven</option><option value="sous_vide">Sous-vide</option><option value="combi">Combi</option><option value="blast_chiller">Blast chiller</option><option value="freezer">Freezer</option><option value="other">Other</option></select></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntTemp" style="width:auto" /> Records temperature (HACCP cook/chill step)</label>
+        <div class="row">
+          <div><label for="ntTempTarget">Target °C</label><input id="ntTempTarget" type="number" inputmode="decimal" placeholder="e.g. 75" /></div>
+          <div><label for="ntTempDir">Direction</label><select id="ntTempDir"><option value="min">Cook ≥ target</option><option value="max">Chill ≤ target</option></select></div>
+          <div><label for="ntTempMax">Chill mins (opt)</label><input id="ntTempMax" type="number" inputmode="numeric" placeholder="e.g. 90" /></div>
         </div>
         <button class="ghost" onclick="addTask()">Add task</button>
         <div id="addMsg" class="msg"></div>
