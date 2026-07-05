@@ -229,15 +229,86 @@ function mmRenderDetail(){
       <div><b style="font-size:17px">${esc(o.supplier||'?')}</b>${o.received_date?' <span class="pill done">✓ already in GoodsIn · '+esc(giCode({received_date:o.received_date}))+'</span>':''}<div class="muted" style="font-size:13px">#${esc(o.number||'')} · expected ${esc(exp)}</div></div>
       <div style="display:flex;gap:8px;flex-shrink:0"><button class="ghost sm" onclick="mmPrint(${_mmSel})">🖨 Print</button><button class="ghost sm" onclick="mmRenderList()">‹ Back</button></div>
     </div>
-    <p class="muted" style="font-size:13px;margin:6px 0 2px">Tick each line as it comes off the van. Adjust the quantity if it's short. <a class="link" onclick="mmTickAll()">Tick all</a></p>
+    <p class="muted" style="font-size:13px;margin:6px 0 2px">Tick each line as it comes off the van. Adjust the quantity if it's short. The 🏷 number is how many GI labels print for that line (one per pack/case). <a class="link" onclick="mmTickAll()">Tick all</a></p>
     ${(o.lines||[]).map((l,li)=>`
-    <div style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer" onclick="if(event.target.tagName!=='INPUT'){const c=$('mmck_${li}');c.checked=!c.checked}">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer" onclick="if(event.target.tagName!=='INPUT'){const c=$('mmck_${li}');c.checked=!c.checked}">
       <input type="checkbox" id="mmck_${li}" style="width:28px;height:28px;flex-shrink:0" />
       <div style="flex:1;min-width:0;font-weight:600;font-size:15px">${esc(l.name)}</div>
-      <input id="mmq_${li}" type="number" inputmode="decimal" value="${l.qty??''}" style="width:92px;padding:10px;flex-shrink:0" />
-      <span class="muted" style="flex-shrink:0;min-width:30px">${esc(l.uom||'kg')}</span>
+      <input id="mmq_${li}" type="number" inputmode="decimal" value="${l.qty??''}" style="width:86px;padding:10px;flex-shrink:0" />
+      <span class="muted" style="flex-shrink:0;min-width:26px">${esc(l.uom||'kg')}</span>
+      <span class="muted" style="flex-shrink:0">🏷</span>
+      <input id="lbl_${li}" type="number" inputmode="numeric" value="${Math.round(l.packs)||1}" style="width:64px;padding:10px;flex-shrink:0" />
     </div>`).join('')}
-    <button class="green" onclick="mmReceiveChecked()">✓ Receive ticked lines → GoodsIn</button>`
+    <div class="row">
+      <button class="ghost" onclick="mmPrintLabels()">🏷 Print GI labels</button>
+      <button class="green" onclick="mmReceiveChecked()">✓ Receive ticked lines → GoodsIn</button>
+    </div>`
+}
+// ---- Zebra GI label printing (via Zebra Browser Print app on the tablet) ----
+async function bpAvailable(){
+  const r=await fetch('http://127.0.0.1:9100/available')
+  return r.json()
+}
+async function bpWrite(device,data){
+  const r=await fetch('http://127.0.0.1:9100/write',{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({device:device,data:data})})
+  if(!r.ok) throw new Error('printer write failed ('+r.status+')')
+}
+async function mmGetPrinter(){
+  let d=null
+  try{ d=await bpAvailable() }
+  catch(e){ alert('Could not reach Zebra Browser Print on this device.\n\n1. Install the "Zebra Browser Print" app (Android) and open it.\n2. Let it find the printer (same Wi-Fi, or pair by Bluetooth).\n3. Approve this website when the app asks.\n\nThen try again.'); return null }
+  const list=(d&&(d.printer||d.printers))||[]
+  if(!list.length){ alert('Browser Print is running but found no Zebra printers.\n\nCheck the printer is switched on and on the same Wi-Fi (or paired by Bluetooth), then pull down to refresh in the Browser Print app.'); return null }
+  const saved=localStorage.getItem('mm_printer_uid')
+  let p=list.find(x=>x.uid===saved)
+  if(!p){
+    if(list.length===1){ p=list[0] }
+    else{
+      const names=list.map((x,ix)=>(ix+1)+'. '+(x.name||x.uid)).join('\n')
+      const pick=prompt('Which printer? Enter the number:\n'+names,'1')
+      if(pick===null) return null
+      const ix=Math.max(1,Math.min(list.length,Number(pick)||1))-1
+      p=list[ix]
+    }
+    localStorage.setItem('mm_printer_uid',p.uid)
+  }
+  return p
+}
+function zplGiLabel(code,l,o,count){
+  const clean=s=>String(s||'').replace(/[\^~\\]/g,' ')
+  const pack=(l.pack_size&&l.pack_size!==1)?(l.pack_size+' '+(l.uom||'kg')+' per pack'):((l.uom||'kg'))
+  return '^XA^CI28^PW400^LL240'
+    +'^CF0,26^FO16,10^FDGOODS IN^FS'
+    +'^CF0,60^FO16,42^FD'+clean(code)+'^FS'
+    +'^CF0,24^FO16,112^FB370,2,2,L^FD'+clean(l.name)+'^FS'
+    +'^CF0,20^FO16,178^FD'+clean(o.supplier||'')+(o.number?' - MM '+clean(o.number):'')+'^FS'
+    +'^CF0,20^FO16,206^FD'+clean(pack)+'^FS'
+    +'^PQ'+Math.max(1,count)+'^XZ'
+}
+window.mmPrintLabels=async function(){
+  const o=_mmOrders[_mmSel]; if(!o)return
+  const rows=(o.lines||[]).map((l,li)=>{
+    const c=$('mmck_'+li), n=$('lbl_'+li)
+    const v=(n&&n.value!=='')?Math.round(Number(n.value)):null
+    return {l, ticked:!!(c&&c.checked), count:v==null?(Math.round(l.packs)||1):Math.max(0,v)}
+  })
+  let items=rows.filter(r=>r.ticked&&r.count>0)
+  if(!items.length){
+    if(!confirm('No lines ticked — print labels for every line on this order?'))return
+    items=rows.filter(r=>r.count>0)
+  }
+  if(!items.length){alert('Nothing to print — set the 🏷 label counts first.');return}
+  const total=items.reduce((s,r)=>s+r.count,0)
+  const code=giCode({received_date:_trIsoToday()})
+  if(!confirm('Print '+total+' GI labels ('+code+') for '+items.length+' line'+(items.length===1?'':'s')+'?'))return
+  const p=await mmGetPrinter(); if(!p)return
+  try{
+    for(const r of items){ await bpWrite(p, zplGiLabel(code,r.l,o,r.count)) }
+    alert('✓ Sent '+total+' labels to '+(p.name||'the printer')+'.')
+  }catch(e){
+    localStorage.removeItem('mm_printer_uid')
+    alert('Printing failed: '+e.message+'\n\nCheck the printer is on and Browser Print can see it, then try again.')
+  }
 }
 window.mmTickAll=function(){const o=_mmOrders[_mmSel];if(!o)return;(o.lines||[]).forEach((l,li)=>{const c=$('mmck_'+li);if(c)c.checked=true})}
 window.mmReceiveChecked=async function(){
