@@ -69,9 +69,11 @@ window.kioskStopFor=async function(id){
   if(requiresUnits(l) && (units==null||isNaN(units))){ alert('Please enter the amount produced ('+kuom+') before finishing this task.'); return }
   if(requiresWaste(l) && (waste==null||isNaN(waste))){ alert('Please enter the waste ('+kuom+') for this task before finishing. If there was none, enter 0.'); return }
   if(!(l.photos&&l.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
+  const startTemp=gv('ts'), finishTemp=gv('tf')
+  if(requiresTemp(l) && (startTemp==null||isNaN(startTemp)||finishTemp==null||isNaN(finishTemp))){ alert('Enter the start and finish temperature (°C) to finish this cook/chill step.'); return }
   let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,status:'completed'}).eq('id',id)
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
   kActiveLogs=kActiveLogs.filter(x=>x.id!==id); await loadEquipState(); populateEquipSelect('kEquip'); kioskRenderRunning()
   if(typeof loadMyDayKiosk==='function') loadMyDayKiosk()
