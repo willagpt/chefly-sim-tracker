@@ -193,29 +193,81 @@ window.removeBatchInput=async function(id){
 }
 
 // ---- MarketMan expected deliveries ----
+let _mmSel=null
 window.loadExpected=async function(){
   const box=$('mmBody'); if(!box)return; box.innerHTML='<p class="muted">Loading from MarketMan…</p>'
   const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'expected',days_back:14,days_forward:7}})
   if(error||!data||data.error||data.ok===false){box.innerHTML='<p class="muted">'+esc((data&&data.error)||(error&&error.message)||'Could not reach MarketMan.')+'</p>';return}
-  _mmOrders=data.orders||[]
+  _mmOrders=data.orders||[]; _mmSel=null
+  mmRenderList()
+}
+function mmRenderList(){
+  const box=$('mmBody'); if(!box)return
   if(!_mmOrders.length){box.innerHTML='<p class="muted">No open orders in the last 14 days / next 7 days.</p>';return}
   box.innerHTML=_mmOrders.map((o,i)=>{
     const exp=String(o.expected||'').split(' ')[0]
-    const lines=(o.lines||[]).map(l=>esc(l.name)+' — '+(l.qty??'?')+' '+esc(l.uom||'kg')).join('<br>')
-    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:6px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div><b>${esc(o.supplier||'?')}</b> <span class="muted">· #${esc(o.number||'')}</span><div class="muted" style="font-size:12px">expected ${esc(exp)} · ${esc(o.status||'')} · ${(o.lines||[]).length} lines${o.total!=null?' · £'+o.total:''}</div></div>
-        <button class="green sm" style="flex-shrink:0" onclick="mmReceive(${i})">Receive</button>
-      </div>
-      <div class="muted" style="font-size:12px">${lines}</div>
+    return `<div class="task-item">
+      <div style="min-width:0"><b style="font-size:16px">${esc(o.supplier||'?')}</b><div class="meta">expected ${esc(exp)} · ${(o.lines||[]).length} lines · #${esc(o.number||'')} · ${esc(o.status||'')}</div></div>
+      <div style="display:flex;gap:8px;flex-shrink:0"><button class="ghost sm" onclick="mmPrint(${i})">🖨 Print</button><button class="green sm" onclick="mmOpen(${i})">Check off</button></div>
     </div>`
   }).join('')
 }
-window.mmReceive=async function(i){
-  const o=_mmOrders[i]; if(!o)return
-  if(!confirm('Receive order #'+(o.number||'')+' from '+(o.supplier||'')+'?\n\nEvery line will be logged into GoodsIn with today\'s date as the traceability code, and we\'ll try to confirm receipt in MarketMan.'))return
-  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'receive',date:_trIsoToday(),order:{number:o.number,supplier:o.supplier},lines:o.lines}})
+window.mmOpen=function(i){ _mmSel=i; mmRenderDetail() }
+function mmRenderDetail(){
+  const o=_mmOrders[_mmSel]; const box=$('mmBody'); if(!o||!box)return
+  const exp=String(o.expected||'').split(' ')[0]
+  box.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+      <div><b style="font-size:17px">${esc(o.supplier||'?')}</b><div class="muted" style="font-size:13px">#${esc(o.number||'')} · expected ${esc(exp)}</div></div>
+      <div style="display:flex;gap:8px;flex-shrink:0"><button class="ghost sm" onclick="mmPrint(${_mmSel})">🖨 Print</button><button class="ghost sm" onclick="mmRenderList()">‹ Back</button></div>
+    </div>
+    <p class="muted" style="font-size:13px;margin:6px 0 2px">Tick each line as it comes off the van. Adjust the quantity if it's short. <a class="link" onclick="mmTickAll()">Tick all</a></p>
+    ${(o.lines||[]).map((l,li)=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer" onclick="if(event.target.tagName!=='INPUT'){const c=$('mmck_${li}');c.checked=!c.checked}">
+      <input type="checkbox" id="mmck_${li}" style="width:28px;height:28px;flex-shrink:0" />
+      <div style="flex:1;min-width:0;font-weight:600;font-size:15px">${esc(l.name)}</div>
+      <input id="mmq_${li}" type="number" inputmode="decimal" value="${l.qty??''}" style="width:92px;padding:10px;flex-shrink:0" />
+      <span class="muted" style="flex-shrink:0;min-width:30px">${esc(l.uom||'kg')}</span>
+    </div>`).join('')}
+    <button class="green" onclick="mmReceiveChecked()">✓ Receive ticked lines → GoodsIn</button>`
+}
+window.mmTickAll=function(){const o=_mmOrders[_mmSel];if(!o)return;(o.lines||[]).forEach((l,li)=>{const c=$('mmck_'+li);if(c)c.checked=true})}
+window.mmReceiveChecked=async function(){
+  const o=_mmOrders[_mmSel]; if(!o)return
+  const picked=[]
+  ;(o.lines||[]).forEach((l,li)=>{const c=$('mmck_'+li);if(c&&c.checked){const q=$('mmq_'+li);picked.push({name:l.name,qty:(q&&q.value!=='')?Number(q.value):l.qty,uom:l.uom})}})
+  if(!picked.length){alert('Tick the lines that arrived first — tap a row to tick it.');return}
+  const total=(o.lines||[]).length
+  if(picked.length<total && !confirm('Only '+picked.length+' of '+total+' lines are ticked. Receive just those?'))return
+  if(!confirm('Log '+picked.length+' line'+(picked.length===1?'':'s')+' from '+(o.supplier||'')+' into GoodsIn with today\'s date as the traceability code?'))return
+  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'receive',date:_trIsoToday(),order:{number:o.number,supplier:o.supplier},lines:picked}})
   if(error||!data||data.error){alert((data&&data.error)||(error&&error.message)||'Receive failed');return}
   alert('Logged '+data.received+' lines into GoodsIn.'+(data.mm_confirmed?' Receipt confirmed in MarketMan.':' Could not auto-confirm in MarketMan — please mark it received there too.')+(data.errors&&data.errors.length?('\n\nIssues:\n'+data.errors.join('\n')):''))
   await trEnsureIngredients(true); await trEnsureLots(true); renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
+  mmRenderList()
+}
+window.mmPrint=function(i){
+  const o=_mmOrders[i]; if(!o)return
+  const exp=String(o.expected||'').split(' ')[0]
+  const today=_trIsoToday().split('-').reverse().join('/')
+  const cell='border:1px solid #000;padding:8px;font-size:13px'
+  const rows=(o.lines||[]).map(l=>`<tr>
+    <td style="${cell};width:34px;height:26px"></td>
+    <td style="${cell}">${esc(l.name)}</td>
+    <td style="${cell};text-align:right;white-space:nowrap">${l.qty??''} ${esc(l.uom||'kg')}</td>
+    <td style="${cell};width:80px"></td>
+    <td style="${cell};width:130px"></td>
+  </tr>`).join('')
+  $('printArea').innerHTML=`<div style="font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;padding:8px">
+    <h1 style="font-size:20px;margin:0 0 2px">Goods In — Delivery Check Sheet</h1>
+    <p style="margin:2px 0 10px;font-size:13px">Supplier: <b>${esc(o.supplier||'')}</b> &nbsp;·&nbsp; Order #${esc(o.number||'')} &nbsp;·&nbsp; Expected: ${esc(exp)} &nbsp;·&nbsp; Printed: ${today}</p>
+    <p style="margin:0 0 10px;font-size:13px"><b>Traceability code = today's goods-in date</b> — write it on the sticker for every item: <b>GI ____ / ____ / ____</b></p>
+    <table style="width:100%;border-collapse:collapse">
+      <tr><th style="${cell}">✓</th><th style="${cell};text-align:left">Item</th><th style="${cell}">Ordered</th><th style="${cell}">Received</th><th style="${cell}">Notes</th></tr>
+      ${rows}
+    </table>
+    <p style="margin-top:18px;font-size:13px">Checked by: ______________________ &nbsp;&nbsp; Date / time: ________________ &nbsp;&nbsp; Vehicle clean: ☐ &nbsp;&nbsp; Chilled temps OK: ☐</p>
+    <p style="font-size:12px;margin-top:6px;color:#333">Once checked, mark it received on the Trace tab (Check off → Receive) so the lots appear for traceability.</p>
+  </div>`
+  window.print()
 }
