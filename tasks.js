@@ -141,6 +141,8 @@ async function loadActive(){
 }
 function requiresTemp(l){const c=catFor(l);return !!(c&&c.records_temp)}
 function tempHint(c){if(!c||!c.records_temp||c.temp_target==null)return '';return c.temp_dir==='max'?(' — chill ≤'+c.temp_target+'°'+(c.temp_max_minutes?(' in '+c.temp_max_minutes+'m'):'')):(' — cook ≥'+c.temp_target+'°')}
+function _hhmmLocal(t){if(!t)return '';const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function tempStamp(dateStr,hhmm,fallbackIso){if(!hhmm)return fallbackIso;const d=new Date((dateStr||new Date().toISOString().slice(0,10))+'T'+hhmm+':00');return isNaN(d.getTime())?fallbackIso:d.toISOString()}
 function runCardHTML(l,m){
   const p=m+'_'+l.id
   const cat=catFor(l); const ru=!cat||cat.requires_units!==false; const sw=!!(cat&&(cat.track_waste||cat.require_waste)); const rw=!!(cat&&cat.require_waste); const u=uomFor(l); const rt=!!(cat&&cat.records_temp); const th=tempHint(cat)
@@ -154,7 +156,7 @@ function runCardHTML(l,m){
     <div class="timer" id="timer_${p}">00:00:00</div>
     ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
     ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
-    ${rt?`<label>Temperature (°C)${th}</label><div class="row"><div><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div></div>`:''}
+    ${rt?`<label>Cook/chill check${th}</label><div class="row"><div><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><input id="tst_${p}" type="time" value="${_hhmmLocal(l.start_time)}" /></div></div><div class="row"><div><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div><div><input id="tft_${p}" type="time" /></div></div>`:''}
     <div class="row"><div><label>People on task</label><input id="st_${p}" type="number" inputmode="numeric" min="1" value="${l.staff_count||1}" /></div><div><label>Change over (mins)</label><input id="ch_${p}" type="number" inputmode="numeric" placeholder="0" /></div></div>
     <label>Comments</label><textarea id="cm_${p}" rows="2" placeholder="Anything notable?"></textarea>
     <label>Photos of the work (required to finish)</label>
@@ -202,9 +204,11 @@ window.stopTaskFor=async function(id){
   if(!photoGateOK(l)) return
   const startTemp=gv('ts'), finishTemp=gv('tf')
   if(requiresTemp(l) && (startTemp==null||isNaN(startTemp)||finishTemp==null||isNaN(finishTemp))){ alert('Enter the start and finish temperature (°C) to finish this cook/chill step.'); return }
+  const _sTAt=requiresTemp(l)?tempStamp(l.log_date,($('tst_'+p)&&$('tst_'+p).value),l.start_time):null
+  const _fTAt=requiresTemp(l)?tempStamp(l.log_date,($('tft_'+p)&&$('tft_'+p).value),new Date().toISOString()):null
   let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,status:'completed'}).eq('id',id)
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
   activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await loadEquipState(); populateEquipSelect('sEquip'); await refreshMyRecent(); if(typeof loadMyDay==='function') loadMyDay(); if(isManagerUp())await refreshDashboard()
 }
