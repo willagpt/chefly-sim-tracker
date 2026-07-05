@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Chefly SIM Tracker — no-build static app on Supabase + Vercel",
   "scripts": {
-    "lint": "eslint --config eslint.config.mjs core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js boot.js MODULE_TEMPLATE.js",
+    "lint": "eslint --config eslint.config.mjs core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js plan.js myday.js routes.js boot.js MODULE_TEMPLATE.js",
     "check": "node --check core.js && node --check ui.js && node --check db.js && node --check auth.js && node --check tasks.js && node --check kiosk.js && node --check dashboard.js && node --check equipment.js && node --check packing.js && node --check performance.js && node --check manage.js && node --check boot.js"
   },
   "devDependencies": {

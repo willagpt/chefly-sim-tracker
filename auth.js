@@ -114,5 +114,5 @@ window.showTab=function(which){
   if(which==='history') initHistory()
   if(which==='perf') initPerf()
   if(which==='plan') loadPlan()
-  if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); loadPackRoster(); renderTaskList() }
+  if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); loadPackRoster(); renderTaskList(); loadRoutes() }
 }

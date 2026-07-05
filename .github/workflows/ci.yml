@@ -16,7 +16,7 @@ jobs:
       - name: Syntax-check all classic scripts
         run: |
           set -e
-          for f in core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js boot.js MODULE_TEMPLATE.js; do
+          for f in core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js plan.js myday.js routes.js boot.js MODULE_TEMPLATE.js; do
             if [ -f "$f" ]; then echo "checking $f"; node --check "$f"; fi
           done
       - name: Every module script referenced by index.html must exist
@@ -37,4 +37,4 @@ jobs:
       - name: Install dev deps
         run: npm install --no-audit --no-fund
       - name: ESLint (bug-catching rules)
-        run: npx eslint --config eslint.config.mjs core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js boot.js MODULE_TEMPLATE.js
+        run: npx eslint --config eslint.config.mjs core.js ui.js db.js auth.js tasks.js kiosk.js dashboard.js equipment.js packing.js performance.js manage.js plan.js myday.js routes.js boot.js MODULE_TEMPLATE.js
