@@ -4,7 +4,7 @@
    delivery forward to every batch that used it, or a batch back to the
    deliveries (and invoice / supplier) that went into it. */
 
-let trIngredients=[], trGoods=[], trProfs=[], trStaffs=[], _trLotsAt=0, _biCache={}
+let trIngredients=[], trGoods=[], trProfs=[], trStaffs=[], _trLotsAt=0, _biCache={}, _mmOrders=[]
 
 function giCode(g){const d=String(g.received_date||'').split('-');return d.length===3?('GI '+d[2]+'/'+d[1]+'/'+d[0].slice(2)):'GI ?'}
 function trIngName(id){const i=trIngredients.find(x=>x.id===id);return i?i.name:'(ingredient)'}
@@ -190,4 +190,32 @@ window.removeBatchInput=async function(id){
   const {error}=await sb.from('sim_batch_inputs').delete().eq('id',id)
   if(error){alert(error.message);return}
   await refreshCardLots()
+}
+
+// ---- MarketMan expected deliveries ----
+window.loadExpected=async function(){
+  const box=$('mmBody'); if(!box)return; box.innerHTML='<p class="muted">Loading from MarketMan…</p>'
+  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'expected',days_back:14,days_forward:7}})
+  if(error||!data||data.error||data.ok===false){box.innerHTML='<p class="muted">'+esc((data&&data.error)||(error&&error.message)||'Could not reach MarketMan.')+'</p>';return}
+  _mmOrders=data.orders||[]
+  if(!_mmOrders.length){box.innerHTML='<p class="muted">No open orders in the last 14 days / next 7 days.</p>';return}
+  box.innerHTML=_mmOrders.map((o,i)=>{
+    const exp=String(o.expected||'').split(' ')[0]
+    const lines=(o.lines||[]).map(l=>esc(l.name)+' — '+(l.qty??'?')+' '+esc(l.uom||'kg')).join('<br>')
+    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:6px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div><b>${esc(o.supplier||'?')}</b> <span class="muted">· #${esc(o.number||'')}</span><div class="muted" style="font-size:12px">expected ${esc(exp)} · ${esc(o.status||'')} · ${(o.lines||[]).length} lines${o.total!=null?' · £'+o.total:''}</div></div>
+        <button class="green sm" style="flex-shrink:0" onclick="mmReceive(${i})">Receive</button>
+      </div>
+      <div class="muted" style="font-size:12px">${lines}</div>
+    </div>`
+  }).join('')
+}
+window.mmReceive=async function(i){
+  const o=_mmOrders[i]; if(!o)return
+  if(!confirm('Receive order #'+(o.number||'')+' from '+(o.supplier||'')+'?\n\nEvery line will be logged into GoodsIn with today\'s date as the traceability code, and we\'ll try to confirm receipt in MarketMan.'))return
+  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'receive',date:_trIsoToday(),order:{number:o.number,supplier:o.supplier},lines:o.lines}})
+  if(error||!data||data.error){alert((data&&data.error)||(error&&error.message)||'Receive failed');return}
+  alert('Logged '+data.received+' lines into GoodsIn.'+(data.mm_confirmed?' Receipt confirmed in MarketMan.':' Could not auto-confirm in MarketMan — please mark it received there too.')+(data.errors&&data.errors.length?('\n\nIssues:\n'+data.errors.join('\n')):''))
+  await trEnsureIngredients(true); await trEnsureLots(true); renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
 }

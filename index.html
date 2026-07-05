@@ -188,6 +188,12 @@
 
     <div id="traceTab" class="hidden">
       <div class="card">
+        <h2>Expected deliveries (MarketMan)</h2>
+        <p class="muted" style="margin-top:-8px">Orders placed in MarketMan. Tap Receive when a delivery arrives — every line is logged into GoodsIn with today's date as the code, and we try to confirm receipt in MarketMan too.</p>
+        <button class="ghost" onclick="loadExpected()">Load expected deliveries</button>
+        <div id="mmBody" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
         <h2>Goods in — log a delivery</h2>
         <p class="muted" style="margin-top:-8px">The traceability code is the goods-in date — the same date written on the sticker. Log each delivery here; staff then pick the lot on the task card when they use it. The invoice ref links the code back to the supplier.</p>
         <div class="row">
