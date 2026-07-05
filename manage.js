@@ -212,6 +212,7 @@ window.setHistView=function(v){
   Object.keys(map).forEach(k=>{const c=$(map[k]);if(c)c.classList.toggle('hidden',v!==k)})
 }
 function _haccpName(l){ if(l.user_id){const p=histProfs.find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=histStaffs.find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
+function _clock(ts){if(!ts)return '';const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function renderHaccp(){
   const box=$('hHaccpBody'); if(!box)return
   const rows=histLogs.filter(l=>{const c=catalog.find(x=>x.id===l.catalog_id);return c&&c.records_temp})
@@ -219,11 +220,14 @@ function renderHaccp(){
   const cell=(txt,left,extra)=>`<td style="text-align:${left?'left':'right'};padding:5px 8px;border-bottom:1px solid var(--line);${extra||''}">${txt}</td>`
   const trs=rows.map(l=>{
     const c=catalog.find(x=>x.id===l.catalog_id); const tgt=c?c.temp_target:null; const dir=c?(c.temp_dir||'min'):'min'; const maxM=c?c.temp_max_minutes:null
+    const durMin=(l.start_temp_at&&l.finish_temp_at)?Math.round((new Date(l.finish_temp_at)-new Date(l.start_temp_at))/60000):(l.total_minutes==null?null:Number(l.total_minutes))
     let pass=null
-    if(tgt!=null && l.finish_temp!=null){ pass = dir==='max' ? (Number(l.finish_temp)<=tgt && (maxM?(Number(l.total_minutes)||0)<=maxM:true)) : (Number(l.finish_temp)>=tgt) }
+    if(tgt!=null && l.finish_temp!=null){ pass = dir==='max' ? (Number(l.finish_temp)<=tgt && (maxM?(durMin!=null&&durMin<=maxM):true)) : (Number(l.finish_temp)>=tgt) }
     const badge = pass==null?'<span class="muted">—</span>':(pass?'<b style="color:var(--green)">PASS</b>':'<b style="color:var(--red)">FAIL</b>')
     const tgtTxt = tgt!=null?((dir==='max'?'≤':'≥')+tgt+'°'+(maxM?('/'+maxM+'m'):'')):'—'
-    return `<tr>${cell(l.log_date,true)}${cell(esc(l.task_name),true)}${cell(esc(_haccpName(l)),true)}${cell((l.start_temp==null?'–':l.start_temp)+'→'+(l.finish_temp==null?'–':l.finish_temp)+'°',false)}${cell((l.total_minutes==null?'–':l.total_minutes)+'m',false)}${cell(tgtTxt,false)}${cell(badge,false)}</tr>`
+    const clk=(l.start_temp_at||l.finish_temp_at)?`<div class="muted" style="font-size:11px">${_clock(l.start_temp_at)||'–'}→${_clock(l.finish_temp_at)||'–'}</div>`:'';
+    const tempCell=(l.start_temp==null?'–':l.start_temp)+'→'+(l.finish_temp==null?'–':l.finish_temp)+'°'+clk;
+    return `<tr>${cell(l.log_date,true)}${cell(esc(l.task_name),true)}${cell(esc(_haccpName(l)),true)}${cell(tempCell,false)}${cell((durMin==null?'–':durMin)+'m',false)}${cell(tgtTxt,false)}${cell(badge,false)}</tr>`
   }).join('')
   const th=['Date','Step','Who','Temp','Time','Target','Result'].map((h,i)=>`<th style="text-align:${i<3?'left':'right'};padding:5px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)">${h}</th>`).join('')
   box.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr>${th}</tr>${trs}</table></div>`
