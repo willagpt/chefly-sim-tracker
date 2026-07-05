@@ -13,7 +13,7 @@ window.renderTaskList=function(){
     const wasteMeta=t.require_waste?' · waste required':(t.track_waste?' · waste optional':'')
     const _u=t.uom||'kg'
     const prodMeta=t.requires_product?' · product required':''
-    const tempMeta=t.records_temp?` · 🌡 ${t.temp_dir==='max'?'≤':'≥'}${t.temp_target==null?'?':t.temp_target}°`:''
+    const tempMeta=(t.records_temp||t.temp_target!=null)?` · 🌡 ${t.temp_dir==='max'?'≤':'≥'}${t.temp_target==null?'?':t.temp_target}°`:''
     const batchMeta=t.is_batch?` · 🔥 batch ${t.capacity_per_load??'?'}${_u}/load · ${t.cook_minutes??'?'}min · ${t.equipment_kind||'?'}`:''
     d.innerHTML=`<div><b>${esc(t.name)}</b><div class="meta">${esc(t.station)||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}${batchMeta}${tempMeta}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
@@ -46,11 +46,11 @@ window.editTask=function(id){
       <input id="et_cook_${id}" type="number" value="${t.cook_minutes??''}" placeholder="Cook mins" />
       <select id="et_kind_${id}">${['','oven','sous_vide','combi','blast_chiller','freezer','other'].map(k=>`<option value="${k}" ${t.equipment_kind===k?'selected':''}>${k||'— vessel type —'}</option>`).join('')}</select>
     </div>
-    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_temp_${id}" style="width:auto" ${t.records_temp?'checked':''}/> Records temperature (HACCP cook/chill)</label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_temp_${id}" style="width:auto" ${(t.records_temp||t.temp_target!=null)?'checked':''}/> Records temperature (HACCP cook/chill) — the person logs a start and finish °C + time on the task card</label>
     <div class="row" style="margin-top:8px">
-      <input id="et_ttarget_${id}" type="number" value="${t.temp_target==null?'':t.temp_target}" placeholder="Target °C" />
-      <select id="et_tdir_${id}"><option value="min"${t.temp_dir!=='max'?' selected':''}>cook ≥</option><option value="max"${t.temp_dir==='max'?' selected':''}>chill ≤</option></select>
-      <input id="et_tmax_${id}" type="number" value="${t.temp_max_minutes==null?'':t.temp_max_minutes}" placeholder="Chill mins" />
+      <div><label>Target °C</label><input id="et_ttarget_${id}" type="number" value="${t.temp_target==null?'':t.temp_target}" placeholder="e.g. 75" /></div>
+      <div><label>Direction</label><select id="et_tdir_${id}"><option value="min"${t.temp_dir!=='max'?' selected':''}>cook ≥</option><option value="max"${t.temp_dir==='max'?' selected':''}>chill ≤</option></select></div>
+      <div><label>Chill window (mins)</label><input id="et_tmax_${id}" type="number" value="${t.temp_max_minutes==null?'':t.temp_max_minutes}" placeholder="e.g. 90" /></div>
     </div>
     <div class="row" style="margin-top:8px">
       <button class="green sm" style="flex:1" onclick="saveTask('${id}')">Save</button>
@@ -71,8 +71,8 @@ window.saveTask=async function(id){
   const cap=$('et_cap_'+id).value?Number($('et_cap_'+id).value):null
   const cook=$('et_cook_'+id).value?Number($('et_cook_'+id).value):null
   const kind=$('et_kind_'+id).value||null
-  const recTemp=$('et_temp_'+id).checked
   const tTarget=$('et_ttarget_'+id).value?Number($('et_ttarget_'+id).value):null
+  const recTemp=$('et_temp_'+id).checked||tTarget!=null
   const tDir=$('et_tdir_'+id).value||'min'
   const tMax=$('et_tmax_'+id).value?Number($('et_tmax_'+id).value):null
   const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,requires_product:reqProduct,uom,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,records_temp:recTemp,temp_target:tTarget,temp_dir:tDir,temp_max_minutes:tMax}).eq('id',id)
@@ -88,8 +88,8 @@ window.addTask=async function(){
   const cap=($('ntCap')&&$('ntCap').value)?Number($('ntCap').value):null
   const cook=($('ntCook')&&$('ntCook').value)?Number($('ntCook').value):null
   const kind=($('ntKind')&&$('ntKind').value)||null
-  const recTemp=$('ntTemp')?$('ntTemp').checked:false
   const tTarget=($('ntTempTarget')&&$('ntTempTarget').value)?Number($('ntTempTarget').value):null
+  const recTemp=(($('ntTemp')&&$('ntTemp').checked)||tTarget!=null)
   const tDir=($('ntTempDir')&&$('ntTempDir').value)||'min'
   const tMax=($('ntTempMax')&&$('ntTempMax').value)?Number($('ntTempMax').value):null
   const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,requires_product:$('ntReqProduct').checked,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,records_temp:recTemp,temp_target:tTarget,temp_dir:tDir,temp_max_minutes:tMax,sort_order:order})
@@ -139,13 +139,13 @@ async function loadActive(){
   await loadEquipState(); populateEquipSelect('sEquip')
   if(typeof loadMyDay==='function') loadMyDay()
 }
-function requiresTemp(l){const c=catFor(l);return !!(c&&c.records_temp)}
-function tempHint(c){if(!c||!c.records_temp||c.temp_target==null)return '';return c.temp_dir==='max'?(' — chill ≤'+c.temp_target+'°'+(c.temp_max_minutes?(' in '+c.temp_max_minutes+'m'):'')):(' — cook ≥'+c.temp_target+'°')}
+function requiresTemp(l){const c=catFor(l);return !!(c&&(c.records_temp||c.temp_target!=null))}
+function tempHint(c){if(!c||c.temp_target==null)return '';return c.temp_dir==='max'?(' — chill ≤'+c.temp_target+'°'+(c.temp_max_minutes?(' in '+c.temp_max_minutes+'m'):'')):(' — cook ≥'+c.temp_target+'°')}
 function _hhmmLocal(t){if(!t)return '';const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
 function tempStamp(dateStr,hhmm,fallbackIso){if(!hhmm)return fallbackIso;const d=new Date((dateStr||new Date().toISOString().slice(0,10))+'T'+hhmm+':00');return isNaN(d.getTime())?fallbackIso:d.toISOString()}
 function runCardHTML(l,m){
   const p=m+'_'+l.id
-  const cat=catFor(l); const ru=!cat||cat.requires_units!==false; const sw=!!(cat&&(cat.track_waste||cat.require_waste)); const rw=!!(cat&&cat.require_waste); const u=uomFor(l); const rt=!!(cat&&cat.records_temp); const th=tempHint(cat)
+  const cat=catFor(l); const ru=!cat||cat.requires_units!==false; const sw=!!(cat&&(cat.track_waste||cat.require_waste)); const rw=!!(cat&&cat.require_waste); const u=uomFor(l); const rt=!!(cat&&(cat.records_temp||cat.temp_target!=null)); const th=tempHint(cat)
   const paused=l.status==='paused'
   const stopFn=m==='k'?'kioskStopFor':'stopTaskFor'
   const md=m==='k'?'kiosk':'main'
@@ -156,7 +156,7 @@ function runCardHTML(l,m){
     <div class="timer" id="timer_${p}">00:00:00</div>
     ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
     ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
-    ${rt?`<label>Cook/chill check${th}</label><div class="row"><div><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><input id="tst_${p}" type="time" value="${_hhmmLocal(l.start_time)}" /></div></div><div class="row"><div><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div><div><input id="tft_${p}" type="time" /></div></div>`:''}
+    ${rt?`<label>Cook/chill check${th}</label><div class="row"><div><label>Start °C</label><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><label>Start time</label><input id="tst_${p}" type="time" value="${_hhmmLocal(l.start_time)}" /></div></div><div class="row"><div><label>Finish °C</label><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div><div><label>Finish time</label><input id="tft_${p}" type="time" /></div></div>`:''}
     <div class="row"><div><label>People on task</label><input id="st_${p}" type="number" inputmode="numeric" min="1" value="${l.staff_count||1}" /></div><div><label>Change over (mins)</label><input id="ch_${p}" type="number" inputmode="numeric" placeholder="0" /></div></div>
     <label>Comments</label><textarea id="cm_${p}" rows="2" placeholder="Anything notable?"></textarea>
     <label>Photos of the work (required to finish)</label>
@@ -271,6 +271,7 @@ window.importTasksCsv=async function(){
       temp_target:C.ttarget>=0?numOr(get(r,C.ttarget)):null,
       temp_dir:C.tdir>=0?((get(r,C.tdir)||'min')):'min',
       temp_max_minutes:C.tmax>=0?numOr(get(r,C.tmax)):null}
+    if(rec.temp_target!=null) rec.records_temp=true
     const ex=existing.get(name.toLowerCase())
     if(ex){const {error}=await sb.from('sim_task_catalog').update(rec).eq('id',ex.id);if(error){skipped++}else{updated++}}
     else{order++;const {error}=await sb.from('sim_task_catalog').insert(Object.assign({},rec,{expected_staff:1,active:true,sort_order:order}));if(error){skipped++}else{added++}}
