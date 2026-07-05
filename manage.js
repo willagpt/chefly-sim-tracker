@@ -172,7 +172,7 @@ window.loadHistory=async function(){
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
   $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
-  renderHistorySummary()
+  renderHistorySummary(); renderHaccp()
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
   const canEdit=isManagerUp()
   box.innerHTML=histLogs.map(l=>{
@@ -207,9 +207,26 @@ function sumTable(title,rows,headers){
 }
 window.setHistView=function(v){
   histView=v
-  const s=$('hv_summary'),dt=$('hv_detail'),sc=$('hSummaryCard'),dc=$('hDetailCard')
-  if(s)s.classList.toggle('active',v==='summary'); if(dt)dt.classList.toggle('active',v==='detail')
-  if(sc)sc.classList.toggle('hidden',v!=='summary'); if(dc)dc.classList.toggle('hidden',v!=='detail')
+  ;['summary','detail','haccp'].forEach(k=>{const tab=$('hv_'+k);if(tab)tab.classList.toggle('active',v===k)})
+  const map={summary:'hSummaryCard',detail:'hDetailCard',haccp:'hHaccpCard'}
+  Object.keys(map).forEach(k=>{const c=$(map[k]);if(c)c.classList.toggle('hidden',v!==k)})
+}
+function _haccpName(l){ if(l.user_id){const p=histProfs.find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=histStaffs.find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
+function renderHaccp(){
+  const box=$('hHaccpBody'); if(!box)return
+  const rows=histLogs.filter(l=>{const c=catalog.find(x=>x.id===l.catalog_id);return c&&c.records_temp})
+  if(!rows.length){box.innerHTML='<p class="muted">No cook/chill temperature records in this range.</p>';return}
+  const cell=(txt,left,extra)=>`<td style="text-align:${left?'left':'right'};padding:5px 8px;border-bottom:1px solid var(--line);${extra||''}">${txt}</td>`
+  const trs=rows.map(l=>{
+    const c=catalog.find(x=>x.id===l.catalog_id); const tgt=c?c.temp_target:null; const dir=c?(c.temp_dir||'min'):'min'; const maxM=c?c.temp_max_minutes:null
+    let pass=null
+    if(tgt!=null && l.finish_temp!=null){ pass = dir==='max' ? (Number(l.finish_temp)<=tgt && (maxM?(Number(l.total_minutes)||0)<=maxM:true)) : (Number(l.finish_temp)>=tgt) }
+    const badge = pass==null?'<span class="muted">—</span>':(pass?'<b style="color:var(--green)">PASS</b>':'<b style="color:var(--red)">FAIL</b>')
+    const tgtTxt = tgt!=null?((dir==='max'?'≤':'≥')+tgt+'°'+(maxM?('/'+maxM+'m'):'')):'—'
+    return `<tr>${cell(l.log_date,true)}${cell(esc(l.task_name),true)}${cell(esc(_haccpName(l)),true)}${cell((l.start_temp==null?'–':l.start_temp)+'→'+(l.finish_temp==null?'–':l.finish_temp)+'°',false)}${cell((l.total_minutes==null?'–':l.total_minutes)+'m',false)}${cell(tgtTxt,false)}${cell(badge,false)}</tr>`
+  }).join('')
+  const th=['Date','Step','Who','Temp','Time','Target','Result'].map((h,i)=>`<th style="text-align:${i<3?'left':'right'};padding:5px 8px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line)">${h}</th>`).join('')
+  box.innerHTML=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr>${th}</tr>${trs}</table></div>`
 }
 window.histToday=function(){const t=_isoLocalH(new Date());$('hFrom').value=t;$('hTo').value=t;loadHistory()}
 window.histThisWeek=function(){const now=new Date();const off=(now.getDay()+6)%7;const mon=new Date(now);mon.setDate(now.getDate()-off);$('hFrom').value=_isoLocalH(mon);$('hTo').value=_isoLocalH(now);loadHistory()}
