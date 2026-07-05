@@ -92,7 +92,7 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','dash','history','perf','plan','manage']
+const TAB_KEYS=['log','equip','pack','dash','history','perf','plan','trace','manage']
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
   const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
@@ -101,6 +101,7 @@ function buildTabs(){
   if(isManagerUp()) tabs.push({k:'history',label:'History'})
   if(isManagerUp()) tabs.push({k:'perf',label:'Performance'})
   if(isManagerUp()) tabs.push({k:'plan',label:'Plan'})
+  if(isManagerUp()) tabs.push({k:'trace',label:'Trace'})
   if(isAdmin()) tabs.push({k:'manage',label:'Manage'})
   tabs.forEach((t,i)=>{const d=document.createElement('div');d.className='tab'+(i===0?' active':'');d.id='tab_'+t.k;d.textContent=t.label;d.onclick=()=>showTab(t.k);bar.appendChild(d)})
   TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='log')})
@@ -114,5 +115,6 @@ window.showTab=function(which){
   if(which==='history') initHistory()
   if(which==='perf') initPerf()
   if(which==='plan') loadPlan()
+  if(which==='trace') initTrace()
   if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); loadPackRoster(); renderTaskList(); loadRoutes() }
 }

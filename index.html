@@ -186,6 +186,63 @@
       <div id="planBoard"></div>
     </div>
 
+    <div id="traceTab" class="hidden">
+      <div class="card">
+        <h2>Goods in — log a delivery</h2>
+        <p class="muted" style="margin-top:-8px">The traceability code is the goods-in date — the same date written on the sticker. Log each delivery here; staff then pick the lot on the task card when they use it. The invoice ref links the code back to the supplier.</p>
+        <div class="row">
+          <div><label for="giIng">Ingredient <a class="link" style="font-size:12px" onclick="addIngredientInline()">+ new</a></label><select id="giIng"></select></div>
+          <div><label for="giDate">Goods-in date (the code)</label><input id="giDate" type="date" /></div>
+        </div>
+        <div class="row">
+          <div><label for="giQty">Quantity</label><input id="giQty" type="number" inputmode="decimal" placeholder="e.g. 60" /></div>
+          <div><label for="giUom">Unit</label><input id="giUom" list="uomList" value="kg" /></div>
+        </div>
+        <div class="row">
+          <div><label for="giSupplier">Supplier</label><input id="giSupplier" type="text" placeholder="e.g. supplier name" /></div>
+          <div><label for="giInvoice">Invoice / delivery note ref</label><input id="giInvoice" type="text" placeholder="optional" /></div>
+        </div>
+        <label for="giNotes">Notes (e.g. supplier batch no.)</label>
+        <input id="giNotes" type="text" placeholder="optional" />
+        <button class="green" onclick="addGoodsIn()">Log delivery</button>
+        <div id="giMsg" class="msg"></div>
+        <div id="giList" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
+        <h2>Trace forward — where did a delivery go?</h2>
+        <p class="muted" style="margin-top:-8px">Pick a delivery to see every batch that used it. For a recall: this is the list of affected production.</p>
+        <label for="tfLot">Delivery / lot</label>
+        <select id="tfLot"></select>
+        <button class="ghost" onclick="traceForward()">Trace forward</button>
+        <div id="tfBody" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2>Trace back — what went into production?</h2>
+        <p class="muted" style="margin-top:-8px">Every batch in the range with its goods-in codes, suppliers and invoice refs.</p>
+        <div class="row">
+          <div><label for="tbFrom">From</label><input id="tbFrom" type="date" /></div>
+          <div><label for="tbTo">To</label><input id="tbTo" type="date" /></div>
+        </div>
+        <label for="tbProduct">Product / task filter (optional)</label>
+        <input id="tbProduct" type="text" placeholder="e.g. Brisket" />
+        <button class="ghost" onclick="traceBack()">Trace back</button>
+        <div id="tbBody" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
+        <h2>Ingredients</h2>
+        <p class="muted" style="margin-top:-8px">The master list of raw materials you receive. Deliveries are logged against these.</p>
+        <div class="row">
+          <div><label for="inName">Name</label><input id="inName" type="text" placeholder="e.g. Chicken breast" /></div>
+          <div><label for="inUom">Unit</label><input id="inUom" list="uomList" value="kg" /></div>
+        </div>
+        <label for="inSupplier">Usual supplier (optional)</label>
+        <input id="inSupplier" type="text" placeholder="e.g. supplier name" />
+        <button class="ghost" onclick="addIngredient()">Add ingredient</button>
+        <div id="inMsg" class="msg"></div>
+        <div id="ingredientList" style="margin-top:14px"></div>
+      </div>
+    </div>
+
     <div id="manageTab" class="hidden">
       <div class="card">
         <h2>Join code</h2>
@@ -425,6 +482,7 @@
 <script src="packing.js"></script>
 <script src="performance.js"></script>
 <script src="manage.js"></script>
+<script src="trace.js"></script>
 <script src="routes.js"></script>
 <script src="plan.js"></script>
 <script src="myday.js"></script>
