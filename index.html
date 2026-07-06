@@ -311,6 +311,17 @@
         <div id="packRosterList" style="margin-top:14px"></div>
       </div>
       <div class="card">
+        <h2>Weekly packing orders</h2>
+        <p class="muted" style="margin-top:-8px">Paste this week's dish list from the order sheet's "All Dishes" tab — select the rows and copy straight from Google Sheets (Dish Name, SKU, Quantity, Extras, Total), or paste comma-separated. Pick the day the team will pack, then Load. It fills the Packing tab's "Load today's dish list" for that date. Totals row (MEALS/BOXES) and blank rows are ignored.</p>
+        <label for="poDate">Packing date</label>
+        <input id="poDate" type="date" />
+        <label for="poText">Paste dishes</label>
+        <textarea id="poText" rows="6" placeholder="Teriyaki Chicken, 2, 82, , 82&#10;Mexican Brisket, 3, 53, , 53&#10;…or paste straight from the sheet"></textarea>
+        <button class="green" onclick="importPackOrders()">Load orders</button>
+        <div id="poMsg" class="msg"></div>
+        <div id="poPreview" class="muted" style="margin-top:8px;font-size:13px;max-height:220px;overflow:auto"></div>
+      </div>
+      <div class="card">
         <h2>Cooking equipment</h2>
         <p class="muted" style="margin-top:-8px">Your ovens, tanks, combis, chillers and freezers. These appear on the Equipment board.</p>
         <label for="enName">Name</label>
