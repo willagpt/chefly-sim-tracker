@@ -58,6 +58,7 @@ function packRate(r){ // meals per hour for a finished dish
   if(!r.total_minutes||r.total_minutes<=0||q==null) return null
   return q/(r.total_minutes/60)
 }
+function _daySpan(a,b){if(!a||!b)return '';let m=Math.round((new Date(b)-new Date(a))/60000);if(m<0)m=0;const h=Math.floor(m/60);m=m%60;return (h?h+'h ':'')+m+'m'}
 function renderPacking(){
   const box=$('packBody'); if(!box)return
   const done=packRuns.filter(r=>r.status==='done'), packing=packRuns.find(r=>r.status==='packing')
@@ -93,10 +94,14 @@ function renderPacking(){
     const pending=packRuns.filter(r=>r.status==='pending').sort((a,b)=>a.sort_order-b.sort_order)
     const skippedRuns=packRuns.filter(r=>r.status==='skipped').sort((a,b)=>a.sort_order-b.sort_order)
     if(started.length){
+      const _startTimes=started.map(r=>r.start_time).filter(Boolean).sort()
+      const _finTimes=started.map(r=>r.finish_time).filter(Boolean).sort()
+      const _dayStart=_startTimes[0]||null, _dayEnd=_finTimes.length?_finTimes[_finTimes.length-1]:null
       html+=`<p class="muted" style="margin:14px 0 4px">Packed today — in the order it was done. <span style="color:#fcd34d">moved from #</span> = different from the plan.</p>`
+      if(_dayStart) html+=`<div class="muted" style="font-size:13px;margin:-2px 0 8px">🕒 Day: <b style="color:var(--txt)">${fmtTime(_dayStart)}</b> → <b style="color:var(--txt)">${_dayEnd?fmtTime(_dayEnd):'in progress'}</b>${(_dayStart&&_dayEnd)?' · '+_daySpan(_dayStart,_dayEnd)+' elapsed':''}</div>`
       started.forEach((r,i)=>{ html+=packedRunRow(r,i+1,_plannedRank[r.id]) })
     }
-    html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⣿ to reorder.</p><div id="packDishList">`
+    html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⠿ to reorder.</p><div id="packDishList">`
     if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
     else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
     html+='</div>'
@@ -182,7 +187,7 @@ function packRunRow(r){
   const photos=r.notes_photos||[]
   const photoLink=`<a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'Photo ('+photos.length+')':'Photo'}</a>`
   const photoStrip=photoThumbs(photos,48)
-  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⣿</span>`:''
+  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
   const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${esc(r.notes)}</div>`:''
@@ -200,8 +205,11 @@ function packedRunRow(r,actualPos,plannedPos){
   const movedBadge=moved?` <span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">moved from #${plannedPos}</span>`:''
   const status=r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill done">done</span>'
   const rt=packRate(r); const rtTxt=rt!=null?` · <span class="${rt>=packTarget?'vs-good':'vs-bad'}">${Math.round(rt)}/hr</span>`:''
-  const coTxt=r.changeover_mins!=null?` · CO ${r.changeover_mins.toFixed(1)}m`:''
+  const coTxt=r.changeover_mins!=null?` · CO ${r.changeover_mins.toFixed(1)}m`:(actualPos===1?' · start of day':' · CO —')
   const detail=[r.total_minutes!=null?r.total_minutes+' min':'', r.line_count?r.line_count+'p':'', r.qty_packed!=null?r.qty_packed+' packed':''].filter(Boolean).join(' · ')
+  const _sc=r.start_time?fmtTime(r.start_time):null
+  const _fc=r.finish_time?fmtTime(r.finish_time):null
+  const clockLine=(_sc||_fc)?`<div class="muted" style="font-size:12px;margin-top:2px">🕒 ${_sc||'—'} → ${_fc||'running…'}${detail?' · '+detail:''}</div>`:(detail?`<div class="muted" style="font-size:12px;margin-top:2px">${detail}</div>`:'')
   const reason=r.out_of_sequence_reason?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">↳ ${esc(r.out_of_sequence_reason)}</div>`:''
   const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${esc(r.notes)}</div>`:''
   const photos=r.notes_photos||[]
@@ -215,6 +223,7 @@ function packedRunRow(r,actualPos,plannedPos){
       <div style="flex:0 0 auto;text-align:center;min-width:44px"><div style="font-size:18px;font-weight:900;line-height:1">${qtyShown}</div><div style="font-size:10px;color:var(--muted)">PACKED</div></div>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${status}${movedBadge}${coTxt}${rtTxt}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center"><a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'('+photos.length+')':'Photo'}</a><a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit':'Note'}</a></span></div>
+    ${clockLine}
     ${reason}
     ${notesLine}
     ${photoStrip}
