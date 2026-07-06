@@ -407,3 +407,38 @@ window.exportCsv=function(){
   const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a')
   a.href=URL.createObjectURL(blob); a.download=`sim-history-${$('hFrom').value}_to_${$('hTo').value}.csv`; a.click()
 }
+
+// ---- weekly packing orders importer (manager/admin) ----
+function _parsePackOrders(text){
+  const isNum=s=>{s=String(s).trim();return s!==''&&/^-?\d+(\.\d+)?$/.test(s)}
+  const out=[]; let idx=0
+  ;(text||'').split(/\r?\n/).forEach(ln=>{
+    if(!ln.trim())return
+    const tab=ln.indexOf('\t')>=0
+    const toks=(tab?ln.split('\t'):ln.split(',')).map(t=>t.trim())
+    let j=toks.length
+    while(j>0 && (toks[j-1]===''||isNum(toks[j-1]))) j--
+    const name=(tab?toks.slice(0,j).join(' '):toks.slice(0,j).join(', ')).trim()
+    const nums=toks.slice(j).filter(t=>t!=='')
+    if(!name||nums.length<2)return
+    const up=name.toUpperCase()
+    if(up==='MEALS'||up==='BOXES'||up.indexOf('DISH NAME')===0)return
+    const total=Math.round(Number(nums[nums.length-1]))
+    if(!total||isNaN(total)||total<=0)return
+    out.push({sku:String(nums[0]),dish_name:name,qty:total,sort_order:idx++})
+  })
+  return out
+}
+window.importPackOrders=async function(){
+  if(!isManagerUp()){msg($('poMsg'),'Managers/admins only.',false);return}
+  const date=$('poDate').value; if(!date){msg($('poMsg'),'Pick the packing date first.',false);return}
+  const rows=_parsePackOrders($('poText').value)
+  if(!rows.length){msg($('poMsg'),'No dishes found. Paste the All Dishes rows (Dish, SKU, Quantity … Total).',false);return}
+  const meals=rows.reduce((s,r)=>s+r.qty,0)
+  if(!confirm('Load '+rows.length+' dishes ('+meals+' meals) for '+date+'?\n\nThis replaces any existing list for that date.'))return
+  const {data,error}=await sb.rpc('sim_import_pack_dishes',{p_date:date,p_rows:rows})
+  if(error){msg($('poMsg'),error.message,false);return}
+  msg($('poMsg'),'Loaded '+data+' dishes ('+meals+' meals) for '+date+'. On that day, open Packing → "Load today’s dish list".',true)
+  $('poPreview').innerHTML=rows.map(r=>esc(r.sku)+' · '+esc(r.dish_name)+' — <b>'+r.qty+'</b>').join('<br>')
+  $('poText').value=''
+}
