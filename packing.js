@@ -79,6 +79,7 @@ function renderPacking(){
     </div>
     <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min</span>${skipped?' · '+skipped+' skipped':''}</p>
     <p class="muted" style="margin-top:2px">Target: <b style="color:var(--txt)">${packTarget}/hr</b> <a class="link" onclick="packSetTarget()">adjust</a></p>
+    <button class="ghost sm" style="margin-top:8px" onclick="packEodReport()">\u{1F4C4} End-of-day report (print)</button>
   </div>`
 
   html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">Dish list</h2>`
@@ -487,4 +488,198 @@ window.packSaveDefault=async function(){
   const {error}=await sb.from('sim_pack_dish_order').upsert(rows,{onConflict:'sku'})
   if(error){alert(error.message);return}
   alert('Saved this order as the default — future days will sort to match.')
+}
+
+/* ---------- END-OF-DAY REPORT (print one-pager, factory run-sheet) ----------
+   Opens a print-styled A4 page built from today's in-memory shift data;
+   the browser print dialog saves it as a PDF. All free text goes through
+   _eodEsc before injection. */
+function _eodEsc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function _eodClock(t){if(!t)return '–';const d=new Date(t);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function _eodTheme(txt){
+  const t=String(txt||'').toLowerCase()
+  if(!t.trim())return null
+  if(t.indexOf('kaja')>=0)return 'Verbal instruction (Kaja)'
+  if(t.indexOf('frozen')>=0)return 'Product frozen'
+  if(t.indexOf('not ready')>=0||t.indexOf('not started')>=0)return 'Not ready'
+  if(t.indexOf('tomorrow')>=0)return 'Deferred to tomorrow'
+  if(t.indexOf('short')>=0)return 'Ran short mid-pack'
+  if(t.indexOf('rice')>=0||t.indexOf('tray')>=0||t.indexOf('meatball')>=0||t.indexOf('no ')===0)return 'Component missing'
+  if(/\b(done|already|ready)\b/.test(t))return 'Already done / in stock'
+  return 'Other'
+}
+const _EOD_RECS={
+  'Product frozen':'Add a pre-shift readiness check: confirm each dish is thawed and ready before the run order is locked.',
+  'Not ready':'Add a pre-shift readiness check: confirm each dish is ready before the run order is locked.',
+  'Component missing':'Add a pre-shift component check (rice, trays, proteins) before the run order is locked.',
+  'Verbal instruction (Kaja)':'Route every sequence change through this screen so verbal instructions are captured against the plan.',
+  'Already done / in stock':'Net stock on hand off the plan before importing the dish list.',
+  'Ran short mid-pack':'Pause and flag shortages instead of closing dishes under-supplied.',
+  'Deferred to tomorrow':'Carry deferred dishes into the next import so they are not lost.',
+  'Other':'Review the notes with the team leader at the morning huddle.'
+}
+window.packEodReport=function(){
+  if(!packShift||!packRuns.length){alert('No dishes for today yet — nothing to report.');return}
+  const done=packRuns.filter(r=>r.status==='done')
+  if(!done.length){alert('No finished dishes yet — the report needs at least one packed dish.');return}
+  const skipped=packRuns.filter(r=>r.status==='skipped')
+  const open=packRuns.filter(r=>r.status==='pending'||r.status==='packing')
+  const plannedMeals=packRuns.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
+  const packedMeals=done.reduce((s,r)=>s+(r.qty_packed!=null?Number(r.qty_packed):(Number(r.planned_qty)||0)),0)
+  const skippedMeals=skipped.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
+
+  // planned rank + pack order
+  const plannedSorted=[...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
+  const plannedRank={}; plannedSorted.forEach((r,i)=>{plannedRank[r.id]=i+1})
+  const packedOrder=done.filter(r=>r.pack_seq!=null).sort((a,b)=>a.pack_seq-b.pack_seq)
+  const rows=packedOrder.length?packedOrder:done
+
+  // day span
+  const starts=done.map(r=>r.start_time).filter(Boolean).sort()
+  const fins=done.map(r=>r.finish_time).filter(Boolean).sort()
+  const dayStart=starts[0]||null, dayEnd=fins.length?fins[fins.length-1]:null
+  const elapsedMin=(dayStart&&dayEnd)?Math.max(1,(new Date(dayEnd)-new Date(dayStart))/60000):null
+  const throughput=elapsedMin?(packedMeals/(elapsedMin/60)):null
+
+  // per-dish rate + data-quality exclusions
+  rows.forEach((r,i)=>{
+    const q=(r.qty_packed!=null?Number(r.qty_packed):Number(r.planned_qty))
+    r._rate=(r.total_minutes&&r.total_minutes>0&&q!=null)?(q/(r.total_minutes/60)):null
+    r._excl=null
+    if(r.total_minutes!=null&&r.total_minutes<1)r._excl='mistimed'
+    else if(r._rate!=null&&r._rate>2500)r._excl='mistimed'
+    else if(i===0&&r.total_minutes!=null&&r.total_minutes>60)r._excl='incl. start-up'
+  })
+  const clean=rows.filter(r=>!r._excl&&r._rate!=null)
+  const cleanQty=clean.reduce((s,r)=>s+(r.qty_packed!=null?Number(r.qty_packed):Number(r.planned_qty)||0),0)
+  const cleanMin=clean.reduce((s,r)=>s+Number(r.total_minutes),0)
+  const avgRate=cleanMin>0?(cleanQty/(cleanMin/60)):null
+  const hit=clean.filter(r=>r._rate>=packTarget).length
+
+  // changeover
+  const cos=rows.filter(r=>r.changeover_mins!=null)
+  const coTotal=cos.reduce((s,r)=>s+Number(r.changeover_mins),0)
+  const coAvg=cos.length?coTotal/cos.length:null
+  const coOver=cos.filter(r=>Number(r.changeover_mins)>PACK_CO_TARGET)
+
+  // sequence + themes
+  const moved=packedOrder.filter((r,i)=>plannedRank[r.id]!=null&&plannedRank[r.id]!==(i+1))
+  const themes={}; let kajaMentions=0
+  const addTheme=(txt,r,isSkip)=>{
+    const th=_eodTheme(txt); if(!th)return
+    if(String(txt).toLowerCase().indexOf('kaja')>=0)kajaMentions++
+    if(!themes[th])themes[th]={n:0,meals:0,skips:0}
+    themes[th].n++; if(isSkip){themes[th].skips++;themes[th].meals+=(Number(r.planned_qty)||0)}
+  }
+  done.forEach(r=>{addTheme(r.out_of_sequence_reason,r,false); if(r.notes&&_eodTheme(r.notes)!==_eodTheme(r.out_of_sequence_reason))addTheme(r.notes,r,false)})
+  skipped.forEach(r=>{addTheme(r.notes,r,true)})
+  const themeList=Object.keys(themes).map(k=>({k,...themes[k]})).sort((a,b)=>b.n-a.n)
+  const dominant=themeList.length?themeList[0].k:null
+  const rec=dominant?_EOD_RECS[dominant]:'Clean day — no disruptions logged.'
+  const mistimed=rows.filter(r=>r._excl==='mistimed')
+
+  // crew / breaks
+  const crew=new Set(Object.values(packAssignments).map(a=>a.member_id).filter(Boolean)).size
+  const supAsg=packPositions.filter(p=>/supervisor/i.test(p.label)).map(p=>packAssignments[p.id]).find(Boolean)
+  const supervisor=supAsg?packMemberName(supAsg.member_id):null
+  const doneBreaks=packBreaks.filter(b=>b.started_at&&b.ended_at)
+  const brkSpan=doneBreaks.length?(_eodClock(doneBreaks.map(b=>b.started_at).sort()[0])+'–'+_eodClock(doneBreaks.map(b=>b.ended_at).sort().slice(-1)[0])):null
+
+  // footnotes
+  const notes=[]; const noteRef={}
+  rows.forEach(r=>{
+    const parts=[]
+    if(r.out_of_sequence_reason)parts.push('moved: '+r.out_of_sequence_reason)
+    if(r.notes)parts.push(r.notes)
+    if(parts.length){notes.push({sku:r.sku,dish:r.dish_name,txt:parts.join(' — ')});noteRef[r.id]=notes.length}
+  })
+
+  const pct=plannedMeals?Math.round(packedMeals/plannedMeals*100):0
+  const barMax=packTarget*1.5
+  const tick=Math.round(packTarget/barMax*100)
+  const trows=rows.map((r,i)=>{
+    const q=r.qty_packed!=null?r.qty_packed:(r.planned_qty!=null?r.planned_qty:'–')
+    const mv=plannedRank[r.id]!=null&&plannedRank[r.id]!==(i+1)?'<span class="mv">&#8599;'+plannedRank[r.id]+'</span>':''
+    const co=r.changeover_mins!=null?Number(r.changeover_mins).toFixed(1):(i===0?'—':'–')
+    const coCls=(r.changeover_mins!=null&&Number(r.changeover_mins)>PACK_CO_TARGET)?' class="over"':''
+    let rateCell
+    if(r._excl){rateCell='<td class="excl" colspan="2">excl. — '+_eodEsc(r._excl)+'</td>'}
+    else if(r._rate==null){rateCell='<td colspan="2" class="excl">–</td>'}
+    else{
+      const w=Math.max(2,Math.min(100,Math.round(r._rate/barMax*100)))
+      const good=r._rate>=packTarget
+      rateCell='<td class="num'+(good?' good':'')+'">'+Math.round(r._rate)+'</td><td class="barc"><span class="bar'+(good?' good':'')+'" style="width:'+w+'%"></span><span class="tick" style="left:'+tick+'%"></span></td>'
+    }
+    const ref=noteRef[r.id]?'<sup>'+noteRef[r.id]+'</sup>':''
+    return '<tr'+(r._excl?' class="dim"':'')+'><td class="num">'+(i+1)+'</td><td class="num">'+_eodClock(r.start_time)+'</td><td class="sku">'+_eodEsc(r.sku||'–')+'</td><td class="dish">'+_eodEsc(r.dish_name)+ref+' '+mv+'</td><td class="num">'+q+'</td><td class="num">'+(r.total_minutes!=null?Number(r.total_minutes).toFixed(1):'–')+'</td><td class="num"'+coCls+'>'+co+'</td>'+rateCell+'</tr>'
+  }).join('')
+  const skiprows=skipped.map(r=>'<tr><td class="sku">'+_eodEsc(r.sku||'–')+'</td><td class="dish">'+_eodEsc(r.dish_name)+'</td><td class="num">'+(r.planned_qty!=null?r.planned_qty:'–')+'</td><td class="why">'+_eodEsc(r.notes||'–')+'</td></tr>').join('')
+  const themerows=themeList.map(t=>'<tr><td class="dish">'+_eodEsc(t.k)+'</td><td class="num">'+t.n+'</td><td class="why">'+(t.skips?t.skips+' skipped / '+t.meals+' meals':'')+'</td></tr>').join('')
+  const noterows=notes.map((n,i)=>'<div class="fn"><b>'+(i+1)+'</b> #'+_eodEsc(n.sku)+' '+_eodEsc(n.dish)+': '+_eodEsc(n.txt)+'</div>').join('')
+  const dateStr=new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+  const interim=open.length?'<div class="warn">INTERIM — '+open.length+' dish'+(open.length>1?'es':'')+' still open. Re-print at end of day.</div>':''
+  const kajaLine=kajaMentions?('<div class="callout">'+kajaMentions+' note'+(kajaMentions>1?'s':'')+' reference an instruction from Kaja — sequence changed verbally, off-plan.</div>'):''
+  const mistimedLine=mistimed.length?('<div class="callout">'+mistimed.length+' dish'+(mistimed.length>1?'es':'')+' mistimed ('+mistimed.map(r=>'#'+_eodEsc(r.sku)).join(', ')+') — excluded from speed stats. Check start/stop discipline.</div>'):''
+
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Packing EOD '+_eodEsc(packShift.shift_date)+'</title><style>'
+  +'@page{size:A4;margin:9mm}*{box-sizing:border-box;margin:0;padding:0}'
+  +'body{font:9.5px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif;color:#1c1a19;background:#fbfaf8;font-variant-numeric:tabular-nums;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:12px}'
+  +'@media print{body{padding:0}.noprint{display:none}}'
+  +'.noprint{position:fixed;top:10px;right:10px}.noprint button{font:700 13px/1 inherit;background:#e8541d;color:#fff;border:0;padding:10px 16px;border-radius:4px;cursor:pointer}'
+  +'header{background:#1c1a19;color:#fbfaf8;border-left:6px solid #e8541d;padding:10px 14px;display:flex;justify-content:space-between;align-items:baseline}'
+  +'header h1{font-size:15px;letter-spacing:1.5px}header .d{font-size:10px;color:#c9c2bb;margin-top:2px}'
+  +'header .r{text-align:right;font-size:10px;color:#c9c2bb}header .r b{color:#fbfaf8;font-size:13px}'
+  +'.kpis{display:flex;align-items:stretch;border:1px solid #dcd7d1;border-top:0;background:#fff}'
+  +'.k0{flex:0 0 auto;padding:10px 16px 10px 14px;border-right:1px solid #dcd7d1}'
+  +'.k0 .n{font-size:34px;font-weight:800;line-height:1}.k0 .n small{font-size:14px;font-weight:400;color:#8a8580}'
+  +'.k0 .l{font-size:8px;letter-spacing:1.2px;color:#8a8580;margin-top:3px}'
+  +'.ks{flex:1;display:flex}.ks div{flex:1;padding:10px 12px;border-right:1px solid #ece8e3}.ks div:last-child{border:0}'
+  +'.ks .n{font-size:15px;font-weight:800}.ks .l{font-size:8px;letter-spacing:1.2px;color:#8a8580;margin-top:2px}'
+  +'.ks .sub{font-size:8.5px;color:#8a8580;margin-top:1px}'
+  +'h2{font-size:9px;letter-spacing:1.5px;color:#e8541d;margin:12px 0 4px;border-bottom:1px solid #dcd7d1;padding-bottom:3px}'
+  +'table{width:100%;border-collapse:collapse;background:#fff}'
+  +'th{font-size:7.5px;letter-spacing:1px;color:#8a8580;text-align:left;padding:3px 5px;border-bottom:1.5px solid #1c1a19}'
+  +'td{padding:2.5px 5px;border-bottom:1px solid #ece8e3;vertical-align:top}'
+  +'td.num,th.num{text-align:right;white-space:nowrap}td.sku{font-weight:800}td.dish{width:38%}'
+  +'td.over{font-weight:800;background:#f7e8e0}tr.dim td{color:#a09a94}'
+  +'td.excl{color:#a09a94;font-style:italic}td.why{color:#5c5650}'
+  +'.mv{color:#8a8580;font-size:8px}sup{color:#e8541d;font-weight:700}'
+  +'td.good{font-weight:800}'
+  +'.barc{width:70px;position:relative;padding:0 5px}.bar{display:inline-block;height:7px;background:#c9c2bb;vertical-align:middle}.bar.good{background:#e8541d}'
+  +'.tick{position:absolute;top:2px;bottom:2px;width:1.5px;background:#1c1a19}'
+  +'.cols{display:flex;gap:14px;align-items:flex-start}.cols>div{flex:1}'
+  +'.fn{font-size:8.5px;color:#5c5650;margin-top:2px}.fn b{color:#e8541d}'
+  +'.callout{border:1px solid #1c1a19;padding:5px 8px;font-weight:700;margin-top:6px;background:#fff}'
+  +'.rec{background:#e8541d;color:#fff;padding:8px 10px;font-weight:800;font-size:10.5px;margin-top:8px}'
+  +'.rec .l{display:block;font-size:7.5px;letter-spacing:1.5px;font-weight:400;color:#f8cdb8;margin-bottom:2px}'
+  +'.warn{background:#1c1a19;color:#fcd34d;padding:5px 10px;font-weight:800;margin-top:6px}'
+  +'footer{margin-top:10px;padding-top:5px;border-top:1px solid #dcd7d1;font-size:7.5px;color:#8a8580}'
+  +'</style></head><body>'
+  +'<div class="noprint"><button onclick="window.print()">Print / Save as PDF</button></div>'
+  +'<header><div><h1>PACKING — END OF DAY</h1><div class="d">'+_eodEsc(dateStr)+(supervisor?' · Supervisor: '+_eodEsc(supervisor):'')+(crew?' · Crew of '+crew:'')+'</div></div>'
+  +'<div class="r">SHIFT<br><b>'+_eodClock(dayStart)+' – '+_eodClock(dayEnd)+'</b>'+(elapsedMin?'<br>'+Math.floor(elapsedMin/60)+'h '+String(Math.round(elapsedMin%60)).padStart(2,'0')+'m':'')+'</div></header>'
+  +'<div class="kpis"><div class="k0"><div class="n">'+packedMeals.toLocaleString()+'<small> / '+plannedMeals.toLocaleString()+' ('+pct+'%)</small></div><div class="l">MEALS PACKED VS PLANNED</div></div>'
+  +'<div class="ks">'
+  +'<div><div class="n">'+done.length+' / '+packRuns.length+'</div><div class="l">DISHES</div><div class="sub">'+skipped.length+' skipped · '+skippedMeals+' meals</div></div>'
+  +'<div><div class="n">'+(avgRate!=null?Math.round(avgRate):'–')+' <small style="font-weight:400;color:#8a8580">/ '+packTarget+'</small></div><div class="l">PACK RATE (MEALS/HR)</div><div class="sub">'+hit+' of '+clean.length+' dishes hit target</div></div>'
+  +'<div><div class="n">'+(throughput!=null?Math.round(throughput):'–')+'</div><div class="l">DAY THROUGHPUT /HR</div><div class="sub">incl. changeovers &amp; gaps</div></div>'
+  +'<div><div class="n">'+(coAvg!=null?coAvg.toFixed(1)+'m':'–')+'</div><div class="l">AVG CHANGEOVER</div><div class="sub">'+coOver.length+' over '+PACK_CO_TARGET+'m · '+Math.round(coTotal)+'m total</div></div>'
+  +'</div></div>'
+  +interim
+  +'<h2>RUN SHEET — ACTUAL PACK ORDER</h2>'
+  +'<table><tr><th class="num">#</th><th class="num">START</th><th>SKU</th><th>DISH</th><th class="num">PACKED</th><th class="num">MIN</th><th class="num">CO</th><th class="num">RATE</th><th>VS '+packTarget+' &#124;</th></tr>'+trows+'</table>'
+  +(notes.length?('<h2>NOTES FROM THE LINE</h2>'+noterows):'')
+  +'<div class="cols"><div>'
+  +(skipped.length?('<h2>SKIPPED ('+skipped.length+' DISHES · '+skippedMeals+' MEALS)</h2><table><tr><th>SKU</th><th>DISH</th><th class="num">QTY</th><th>REASON</th></tr>'+skiprows+'</table>'):'')
+  +'</div><div>'
+  +'<h2>ISSUES — WHAT DROVE THE DAY OFF PLAN</h2>'
+  +(themeList.length?('<table><tr><th>THEME</th><th class="num">COUNT</th><th></th></tr>'+themerows+'</table>'):'<p>No disruptions logged.</p>')
+  +kajaLine+mistimedLine
+  +'<div class="rec"><span class="l">RECOMMENDATION</span>'+_eodEsc(rec)+'</div>'
+  +'</div></div>'
+  +'<footer>Source: live shift data · Target '+packTarget+' meals/hr · Changeover target '+PACK_CO_TARGET+' min'+(brkSpan?' · Breaks staggered '+brkSpan+' ('+doneBreaks.length+' taken)':'')+' · '+moved.length+' of '+packedOrder.length+' dishes packed out of plan order · Generated '+new Date().toLocaleString('en-GB')+' · Chefly SIM Tracker</footer>'
+  +'</body></html>'
+  const w=window.open('','_blank')
+  if(!w){alert('Popup blocked — allow popups for this site to open the report.');return}
+  w.document.write(html); w.document.close()
 }
