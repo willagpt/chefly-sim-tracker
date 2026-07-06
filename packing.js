@@ -87,13 +87,27 @@ function renderPacking(){
     html+=`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
   } else {
     html+=packActionPanel(packing,next)
-    html+=`<p class="muted" style="margin:14px 0 4px">All dishes — drag ⠿ to reorder.</p><div id="packDishList">`
-    packRuns.forEach(r=>{ html+=packRunRow(r) })
-    html+='</div><button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
+    const _plannedSorted=[...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
+    const _plannedRank={}; _plannedSorted.forEach((r,i)=>{_plannedRank[r.id]=i+1})
+    const started=packRuns.filter(r=>r.pack_seq!=null).sort((a,b)=>a.pack_seq-b.pack_seq)
+    const pending=packRuns.filter(r=>r.status==='pending').sort((a,b)=>a.sort_order-b.sort_order)
+    const skippedRuns=packRuns.filter(r=>r.status==='skipped').sort((a,b)=>a.sort_order-b.sort_order)
+    if(started.length){
+      html+=`<p class="muted" style="margin:14px 0 4px">Packed today — in the order it was done. <span style="color:#fcd34d">moved from #</span> = different from the plan.</p>`
+      started.forEach((r,i)=>{ html+=packedRunRow(r,i+1,_plannedRank[r.id]) })
+    }
+    html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⣿ to reorder.</p><div id="packDishList">`
+    if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
+    else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
+    html+='</div>'
+    if(skippedRuns.length){
+      html+=`<p class="muted" style="margin:16px 0 4px">Skipped</p>`
+      skippedRuns.forEach(r=>{ html+=packRunRow(r) })
+    }
+    html+='<button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
   }
   html+='</div>'
 
-  html+=packActualOrderCard()
   html+=`<div class="card"><h2>Team &amp; positions</h2>`
   if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
   packPositions.forEach(p=>{
@@ -168,7 +182,7 @@ function packRunRow(r){
   const photos=r.notes_photos||[]
   const photoLink=`<a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'Photo ('+photos.length+')':'Photo'}</a>`
   const photoStrip=photoThumbs(photos,48)
-  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
+  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⣿</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
   const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${esc(r.notes)}</div>`:''
@@ -177,6 +191,31 @@ function packRunRow(r){
   return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:6px">
     <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${esc(r.dish_name)}</b>${planBlock}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}${compChip}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
+    ${notesLine}
+    ${photoStrip}
+  </div>`
+}
+function packedRunRow(r,actualPos,plannedPos){
+  const moved=plannedPos!=null&&plannedPos!==actualPos
+  const movedBadge=moved?` <span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">moved from #${plannedPos}</span>`:''
+  const status=r.status==='packing'?'<span class="pill live">● packing</span>':'<span class="pill done">done</span>'
+  const rt=packRate(r); const rtTxt=rt!=null?` · <span class="${rt>=packTarget?'vs-good':'vs-bad'}">${Math.round(rt)}/hr</span>`:''
+  const coTxt=r.changeover_mins!=null?` · CO ${r.changeover_mins.toFixed(1)}m`:''
+  const detail=[r.total_minutes!=null?r.total_minutes+' min':'', r.line_count?r.line_count+'p':'', r.qty_packed!=null?r.qty_packed+' packed':''].filter(Boolean).join(' · ')
+  const reason=r.out_of_sequence_reason?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">↳ ${esc(r.out_of_sequence_reason)}</div>`:''
+  const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${esc(r.notes)}</div>`:''
+  const photos=r.notes_photos||[]
+  const photoStrip=photoThumbs(photos,48)
+  const qtyShown=r.qty_packed!=null?r.qty_packed:(r.planned_qty??'–')
+  return `<div class="task-item" data-runid="${r.id}" style="flex-direction:column;align-items:stretch;gap:4px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="flex:0 0 auto;text-align:center;min-width:26px"><div style="font-size:10px;color:var(--muted)">#</div><div style="font-size:20px;font-weight:900;line-height:1">${actualPos}</div></div>
+      <div style="flex:0 0 auto;text-align:center;min-width:34px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:16px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>
+      <b style="flex:1;min-width:0;font-size:15px">${esc(r.dish_name)}</b>
+      <div style="flex:0 0 auto;text-align:center;min-width:44px"><div style="font-size:18px;font-weight:900;line-height:1">${qtyShown}</div><div style="font-size:10px;color:var(--muted)">PACKED</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${status}${movedBadge}${coTxt}${rtTxt}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center"><a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'('+photos.length+')':'Photo'}</a><a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit':'Note'}</a></span></div>
+    ${reason}
     ${notesLine}
     ${photoStrip}
   </div>`
