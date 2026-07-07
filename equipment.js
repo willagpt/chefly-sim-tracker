@@ -1,7 +1,10 @@
 /* EQUIPMENT: cooking-vessel board (load/unload, countdowns, overdue) + admin register. */
 
 let equipList=[], equipCooks={}, equipNames={}, equipRegData=[], equipTimer=null, equipOverdueNotified=new Set()
-const equipKindLabel=k=>({oven:'Oven',sous_vide:'Sous-vide',combi:'Combi',blast_chiller:'Blast chiller',freezer:'Freezer',other:'Equipment'}[k]||k)
+const EQUIP_KINDS=['oven','bratt_pan','sous_vide','combi','blast_chiller','freezer','other']  // add new sections here - all dropdowns build from this list
+const equipKindLabel=k=>({oven:'Oven',bratt_pan:'Bratt pan',sous_vide:'Sous-vide',combi:'Combi',blast_chiller:'Blast chiller',freezer:'Freezer',other:'Equipment'}[k]||k)
+function equipKindOptions(sel,withEmpty){if(!sel)return;const cur=sel.value;sel.innerHTML=(withEmpty?'<option value="">—</option>':'')+EQUIP_KINDS.map(k=>'<option value="'+k+'">'+equipKindLabel(k)+'</option>').join('');if(cur)sel.value=cur}
+equipKindOptions(document.getElementById('enKind'));equipKindOptions(document.getElementById('ntKind'),true)
 function cookName(c){return c.user_id?(equipNames['u:'+c.user_id]||'—'):(c.staff_id?(equipNames['s:'+c.staff_id]||'Staff'):'—')}
 function cookDue(c){if(!c||c.target_minutes==null)return null;const due=new Date(c.start_time).getTime()+c.target_minutes*60000;const rem=due-Date.now();return{due,rem,overdue:rem<0}}
 window.loadEquip=async function(){
@@ -116,7 +119,7 @@ window.editEquip=function(id){
   const d=$('eqr_'+id); if(!d)return
   d.style.flexDirection='column'; d.style.alignItems='stretch'
   const esc=s=>(s||'').replace(/"/g,'&quot;')
-  const kinds=['oven','sous_vide','combi','blast_chiller','freezer','other']
+  const kinds=EQUIP_KINDS
   d.innerHTML=`<input id="eqn_${id}" value="${esc(e.name)}" placeholder="Name" />
     <div class="row" style="margin-top:8px">
       <select id="eqk_${id}">${kinds.map(k=>`<option value="${k}" ${e.kind===k?'selected':''}>${equipKindLabel(k)}</option>`).join('')}</select>
