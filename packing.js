@@ -6,6 +6,7 @@
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
 let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packComponents={}
 let packViewDate=null   // set to a past yyyy-mm-dd to view history read-only
+let packShowPlan=false  // dish list toggle: live/packed view vs planned order
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
 window.loadPacking=async function(){
@@ -90,11 +91,14 @@ function renderPacking(){
     ${packHistoryPicker()}
   </div>`
 
-  html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">Dish list</h2>`
-  if(packRuns.length) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
-  html+=`</div>`
+  html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Dish list</h2><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">`
+  if(packRuns.length) html+=`<button class="ghost sm" onclick="packTogglePlan()">${packShowPlan?'Live view':'Plan order'}</button><button class="ghost sm" onclick="packPlanReport()">Print plan (PDF)</button>`
+  if(packRuns.length&&!viewing&&!packShowPlan) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
+  html+=`</span></div>`
   if(!packRuns.length){
     html+=viewing?`<p class="muted">No dishes were loaded on this day.</p>`:`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
+  } else if(packShowPlan){
+    html+=packPlanList()
   } else {
     if(!viewing)html+=packActionPanel(packing,next)
     const _plannedSorted=[...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
@@ -782,4 +786,68 @@ window.packViewHistory=async function(d){
 }
 function packHistRow(r){
   return `<div class="task-item" style="align-items:center;gap:10px"><div style="flex:0 0 auto;text-align:center;min-width:34px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:16px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div><b style="flex:1;min-width:0;font-size:14px">${esc(r.dish_name)}</b><span class="muted" style="font-size:12px">${r.planned_qty??'–'} planned</span>${r.notes?`<span style="color:#fcd34d;font-size:12px">📝 ${esc(r.notes)}</span>`:''}</div>`
+}
+
+/* ---------- PLAN ORDER (view + printable PDF) ----------
+   The planned sequence lives on each run row (planned_seq, set at import).
+   Works for today and for any history day loaded via the date picker. */
+function _packPlanSorted(){return [...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))}
+function _packPackedPos(){const m={};packRuns.filter(r=>r.pack_seq!=null).sort((a,b)=>a.pack_seq-b.pack_seq).forEach((r,i)=>{m[r.id]=i+1});return m}
+window.packTogglePlan=function(){packShowPlan=!packShowPlan;renderPacking()}
+function packPlanList(){
+  const plan=_packPlanSorted(), packedPos=_packPackedPos()
+  const meals=plan.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
+  let h=`<p class="muted" style="margin:14px 0 4px">Plan order — the sequence as imported/planned for this day · <b style="color:var(--txt)">${plan.length}</b> dishes · <b style="color:var(--txt)">${meals}</b> meals.</p>`
+  plan.forEach((r,i)=>{
+    let st='<span class="pill off">pending</span>'
+    if(r.status==='done')st=`<span class="pill done">done${packedPos[r.id]?' · packed #'+packedPos[r.id]:''}</span>`
+    else if(r.status==='skipped')st='<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">skipped</span>'
+    else if(r.status==='packing')st='<span class="pill live">● packing</span>'
+    h+=`<div class="task-item" style="align-items:center;gap:10px"><b style="min-width:26px">#${i+1}</b><div style="flex:0 0 auto;text-align:center;min-width:34px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:16px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div><b style="flex:1;min-width:0;font-size:14px">${esc(r.dish_name)}</b><span class="muted" style="font-size:12px">${r.planned_qty??'–'}</span>${st}</div>`
+  })
+  return h
+}
+window.packPlanReport=async function(){
+  if(!packShift||!packRuns.length){alert('No dishes loaded for this day — nothing to print.');return}
+  try{await _eodLibs()}catch(e){alert(e.message);return}
+  const {jsPDF}=window.jspdf
+  const doc=new jsPDF({unit:'pt',format:'a4'})
+  const W=595.28, H=841.89, M=34
+  const INK=[28,26,25], ORANGE=[232,84,29], GREY=[138,133,128], LINE=[220,215,209], SOFT=[236,232,227]
+  const plan=_packPlanSorted(), packedPos=_packPackedPos()
+  const meals=plan.reduce((s,r)=>s+(Number(r.planned_qty)||0),0)
+  const started=plan.some(r=>r.status!=='pending')
+  const header=()=>{
+    doc.setFillColor.apply(doc,INK);doc.rect(0,0,W,54,'F')
+    doc.setFillColor.apply(doc,ORANGE);doc.rect(0,0,6,54,'F')
+    doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(251,250,248);doc.text('PACKING — PLAN ORDER',M,24)
+    const dateStr=new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(201,194,187);doc.text(dateStr,M,40)
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(251,250,248);doc.text(plan.length+' dishes · '+meals.toLocaleString()+' meals',W-M,24,{align:'right'})
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(201,194,187);doc.text('Target '+packTarget+'/hr',W-M,40,{align:'right'})
+  }
+  header()
+  const body=plan.map((r,i)=>{
+    let st=''
+    if(r.status==='done')st='done'+(packedPos[r.id]?' (packed #'+packedPos[r.id]+')':'')
+    else if(r.status==='skipped')st='skipped'
+    else if(r.status==='packing')st='packing now'
+    return [i+1,r.sku||'–',r.dish_name,r.planned_qty!=null?r.planned_qty:'–',started?st:'','']
+  })
+  doc.autoTable({startY:76,margin:{left:M,right:M,top:76,bottom:36},theme:'plain',
+    didDrawPage:d=>{if(d.pageNumber>1)header()},
+    styles:{font:'helvetica',fontSize:8.6,cellPadding:{top:3.2,bottom:3.2,left:2,right:2},textColor:INK,lineColor:SOFT,lineWidth:{bottom:.5}},
+    headStyles:{fontSize:6.8,fontStyle:'bold',textColor:GREY,lineColor:INK,lineWidth:{bottom:1}},
+    columnStyles:{0:{cellWidth:24,halign:'right',fontStyle:'bold'},1:{cellWidth:30,fontStyle:'bold'},3:{cellWidth:34,halign:'right',fontStyle:'bold'},4:{cellWidth:86,textColor:GREY},5:{cellWidth:34}},
+    head:[['#','SKU','DISH','QTY',started?'STATUS':'','DONE']],
+    body,
+    didDrawCell:d=>{ if(d.section==='body'&&d.column.index===5){doc.setDrawColor.apply(doc,GREY);doc.setLineWidth(.8);doc.rect(d.cell.x+d.cell.width/2-4.5,d.cell.y+d.cell.height/2-4.5,9,9)} }
+  })
+  const n=doc.getNumberOfPages()
+  for(let p=1;p<=n;p++){doc.setPage(p)
+    doc.setDrawColor.apply(doc,LINE);doc.line(M,H-28,W-M,H-28)
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GREY)
+    doc.text('Planned run order · generated '+new Date().toLocaleString('en-GB'),M,H-18)
+    doc.text('Chefly SIM Tracker · page '+p+' of '+n,W-M,H-18,{align:'right'})}
+  doc.save('Chefly-Packing-Plan-'+packShift.shift_date+'.pdf')
 }
