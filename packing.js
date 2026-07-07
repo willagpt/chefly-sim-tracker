@@ -5,12 +5,18 @@
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
 let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packComponents={}
+let packViewDate=null   // set to a past yyyy-mm-dd to view history read-only
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
 window.loadPacking=async function(){
   const today=new Date().toISOString().slice(0,10)
-  let {data:sh}=await sb.from('sim_pack_shifts').select('*').eq('shift_date',today).maybeSingle()
-  if(!sh){const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data}
+  if(packViewDate===today)packViewDate=null
+  const qd=packViewDate||today
+  let {data:sh}=await sb.from('sim_pack_shifts').select('*').eq('shift_date',qd).maybeSingle()
+  if(!sh){
+    if(packViewDate){const box=$('packBody');if(box)box.innerHTML='<div class="card"><h2 style="margin-top:0">Packing history</h2>'+packHistoryPicker()+'<p class="muted" style="margin-top:10px">No packing shift recorded on '+esc(packViewDate)+'.</p></div>';return}
+    const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data
+  }
   packShift=sh
   const [pos,mem,asg,runs,brk,cfg,comp]=await Promise.all([
     sb.from('sim_pack_positions').select('*').eq('active',true).order('sort_order'),
@@ -61,6 +67,7 @@ function packRate(r){ // meals per hour for a finished dish
 function _daySpan(a,b){if(!a||!b)return '';let m=Math.round((new Date(b)-new Date(a))/60000);if(m<0)m=0;const h=Math.floor(m/60);m=m%60;return (h?h+'h ':'')+m+'m'}
 function renderPacking(){
   const box=$('packBody'); if(!box)return
+  const viewing=!!packViewDate
   const done=packRuns.filter(r=>r.status==='done'), packing=packRuns.find(r=>r.status==='packing')
   const next=packRuns.find(r=>r.status==='pending')
   const skipped=packRuns.filter(r=>r.status==='skipped').length
@@ -71,7 +78,7 @@ function renderPacking(){
   const avgCo=cos.length?(cos.reduce((s,r)=>s+Number(r.changeover_mins),0)/cos.length):null
   let html=''
   html+=`<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${packShift.shift_date}</h2><span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${packShift.shift_date}</h2>${viewing?'<span class="pill off">📅 history</span>':`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
     <div class="stat-grid" style="margin-top:10px">
       <div class="stat"><div class="n">${done.length}/${packRuns.length}</div><div class="l">Dishes</div></div>
       <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
@@ -80,15 +87,16 @@ function renderPacking(){
     <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min</span>${skipped?' · '+skipped+' skipped':''}</p>
     <p class="muted" style="margin-top:2px">Target: <b style="color:var(--txt)">${packTarget}/hr</b> <a class="link" onclick="packSetTarget()">adjust</a></p>
     <button class="ghost sm" style="margin-top:8px" onclick="packEodReport()">\u{1F4C4} End-of-day report (PDF)</button>
+    ${packHistoryPicker()}
   </div>`
 
   html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">Dish list</h2>`
   if(packRuns.length) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
   html+=`</div>`
   if(!packRuns.length){
-    html+=`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
+    html+=viewing?`<p class="muted">No dishes were loaded on this day.</p>`:`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
   } else {
-    html+=packActionPanel(packing,next)
+    if(!viewing)html+=packActionPanel(packing,next)
     const _plannedSorted=[...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
     const _plannedRank={}; _plannedSorted.forEach((r,i)=>{_plannedRank[r.id]=i+1})
     const started=packRuns.filter(r=>r.pack_seq!=null).sort((a,b)=>a.pack_seq-b.pack_seq)
@@ -102,26 +110,42 @@ function renderPacking(){
       if(_dayStart) html+=`<div class="muted" style="font-size:13px;margin:-2px 0 8px">🕒 Day: <b style="color:var(--txt)">${fmtTime(_dayStart)}</b> → <b style="color:var(--txt)">${_dayEnd?fmtTime(_dayEnd):'in progress'}</b>${(_dayStart&&_dayEnd)?' · '+_daySpan(_dayStart,_dayEnd)+' elapsed':''}</div>`
       started.forEach((r,i)=>{ html+=packedRunRow(r,i+1,_plannedRank[r.id]) })
     }
-    html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⠿ to reorder.</p><div id="packDishList">`
-    if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
-    else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
-    html+='</div>'
+    if(viewing){
+      if(pending.length){ html+=`<p class="muted" style="margin:16px 0 4px">Never started</p>`; pending.forEach(r=>{ html+=packHistRow(r) }) }
+    } else {
+      html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⠿ to reorder.</p><div id="packDishList">`
+      if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
+      else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
+      html+='</div>'
+    }
     if(skippedRuns.length){
       html+=`<p class="muted" style="margin:16px 0 4px">Skipped</p>`
-      skippedRuns.forEach(r=>{ html+=packRunRow(r) })
+      skippedRuns.forEach(r=>{ html+=viewing?packHistRow(r):packRunRow(r) })
     }
-    html+='<button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
+    if(!viewing)html+='<button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
   }
   html+='</div>'
 
   html+=`<div class="card"><h2>Team &amp; positions</h2>`
-  if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
-  packPositions.forEach(p=>{
-    const a=packAssignments[p.id]
-    html+=`<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:3px">${esc(p.label)}</div><select onchange="packAssign('${p.id}',this.value)">${packMemberOptions(a?a.member_id:'')}</select></div>`
-  })
+  if(viewing){
+    const asgn=packPositions.map(p=>{const a=packAssignments[p.id];return a?`<div style="font-size:13px;margin-bottom:4px"><span class="muted">${esc(p.label)}:</span> <b>${esc(packMemberName(a.member_id))}</b></div>`:''}).join('')
+    html+=asgn||'<p class="muted">No roster recorded for this day.</p>'
+  } else {
+    if(!packMembers.length) html+=`<p class="muted">No packing roster yet. An admin adds people in Manage → Packing team.</p>`
+    packPositions.forEach(p=>{
+      const a=packAssignments[p.id]
+      html+=`<div style="margin-bottom:8px"><div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:3px">${esc(p.label)}</div><select onchange="packAssign('${p.id}',this.value)">${packMemberOptions(a?a.member_id:'')}</select></div>`
+    })
+  }
   html+='</div>'
 
+  if(viewing){
+    html+=`<div class="card"><h2>Breaks</h2>`
+    html+=packBreaks.length?packBreaks.map(b=>`<div class="task-item"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">${brkDuration(b)}${b.approved_by?' · '+esc(b.approved_by):''}</div></div></div>`).join(''):'<p class="muted">No breaks recorded.</p>'
+    html+='</div>'
+    box.innerHTML=html
+    return
+  }
   const onBreak=packBreaks.filter(b=>b.started_at&&!b.ended_at)
   const loggedBreaks=packBreaks.filter(b=>!(b.started_at&&!b.ended_at))
   html+=`<div class="card"><h2>Breaks <span class="pill ${onBreak.length?'live':'off'}">${onBreak.length} on break now</span></h2>`
@@ -615,7 +639,7 @@ window.packEodReport=async function(){
   }
 
   /* ---- PAGE 1 : SUMMARY ---- */
-  header(S.open.length?('INTERIM — '+S.open.length+' dish(es) still open; re-run at end of day.'):null)
+  header(S.open.length?(packViewDate?('NOTE — '+S.open.length+' dish(es) were never finished on this day.'):('INTERIM — '+S.open.length+' dish(es) still open; re-run at end of day.')):null)
   let y=S.open.length?86:78
   // KPI band
   const pct=S.plannedMeals?Math.round(S.packedMeals/S.plannedMeals*100):0
@@ -742,4 +766,20 @@ window.packEodReport=async function(){
   const nPages=doc.getNumberOfPages()
   for(let p=1;p<=nPages;p++){doc.setPage(p);footer(p,nPages)}
   doc.save('Chefly-Packing-EOD-'+packShift.shift_date+'.pdf')
+}
+
+/* ---------- PACKING HISTORY (view a previous day, read-only) ---------- */
+function packHistoryPicker(){
+  if(!(typeof isManagerUp==='function'&&isManagerUp())) return ''
+  const today=new Date().toISOString().slice(0,10)
+  const v=packViewDate||today
+  return `<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="muted" style="font-size:13px">📅 View day:</span><input type="date" value="${v}" max="${today}" onchange="packViewHistory(this.value)" style="max-width:180px" />${packViewDate?`<a class="link" style="font-size:13px" onclick="packViewHistory('')">← Back to today</a>`:''}</div>`
+}
+window.packViewHistory=async function(d){
+  const today=new Date().toISOString().slice(0,10)
+  packViewDate=(d&&d<today)?d:null
+  await loadPacking()
+}
+function packHistRow(r){
+  return `<div class="task-item" style="align-items:center;gap:10px"><div style="flex:0 0 auto;text-align:center;min-width:34px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:16px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div><b style="flex:1;min-width:0;font-size:14px">${esc(r.dish_name)}</b><span class="muted" style="font-size:12px">${r.planned_qty??'–'} planned</span>${r.notes?`<span style="color:#fcd34d;font-size:12px">📝 ${esc(r.notes)}</span>`:''}</div>`
 }
