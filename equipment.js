@@ -5,6 +5,16 @@ const EQUIP_KINDS=['oven','bratt_pan','sous_vide','combi','blast_chiller','freez
 const equipKindLabel=k=>({oven:'Oven',bratt_pan:'Bratt pan',sous_vide:'Sous-vide',combi:'Combi',blast_chiller:'Blast chiller',freezer:'Freezer',other:'Equipment'}[k]||k)
 function equipKindOptions(sel,withEmpty){if(!sel)return;const cur=sel.value;sel.innerHTML=(withEmpty?'<option value="">—</option>':'')+EQUIP_KINDS.map(k=>'<option value="'+k+'">'+equipKindLabel(k)+'</option>').join('');if(cur)sel.value=cur}
 equipKindOptions(document.getElementById('enKind'));equipKindOptions(document.getElementById('ntKind'),true)
+/* tasks.js builds the task-editor vessel-type select from its own hardcoded list;
+   wrap editTask (tasks.js loads before this file) so that select follows EQUIP_KINDS too. */
+if(typeof window.editTask==='function'){
+  const _origEditTask=window.editTask
+  window.editTask=function(id){
+    _origEditTask(id)
+    const sel=document.getElementById('et_kind_'+id)
+    if(sel){const cur=sel.value;sel.innerHTML='<option value="">— vessel type —</option>'+EQUIP_KINDS.map(k=>'<option value="'+k+'">'+equipKindLabel(k)+'</option>').join('');sel.value=cur}
+  }
+}
 function cookName(c){return c.user_id?(equipNames['u:'+c.user_id]||'—'):(c.staff_id?(equipNames['s:'+c.staff_id]||'Staff'):'—')}
 function cookDue(c){if(!c||c.target_minutes==null)return null;const due=new Date(c.start_time).getTime()+c.target_minutes*60000;const rem=due-Date.now();return{due,rem,overdue:rem<0}}
 window.loadEquip=async function(){
@@ -33,7 +43,7 @@ function renderEquipBoard(){
   box.innerHTML=html
 }
 function equipCardHtml(e,c){
-  const sub=`${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}`
+  const sub=`${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}${(e.time_factor&&Number(e.time_factor)!==1)?' · ×'+e.time_factor+' cook time':''}`
   if(!c){
     const es=(typeof equipById==='function')?equipById(e.id):null
     if(es&&es.busy&&es.source==='task'){
@@ -106,7 +116,7 @@ async function loadEquipReg(){
   equipRegData=data||[]; box.innerHTML=''
   equipRegData.forEach(e=>{
     const d=document.createElement('div');d.className='task-item';d.id='eqr_'+e.id
-    d.innerHTML=`<div><b>${esc(e.name)}</b><div class="meta">${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}${e.location?' · '+esc(e.location):''}${e.active?'':' · <span style="color:#fca5a5">inactive</span>'}</div></div>`
+    d.innerHTML=`<div><b>${esc(e.name)}</b><div class="meta">${equipKindLabel(e.kind)}${e.capacity?' · '+esc(e.capacity):''}${e.location?' · '+esc(e.location):''}${(e.time_factor&&Number(e.time_factor)!==1)?' · ×'+e.time_factor+' cook time':''}${e.active?'':' · <span style="color:#fca5a5">inactive</span>'}</div></div>`
     const ctl=document.createElement('div');ctl.style.display='flex';ctl.style.gap='8px';ctl.style.flexShrink='0'
     const ed=document.createElement('button');ed.className='ghost sm';ed.textContent='Edit';ed.onclick=()=>editEquip(e.id)
     const rm=document.createElement('button');rm.className='ghost sm';rm.textContent=e.active?'Remove':'Restore';rm.onclick=async()=>{await sb.from('sim_equipment').update({active:!e.active}).eq('id',e.id);loadEquipReg()}
@@ -126,6 +136,7 @@ window.editEquip=function(id){
       <input id="eqc_${id}" value="${esc(e.capacity)}" placeholder="Capacity" />
     </div>
     <input id="eql_${id}" value="${esc(e.location)}" placeholder="Location" style="margin-top:8px" />
+    <div style="margin-top:8px"><label style="font-size:12px;color:var(--muted)">Cook-time factor — 1 = standard · 1.2 = 20% slower · 0.8 = 20% faster</label><input id="eqtf_${id}" type="number" step="0.05" min="0.1" value="${e.time_factor??1}" /></div>
     <div class="row" style="margin-top:8px">
       <button class="green sm" style="flex:1" onclick="saveEquip('${id}')">Save</button>
       <button class="ghost sm" style="flex:1" onclick="loadEquipReg()">Cancel</button>
@@ -133,7 +144,7 @@ window.editEquip=function(id){
 }
 window.saveEquip=async function(id){
   const name=$('eqn_'+id).value.trim(); if(!name){alert('Name required');return}
-  const {error}=await sb.from('sim_equipment').update({name,kind:$('eqk_'+id).value,capacity:$('eqc_'+id).value.trim()||null,location:$('eql_'+id).value.trim()||null}).eq('id',id)
+  const {error}=await sb.from('sim_equipment').update({name,kind:$('eqk_'+id).value,capacity:$('eqc_'+id).value.trim()||null,location:$('eql_'+id).value.trim()||null,time_factor:(Number($('eqtf_'+id).value)||1)}).eq('id',id)
   if(error){msg($('enMsg'),error.message,false);return}
   loadEquipReg(); msg($('enMsg'),'Updated.',true)
 }
