@@ -92,11 +92,12 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','dash','history','perf','plan','trace','manage']
+const TAB_KEYS=['log','equip','pack','kitchen','dash','history','perf','plan','trace','manage']
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
   const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
   if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'pack',label:'Packing'})
+  tabs.push({k:'kitchen',label:'Kitchen'})
   if(isManagerUp()) tabs.push({k:'dash',label:'Live Dashboard'})
   if(isManagerUp()) tabs.push({k:'history',label:'History'})
   if(isManagerUp()) tabs.push({k:'perf',label:'Performance'})
@@ -111,6 +112,7 @@ window.showTab=function(which){
   TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='equip') loadEquip()
   if(which==='pack') loadPacking()
+  if(which==='kitchen') loadKitchen()
   if(which==='dash') refreshDashboard()
   if(which==='history') initHistory()
   if(which==='perf') initPerf()
