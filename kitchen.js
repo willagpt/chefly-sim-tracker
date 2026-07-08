@@ -153,8 +153,13 @@ window.kitchenShowProduction=async function(dateStr){
   if(error){alert(error.message);return}
   kitchenCloseRecipe()
   const comps=(r&&r.components)||[], subs=(r&&r.sub_preps)||[], raws=(r&&r.raws)||[]
+  const _sts=[...new Set(comps.map(c=>c.station))]
+  const psPicker=comps.length?('<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="kpsStation" style="max-width:170px;font-size:13px;padding:4px 6px"><option value="">All stations</option>'
+    +_sts.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')
+    +'<option value="__sub">Sub-preparations</option><option value="__bulk">Advance prep (bulk)</option></select>'
+    +'<button class="ghost sm" onclick="kitchenPrintSheets(\''+d+'\',document.getElementById(\'kpsStation\').value)">\u{1F5A8} Print sheets (PDF)</button></span>'):''
   let body='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0"><span class="muted" style="font-size:13px">\u{1F4C5} Day:</span><input type="date" value="'+d+'" onchange="kitchenShowProduction(this.value)" style="max-width:170px" />'
-    +'<b>'+(r?r.meals:0)+'</b><span class="muted" style="font-size:13px">meals · '+(r?r.dishes:0)+' dishes on the imported list</span><button class="ghost sm" onclick="kitchenPrintSheets(\''+d+'\')">\u{1F5A8} Print all sheets (PDF)</button></div>'
+    +'<b>'+(r?r.meals:0)+'</b><span class="muted" style="font-size:13px">meals · '+(r?r.dishes:0)+' dishes on the imported list</span>'+psPicker+'</div>'
   if(!comps.length){
     body+='<p class="muted">No dish list imported for this date yet — load it in Manage → Weekly packing orders, then come back.</p>'
   } else {
@@ -201,7 +206,7 @@ function _psQty(kg){
   if(kg<1)return (Math.round(kg*100)/100)+' kg'
   return (Math.round(kg*10)/10)+' kg'
 }
-window.kitchenPrintSheets=async function(d){
+window.kitchenPrintSheets=async function(d,st){
   d=d||new Date().toISOString().slice(0,10)
   try{await _eodLibs()}catch(e){alert(e.message);return}
   const [rq,recQ,ingQ]=await Promise.all([
@@ -216,11 +221,17 @@ window.kitchenPrintSheets=async function(d){
   const recById={},recByComp={},ingByRec={}
   ;((recQ&&recQ.data)||[]).forEach(r=>{recById[r.id]=r; if(r.component_id)recByComp[r.component_id]=r})
   ;((ingQ&&ingQ.data)||[]).forEach(i=>{(ingByRec[i.recipe_id]=ingByRec[i.recipe_id]||[]).push(i)})
-  const pages=[]
+  let pages=[]
   comps.forEach(c=>{pages.push({station:c.station.toUpperCase(),name:c.name,kg:c.kg,rec:recByComp[c.component_id]||null,unknown:c.unknown_grams>0})})
   subs.forEach(x=>{const r=recById[x.recipe_id]
     pages.push({station:(r&&r.prep_type==='bulk_prep')?'ADVANCE PREP (BULK)':'SUB-PREPARATION',name:x.name,kg:x.kg,rec:r||null,unknown:false})})
 
+  if(st){
+    if(st==='__sub')pages=pages.filter(p=>p.station==='SUB-PREPARATION')
+    else if(st==='__bulk')pages=pages.filter(p=>p.station==='ADVANCE PREP (BULK)')
+    else pages=pages.filter(p=>p.station===String(st).toUpperCase())
+    if(!pages.length){alert('Nothing to print for that selection on '+d+'.');return}
+  }
   const {jsPDF}=window.jspdf
   const doc=new jsPDF({unit:'pt',format:'a4'})
   const W=595.28,H=841.89,M=36
@@ -284,8 +295,8 @@ window.kitchenPrintSheets=async function(d){
       if(steps.length){
         y=sec(y,'METHOD')
         doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)
-        for(const st of steps){
-          const lines=doc.splitTextToSize(String(st),W-2*M-10)
+        for(const st2 of steps){
+          const lines=doc.splitTextToSize(String(st2),W-2*M-10)
           if(y+lines.length*11>H-CAP_H-40){doc.addPage();header(p,true);y=76;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)}
           doc.text(lines,M+4,y); y+=lines.length*11+2
         }
@@ -302,5 +313,5 @@ window.kitchenPrintSheets=async function(d){
   })
   const n=doc.getNumberOfPages()
   for(let pg=1;pg<=n;pg++){doc.setPage(pg);tr(W-M,H-16,'Chefly production sheets - '+d+' - page '+pg+' of '+n,6.5,'normal',GREY)}
-  doc.save('Chefly-Production-Sheets-'+d+'.pdf')
+  doc.save('Chefly-Production-Sheets-'+d+(st?'-'+String(st).replace(/[^A-Za-z0-9]+/g,'_'):'')+'.pdf')
 }

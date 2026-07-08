@@ -40,7 +40,7 @@
 <body>
 <div id="root"><div class="err" id="err" style="display:none"></div><div id="content" style="display:none">
   <header>
-    <div class="brand"><span class="dot"></span> Kitchen — Cook Queue</div>
+    <div class="brand"><span class="dot"></span> Kitchen — Cook Queue<span id="stName" style="color:var(--accent)"></span></div>
     <div class="clock" id="clock"></div>
   </header>
   <div class="stat-grid">
@@ -55,6 +55,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
 const token = new URLSearchParams(location.search).get('t') || ''
+const stationFilter = (new URLSearchParams(location.search).get('station')||'').trim()
 const $=id=>document.getElementById(id)
 function esc(v){if(v==null)return '';return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function showErr(m){ $('err').style.display='block'; $('err').textContent=m; $('content').style.display='none' }
@@ -64,7 +65,8 @@ async function refresh(){
   const {data,error}=await sb.rpc('sim_public_kitchen',{p_token:token})
   if(error){ showErr('Could not load (check the link / token). '+error.message); return }
   $('err').style.display='none'; $('content').style.display='block'
-  const comps=(data&&data.components)||[]
+  let comps=(data&&data.components)||[]
+  if(stationFilter){ comps=comps.filter(c=>String(c.station).toLowerCase()===stationFilter.toLowerCase()); document.getElementById('stName').textContent=' — '+stationFilter }
   const ready=comps.filter(c=>c.status==='ready')
   const cooking=comps.filter(c=>c.status==='in_progress')
   $('stReady').textContent=ready.length+'/'+comps.length
@@ -83,7 +85,7 @@ async function refresh(){
       return '<div class="row '+cls+'"><div class="pos">'+c.priority+'<small>PACK #</small></div><div class="name">'+esc(c.name)+'<div class="sub">'+d1+'</div></div><div class="kg">'+kg+'</div>'+badge+'</div>'
     }).join('')
     return '<div class="panel"><h2>'+esc(st)+'<span class="cnt">'+stReady+'/'+rows.length+' ready</span></h2>'+items+'</div>'
-  }).join('') : '<div class="panel"><div class="empty">Nothing in the cook queue — waiting for today’s dish list to be loaded on Packing.</div></div>'
+  }).join('') : '<div class="panel"><div class="empty">Nothing in the cook queue'+(stationFilter?' for '+esc(stationFilter):'')+' — waiting for today’s dish list to be loaded on Packing.</div></div>'
 }
 function tickClock(){ $('clock').textContent=new Date().toLocaleString([], {weekday:'short', hour:'2-digit', minute:'2-digit'}) }
 tickClock(); setInterval(tickClock,1000)
