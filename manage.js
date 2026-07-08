@@ -126,7 +126,10 @@ function ensurePackWallEl(){
   const wrap=document.createElement('div')
   wrap.innerHTML='<label for="packWallUrl" style="display:block;margin-top:14px">Packing line wall link</label>'+
     '<input id="packWallUrl" type="text" readonly style="width:100%" value="(generate the link above first)" />'+
-    '<div class="row" style="margin-top:6px"><button class="ghost" onclick="copyPackWall()">Copy packing wall link</button></div>'
+    '<div class="row" style="margin-top:6px"><button class="ghost" onclick="copyPackWall()">Copy packing wall link</button></div>'+
+    '<label for="kitchenWallUrl" style="display:block;margin-top:14px">Kitchen wall link (cook queue)</label>'+
+    '<input id="kitchenWallUrl" type="text" readonly style="width:100%" value="(generate the link above first)" />'+
+    '<div class="row" style="margin-top:6px"><button class="ghost" onclick="copyKitchenWall()">Copy kitchen wall link</button></div>'
   const anchor=$('wallMsg')
   if(anchor&&anchor.parentNode===host.parentNode) host.parentNode.insertBefore(wrap,anchor)
   else host.parentNode.appendChild(wrap)
@@ -138,6 +141,7 @@ async function loadWallUrl(){
   const tok=data&&data.value
   $('wallUrl').value = tok ? (location.origin+'/wall.html?t='+tok) : '(not generated yet — tap Generate)'
   if($('packWallUrl')) $('packWallUrl').value = tok ? (location.origin+'/packwall.html?t='+tok) : '(generate the link above first)'
+  if($('kitchenWallUrl')) $('kitchenWallUrl').value = tok ? (location.origin+'/kitchenwall.html?t='+tok) : '(generate the link above first)'
 }
 window.genWallToken=async function(){
   if(!confirm('Generate a new wall link? Any existing link will stop working.'))return
@@ -146,10 +150,12 @@ window.genWallToken=async function(){
   ensurePackWallEl()
   $('wallUrl').value=location.origin+'/wall.html?t='+data
   if($('packWallUrl')) $('packWallUrl').value=location.origin+'/packwall.html?t='+data
+  if($('kitchenWallUrl')) $('kitchenWallUrl').value=location.origin+'/kitchenwall.html?t='+data
   msg($('wallMsg'),'New links ready — office board (wall.html) and packing line (packwall.html).',true)
 }
 window.copyWall=function(){const v=$('wallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Office wall link copied.',true)}}
 window.copyPackWall=function(){const v=$('packWallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Packing wall link copied.',true)}}
+window.copyKitchenWall=function(){const v=$('kitchenWallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Kitchen wall link copied.',true)}}
 
 // ---- history / reports (manager/admin) ----
 let historyRows=[], histLogs=[], histProfs=[], histStaffs=[], leCurrentId=null, histView='summary'
