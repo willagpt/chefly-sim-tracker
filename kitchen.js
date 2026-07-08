@@ -154,7 +154,7 @@ window.kitchenShowProduction=async function(dateStr){
   kitchenCloseRecipe()
   const comps=(r&&r.components)||[], subs=(r&&r.sub_preps)||[], raws=(r&&r.raws)||[]
   let body='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0"><span class="muted" style="font-size:13px">\u{1F4C5} Day:</span><input type="date" value="'+d+'" onchange="kitchenShowProduction(this.value)" style="max-width:170px" />'
-    +'<b>'+(r?r.meals:0)+'</b><span class="muted" style="font-size:13px">meals · '+(r?r.dishes:0)+' dishes on the imported list</span></div>'
+    +'<b>'+(r?r.meals:0)+'</b><span class="muted" style="font-size:13px">meals · '+(r?r.dishes:0)+' dishes on the imported list</span><button class="ghost sm" onclick="kitchenPrintSheets(\''+d+'\')">\u{1F5A8} Print all sheets (PDF)</button></div>'
   if(!comps.length){
     body+='<p class="muted">No dish list imported for this date yet — load it in Manage → Weekly packing orders, then come back.</p>'
   } else {
@@ -190,4 +190,117 @@ window.kitchenShowProduction=async function(dateStr){
     +body+'</div>'
   m.onclick=function(e){ if(e.target===m)kitchenCloseRecipe() }
   document.body.appendChild(m)
+}
+
+/* ---------- PRINTABLE PRODUCTION SHEETS (A4 per component, station-grouped) ----------
+   Ingredients scaled to the day's kg + method + HACCP/trace capture boxes.
+   jsPDF built-in fonts are WinAnsi: no emoji/arrows in PDF text (degree sign is fine). */
+function _psQty(kg){
+  if(kg==null||isNaN(kg))return '-'
+  if(kg<0.1)return Math.round(kg*1000)+' g'
+  if(kg<1)return (Math.round(kg*100)/100)+' kg'
+  return (Math.round(kg*10)/10)+' kg'
+}
+window.kitchenPrintSheets=async function(d){
+  d=d||new Date().toISOString().slice(0,10)
+  try{await _eodLibs()}catch(e){alert(e.message);return}
+  const [rq,recQ,ingQ]=await Promise.all([
+    sb.rpc('sim_production_requirements',{p_date:d}),
+    sb.from('sim_component_recipes').select('id,component_id,name,tab,source_file,prep_type,method,equipment,cook_notes'),
+    sb.from('sim_component_ingredients').select('recipe_id,name,ratio_per_kg,sort_order')
+  ])
+  if(rq.error){alert(rq.error.message);return}
+  const req=rq.data||{}
+  const comps=req.components||[], subs=req.sub_preps||[]
+  if(!comps.length){alert('No dish list imported for '+d+' - nothing to print.');return}
+  const recById={},recByComp={},ingByRec={}
+  ;((recQ&&recQ.data)||[]).forEach(r=>{recById[r.id]=r; if(r.component_id)recByComp[r.component_id]=r})
+  ;((ingQ&&ingQ.data)||[]).forEach(i=>{(ingByRec[i.recipe_id]=ingByRec[i.recipe_id]||[]).push(i)})
+  const pages=[]
+  comps.forEach(c=>{pages.push({station:c.station.toUpperCase(),name:c.name,kg:c.kg,rec:recByComp[c.component_id]||null,unknown:c.unknown_grams>0})})
+  subs.forEach(x=>{const r=recById[x.recipe_id]
+    pages.push({station:(r&&r.prep_type==='bulk_prep')?'ADVANCE PREP (BULK)':'SUB-PREPARATION',name:x.name,kg:x.kg,rec:r||null,unknown:false})})
+
+  const {jsPDF}=window.jspdf
+  const doc=new jsPDF({unit:'pt',format:'a4'})
+  const W=595.28,H=841.89,M=36
+  const INK=[28,26,25],ORANGE=[232,84,29],GREY=[138,133,128],LINE=[220,215,209],SOFT=[236,232,227]
+  const t=(x,y,s2,size,style,col)=>{doc.setFont('helvetica',style||'normal');doc.setFontSize(size);doc.setTextColor.apply(doc,col||INK);doc.text(String(s2),x,y)}
+  const tr=(x,y,s2,size,style,col)=>{doc.setFont('helvetica',style||'normal');doc.setFontSize(size);doc.setTextColor.apply(doc,col||INK);doc.text(String(s2),x,y,{align:'right'})}
+  const dateStr=new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+
+  const header=(p,cont)=>{
+    doc.setFillColor.apply(doc,INK);doc.rect(0,0,W,58,'F')
+    doc.setFillColor.apply(doc,ORANGE);doc.rect(0,0,6,58,'F')
+    t(M,20,'PRODUCTION SHEET - '+p.station+(cont?' (CONTINUED)':''),8,'bold',[248,205,184])
+    t(M,42,p.name.length>44?p.name.slice(0,43)+'...':p.name,17,'bold',[251,250,248])
+    tr(W-M,20,dateStr,9,'normal',[201,194,187])
+    tr(W-M,44,(p.kg!=null? _psQty(p.kg):'-')+(p.unknown?' +?':''),16,'bold',[251,250,248])
+  }
+  // fixed capture block: returns its height
+  const CAP_H=178
+  const capture=(y0)=>{
+    const bw=(W-2*M)
+    const box=(x,y,w,h,label)=>{doc.setDrawColor.apply(doc,GREY);doc.setLineWidth(.8);doc.rect(x,y,w,h);t(x+4,y+9,label,6,'bold',GREY)}
+    let y=y0
+    t(M,y,'PRODUCTION RECORD',8.5,'bold',ORANGE); doc.setDrawColor.apply(doc,LINE);doc.line(M,y+3,M+bw,y+3); y+=8
+    const w5=bw/5
+    box(M,y,w5*1.4,30,'MADE BY'); box(M+w5*1.4,y,w5*0.9,30,'START TIME'); box(M+w5*2.3,y,w5*0.9,30,'FINISH TIME'); box(M+w5*3.2,y,w5*0.9,30,'START TEMP °C'); box(M+w5*4.1,y,w5*0.9,30,'FINISH TEMP °C')
+    y+=36
+    t(M,y+7,'CCP COOKING - critical limit 72°C for 60 seconds',7.5,'bold',INK)
+    box(M+bw-3*w5*0.9,y,w5*0.9,26,'TEMP °C'); box(M+bw-2*w5*0.9,y,w5*0.9,26,'TIME'); box(M+bw-w5*0.9,y,w5*0.9,26,'PASS Y/N')
+    y+=32
+    t(M,y+7,'CCP CHILLING - 5°C or less within 90 min (max 8°C; stay in chiller until 5°C)',7.5,'bold',INK)
+    y+=12
+    box(M,y,w5*0.9,30,'CHILL START'); box(M+w5*0.9,y,w5*0.9,30,'CHILL FINISH'); box(M+w5*1.8,y,w5*0.9,30,'FINAL TEMP °C'); box(M+w5*2.7,y,w5*1.1,30,'BATCH / TRACE CODE'); box(M+w5*3.8,y,w5*1.2,30,'CHECKED / SIGNED')
+    y+=38
+    doc.setDrawColor.apply(doc,LINE);doc.line(M,y+10,M+bw,y+10); t(M,y+7,'NOTES',6,'bold',GREY)
+    return y+16-y0+14
+  }
+  const sec=(y,title)=>{t(M,y,title,8.5,'bold',ORANGE);doc.setDrawColor.apply(doc,LINE);doc.line(M,y+3,W-M,y+3);return y+13}
+
+  pages.forEach((p,idx)=>{
+    if(idx>0)doc.addPage()
+    header(p,false)
+    let y=76
+    const ings=(p.rec&&ingByRec[p.rec.id])?[...ingByRec[p.rec.id]].sort((a,b)=>a.sort_order-b.sort_order):[]
+    if(ings.length){
+      doc.autoTable({startY:y,margin:{left:M,right:M},theme:'plain',
+        styles:{font:'helvetica',fontSize:9,cellPadding:{top:3,bottom:3,left:2,right:2},textColor:INK,lineColor:SOFT,lineWidth:{bottom:.5}},
+        headStyles:{fontSize:6.8,fontStyle:'bold',textColor:GREY,lineColor:INK,lineWidth:{bottom:1}},
+        columnStyles:{1:{cellWidth:70,halign:'right'},2:{cellWidth:70,halign:'right',fontStyle:'bold'},3:{cellWidth:120}},
+        head:[['INGREDIENT','PER KG','TODAY','LOT / TRACE CODE']],
+        body:ings.map(i=>[i.name, i.ratio_per_kg!=null?_psQty(i.ratio_per_kg):'-',
+          (i.ratio_per_kg!=null&&p.kg!=null)?_psQty(i.ratio_per_kg*p.kg):'-','']),
+        didDrawCell:c=>{ if(c.section==='body'&&c.column.index===3){doc.setDrawColor.apply(doc,GREY);doc.setLineWidth(.5);doc.rect(c.cell.x+4,c.cell.y+3,c.cell.width-8,c.cell.height-6)} }})
+      y=doc.lastAutoTable.finalY+14
+    } else {
+      y=sec(y,'INGREDIENTS')
+      doc.setFont('helvetica','italic');doc.setFontSize(9);doc.setTextColor.apply(doc,GREY)
+      doc.text(p.rec?'No ingredient lines on the source tab.':'No recipe imported for this component - quantities only.',M,y); y+=18
+    }
+    if(p.rec){
+      const steps=[...(p.rec.method||[]),...(p.rec.cook_notes||[])]
+      if(steps.length){
+        y=sec(y,'METHOD')
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)
+        for(const st of steps){
+          const lines=doc.splitTextToSize(String(st),W-2*M-10)
+          if(y+lines.length*11>H-CAP_H-40){doc.addPage();header(p,true);y=76;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)}
+          doc.text(lines,M+4,y); y+=lines.length*11+2
+        }
+        y+=6
+      }
+      if((p.rec.equipment||[]).length){
+        if(y>H-CAP_H-40){doc.addPage();header(p,true);y=76}
+        t(M,y,'Equipment: '+p.rec.equipment.join('  /  '),8,'normal',GREY); y+=14
+      }
+    }
+    if(y>H-CAP_H-24){doc.addPage();header(p,true);y=76}
+    capture(Math.max(y+6,H-CAP_H-18))
+    if(p.rec)t(M,H-16,'Source: '+(p.rec.source_file||'')+' - tab "'+p.rec.tab+'"',6.5,'normal',GREY)
+  })
+  const n=doc.getNumberOfPages()
+  for(let pg=1;pg<=n;pg++){doc.setPage(pg);tr(W-M,H-16,'Chefly production sheets - '+d+' - page '+pg+' of '+n,6.5,'normal',GREY)}
+  doc.save('Chefly-Production-Sheets-'+d+'.pdf')
 }
