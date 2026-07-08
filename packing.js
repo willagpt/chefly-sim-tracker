@@ -5,6 +5,7 @@
 
 let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRuns=[], packBreaks=[], packTimer=null
 let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packComponents={}
+let packBom={}, packCompStat={}, packCompName={}   // dish BOM + kitchen component status (cook queue)
 let packViewDate=null   // set to a past yyyy-mm-dd to view history read-only
 let packShowPlan=false  // dish list toggle: live/packed view vs planned order
 const PACK_CO_TARGET=3   // minutes — SKU change target
@@ -19,19 +20,25 @@ window.loadPacking=async function(){
     const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data
   }
   packShift=sh
-  const [pos,mem,asg,runs,brk,cfg,comp]=await Promise.all([
+  const [pos,mem,asg,runs,brk,cfg,comp,bomQ,csQ,cnQ]=await Promise.all([
     sb.from('sim_pack_positions').select('*').eq('active',true).order('sort_order'),
     sb.from('sim_pack_members').select('*').eq('active',true).order('sort_order').order('full_name'),
     sb.from('sim_pack_assignments').select('*').eq('shift_id',sh.id),
     sb.from('sim_pack_runs').select('*').eq('shift_id',sh.id).order('sort_order'),
     sb.from('sim_pack_breaks').select('*').eq('shift_id',sh.id).order('created_at'),
     sb.from('sim_pack_settings').select('target_per_hour').eq('id',1).maybeSingle(),
-    sb.from('sim_pack_dish_components').select('*')
+    sb.from('sim_pack_dish_components').select('*'),
+    sb.from('sim_dish_bom').select('sku,component_id'),
+    sb.from('sim_component_status').select('*').eq('shift_date',qd),
+    sb.from('sim_components').select('id,name').eq('active',true)
   ])
   packPositions=pos.data||[]; packMembers=mem.data||[]; packRuns=runs.data||[]; packBreaks=brk.data||[]
   packTarget=(cfg&&cfg.data&&Number(cfg.data.target_per_hour))||500
   packComponents={}; ((comp&&comp.data)||[]).forEach(c=>{packComponents[c.sku]=c.components})
   packAssignments={}; (asg.data||[]).forEach(a=>{packAssignments[a.position_id]=a})
+  packBom={}; ((bomQ&&bomQ.data)||[]).forEach(b=>{(packBom[b.sku]=packBom[b.sku]||[]).push(b.component_id)})
+  packCompStat={}; ((csQ&&csQ.data)||[]).forEach(s=>{packCompStat[s.component_id]=s.status})
+  packCompName={}; ((cnQ&&cnQ.data)||[]).forEach(c=>{packCompName[c.id]=c.name})
   renderPacking()
   packSubscribe()
   if(packTimer)clearInterval(packTimer); packTimer=setInterval(packTick,1000)
@@ -46,6 +53,7 @@ function packSubscribe(){
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_dish_import'},packLiveRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_settings'},packLiveRefresh)
     .on('postgres_changes',{event:'*',schema:'public',table:'sim_pack_dish_components'},packLiveRefresh)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sim_component_status'},packLiveRefresh)
     .subscribe()
 }
 function packLiveRefresh(){
@@ -168,6 +176,26 @@ function renderPacking(){
   box.innerHTML=html
   packAttachDnD()
 }
+function packDishReadiness(sku){
+  const ids=packBom[sku]
+  if(!ids||!ids.length)return {state:'unknown',missing:[]}
+  const missing=ids.filter(id=>packCompStat[id]!=='ready').map(id=>packCompName[id]||'component')
+  return missing.length?{state:'blocked',missing:missing}:{state:'ready',missing:[]}
+}
+function packReadyBadge(sku){
+  if(packViewDate)return ''
+  const rd=packDishReadiness(sku)
+  if(rd.state==='ready')return ' <span class="pill" style="background:rgba(34,197,94,.18);color:#86efac">kitchen ready</span>'
+  if(rd.state==='blocked')return ' <span class="pill" style="background:rgba(239,68,68,.18);color:#fca5a5">waiting on kitchen</span>'
+  return ''
+}
+function packMissingLine(sku){
+  if(packViewDate)return ''
+  const rd=packDishReadiness(sku)
+  if(rd.state!=='blocked')return ''
+  const list=rd.missing.slice(0,4).map(esc).join(', ')+(rd.missing.length>4?' +'+(rd.missing.length-4)+' more':'')
+  return '<div style="color:#fca5a5;font-size:12px;margin-top:4px">Kitchen still cooking: '+list+'</div>'
+}
 function packActionPanel(packing,next){
   if(packing){
     const tmin=(packTarget&&packing.planned_qty)?(packing.planned_qty/packTarget*60):null
@@ -190,6 +218,7 @@ function packActionPanel(packing,next){
       <div style="font-size:12px;color:var(--muted);letter-spacing:.5px">NEXT UP · SKU ${next.sku||'–'}</div>
       <div style="font-size:19px;font-weight:800;margin:2px 0">${esc(next.dish_name)}</div>
       <div class="muted" style="margin-bottom:2px"><b style="font-size:22px;color:var(--txt)">${next.planned_qty??'–'}</b> to pack · 🧩 <b style="color:var(--txt)">${packCompCount(next.sku)!=null?packCompCount(next.sku):'–'}</b> components <a class="link" style="font-size:13px" onclick="packSetComponents('${next.sku}')">edit</a></div>
+      ${packReadyBadge(next.sku)?'<div style="margin:2px 0">'+packReadyBadge(next.sku)+'</div>':''}${packMissingLine(next.sku)}
       ${coBlock}
       <button class="green" onclick="packStartDish('${next.id}')">▶ START</button>
       <a class="link" style="display:block;margin-top:10px;font-size:13px" onclick="packSkip('${next.id}')">Not ready — skip this dish</a>
@@ -224,7 +253,7 @@ function packRunRow(r){
   const compChip=` · <a class="link" style="font-size:13px" onclick="packSetComponents('${r.sku}')">🧩 ${_comp!=null?_comp+' comp':'set comp'}</a>`
   return `<div class="task-item" data-runid="${r.id}" data-pending="${r.status==='pending'?'1':'0'}" style="flex-direction:column;align-items:stretch;gap:6px">
     <div style="display:flex;align-items:center;gap:10px">${handle}${skuBlock}<b style="flex:1;min-width:0;font-size:15px">${esc(r.dish_name)}</b>${planBlock}</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${co}${compChip}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${pill}${r.status==='pending'?packReadyBadge(r.sku):''}${co}${compChip}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center">${photoLink}${noteLink}${act}</span></div>
     ${notesLine}
     ${photoStrip}
   </div>`
@@ -462,11 +491,19 @@ window.packStartDish=async function(id){
   const r=packRuns.find(x=>x.id===id); if(!r)return
   const pendings=packRuns.filter(x=>x.status==='pending').sort((a,b)=>a.sort_order-b.sort_order)
   const expected=pendings[0]
+  const rdy=packViewDate?{state:'unknown',missing:[]}:packDishReadiness(r.sku)
+  if(rdy.state==='blocked'){
+    const list=rdy.missing.slice(0,6).join(', ')+(rdy.missing.length>6?' +'+(rdy.missing.length-6)+' more':'')
+    if(!confirm('KITCHEN NOT READY\n\n"'+r.dish_name+'" is still waiting on: '+list+'.\n\nStart it anyway?'))return
+  }
   let reason=null
   if(expected && expected.id!==id){
-    reason=prompt('OUT OF SEQUENCE\n\n"'+expected.dish_name+'" (SKU '+(expected.sku||'–')+') is next on the plan but is not done.\n\nWhy are you packing "'+r.dish_name+'" first?')
+    const prefill=rdy.state==='blocked'?('Components not ready: '+rdy.missing.slice(0,3).join(', ')):''
+    reason=prompt('OUT OF SEQUENCE\n\n"'+expected.dish_name+'" (SKU '+(expected.sku||'–')+') is next on the plan but is not done.\n\nWhy are you packing "'+r.dish_name+'" first?',prefill)
     if(reason===null)return
     if(!reason.trim()){alert('A reason is required to pack out of sequence.');return}
+  } else if(rdy.state==='blocked'){
+    reason='Started before kitchen ready: '+rdy.missing.slice(0,3).join(', ')
   }
   const lastLine=(packRuns.find(x=>x.line_count)||{}).line_count
   const def=lastLine||Object.keys(packAssignments).length||''
