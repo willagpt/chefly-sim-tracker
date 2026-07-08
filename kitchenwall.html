@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kitchen Wall — Chefly</title>
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--panel2:#273548;--line:#334155;--txt:#f1f5f9;--muted:#94a3b8;--accent:#f97316;--green:#22c55e;--blue:#3b82f6;--amber:#f59e0b;--red:#ef4444;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:24px}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .brand{display:flex;align-items:center;gap:14px;font-weight:900;font-size:30px;letter-spacing:.5px}
+  .dot{width:16px;height:16px;border-radius:50%;background:var(--accent);box-shadow:0 0 18px var(--accent)}
+  .clock{font-size:22px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:18px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;text-align:center}
+  .stat .n{font-size:48px;font-weight:900;line-height:1}
+  .stat .l{font-size:15px;color:var(--muted);margin-top:8px;text-transform:uppercase;letter-spacing:1px}
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px}
+  .panel h2{font-size:24px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .panel h2 .cnt{font-size:16px;color:var(--muted);font-weight:700}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;margin-bottom:8px;background:var(--panel2)}
+  .row.ready{opacity:.45}
+  .row.cooking{border-color:var(--amber)}
+  .pos{min-width:44px;text-align:center;font-size:26px;font-weight:900;color:var(--accent)}
+  .pos small{display:block;font-size:10px;color:var(--muted);font-weight:600;letter-spacing:1px}
+  .name{flex:1;min-width:0;font-size:21px;font-weight:800}
+  .sub{font-size:14px;color:var(--muted);margin-top:2px;font-weight:400}
+  .kg{font-size:19px;font-weight:900;white-space:nowrap}
+  .badge{font-size:15px;font-weight:900;padding:5px 12px;border-radius:999px;white-space:nowrap}
+  .badge.todo{background:rgba(148,163,184,.15);color:var(--muted)}
+  .badge.cooking{background:rgba(245,158,11,.2);color:#fcd34d}
+  .badge.ready{background:rgba(34,197,94,.18);color:#86efac}
+  .empty{color:var(--muted);font-size:19px;padding:14px}
+  .err{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4);padding:24px;border-radius:16px;font-size:20px;max-width:760px;margin:60px auto;text-align:center}
+  @media(max-width:900px){.stat-grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div id="root"><div class="err" id="err" style="display:none"></div><div id="content" style="display:none">
+  <header>
+    <div class="brand"><span class="dot"></span> Kitchen — Cook Queue</div>
+    <div class="clock" id="clock"></div>
+  </header>
+  <div class="stat-grid">
+    <div class="stat"><div class="n" id="stReady">0/0</div><div class="l">Components ready</div></div>
+    <div class="stat"><div class="n" id="stCooking">0</div><div class="l">Cooking now</div></div>
+    <div class="stat"><div class="n" id="stNext">–</div><div class="l">Packing needs next</div></div>
+  </div>
+  <div class="cols" id="cols"></div>
+</div></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
+const token = new URLSearchParams(location.search).get('t') || ''
+const $=id=>document.getElementById(id)
+function esc(v){if(v==null)return '';return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showErr(m){ $('err').style.display='block'; $('err').textContent=m; $('content').style.display='none' }
+
+async function refresh(){
+  if(!token){ showErr('Missing access token. Open the kitchen wall link from Manage → Wall display.'); return }
+  const {data,error}=await sb.rpc('sim_public_kitchen',{p_token:token})
+  if(error){ showErr('Could not load (check the link / token). '+error.message); return }
+  $('err').style.display='none'; $('content').style.display='block'
+  const comps=(data&&data.components)||[]
+  const ready=comps.filter(c=>c.status==='ready')
+  const cooking=comps.filter(c=>c.status==='in_progress')
+  $('stReady').textContent=ready.length+'/'+comps.length
+  $('stCooking').textContent=cooking.length
+  const nxt=comps.filter(c=>c.status!=='ready').sort((a,b)=>a.priority-b.priority)[0]
+  $('stNext').textContent=nxt?nxt.name:'—'
+  const stations=[...new Set(comps.map(c=>c.station))]
+  $('cols').innerHTML = comps.length ? stations.map(st=>{
+    const rows=comps.filter(c=>c.station===st)
+    const stReady=rows.filter(c=>c.status==='ready').length
+    const items=rows.map(c=>{
+      const cls=c.status==='ready'?'ready':(c.status==='in_progress'?'cooking':'')
+      const badge=c.status==='ready'?'<span class="badge ready">READY</span>':(c.status==='in_progress'?'<span class="badge cooking">COOKING</span>':'<span class="badge todo">TO DO</span>')
+      const kg=c.kg!=null?(c.kg+' kg'+(c.unknown_grams>0?'+':'')):''
+      const d1=(c.dishes&&c.dishes[0])?('for #'+c.dishes[0].pos+' '+esc(c.dishes[0].dish)+(c.dishes.length>1?' +'+(c.dishes.length-1):'')):''
+      return '<div class="row '+cls+'"><div class="pos">'+c.priority+'<small>PACK #</small></div><div class="name">'+esc(c.name)+'<div class="sub">'+d1+'</div></div><div class="kg">'+kg+'</div>'+badge+'</div>'
+    }).join('')
+    return '<div class="panel"><h2>'+esc(st)+'<span class="cnt">'+stReady+'/'+rows.length+' ready</span></h2>'+items+'</div>'
+  }).join('') : '<div class="panel"><div class="empty">Nothing in the cook queue — waiting for today’s dish list to be loaded on Packing.</div></div>'
+}
+function tickClock(){ $('clock').textContent=new Date().toLocaleString([], {weekday:'short', hour:'2-digit', minute:'2-digit'}) }
+tickClock(); setInterval(tickClock,1000)
+refresh(); setInterval(refresh, 10000)
+</script>
+</body>
+</html>
