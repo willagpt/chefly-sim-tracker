@@ -43,6 +43,7 @@ function renderKitchen(){
   let html='<div class="card"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px"><h2 style="margin:0">Kitchen — cook queue</h2>'
   html+='<span style="font-size:13px"><span class="pill done">'+nReady+' ready</span> <span class="pill live">'+nCook+' cooking</span> <span class="pill off">'+(comps.length-nReady-nCook)+' to do</span></span></div>'
   html+='<p class="muted" style="margin:6px 0 0">Driven live by the packing queue — order = when packing needs it. Tap ▶ when you start a component, ✓ when it is ready.</p>'
+  html+='<button class="ghost sm" style="margin-top:8px" onclick="kitchenShowProduction()">\u{1F4CB} Production needs (components + sub-prep + raw materials)</button>'
   if(stations.length>1){
     html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">'
     html+='<button class="'+(kitchenStation===''?'green':'ghost')+' sm" onclick="kitchenFilter(\'\')">All stations</button>'
@@ -141,6 +142,52 @@ window.kitchenShowRecipe=async function(rid,kg){
     +'<h2 style="font-size:15px;margin:14px 0 2px">Method</h2>'+stepsHtml+equip
     +'<p class="muted" style="font-size:11px;margin:12px 0 0">Source: '+esc(r.source_file||r.book)+' · tab “'+esc(r.tab)+'”</p>'
     +'</div>'
+  m.onclick=function(e){ if(e.target===m)kitchenCloseRecipe() }
+  document.body.appendChild(m)
+}
+
+/* ---------- PRODUCTION NEEDS (dish list → components → sub-preps → raw materials) ---------- */
+window.kitchenShowProduction=async function(dateStr){
+  const d=dateStr||new Date().toISOString().slice(0,10)
+  const {data:r,error}=await sb.rpc('sim_production_requirements',{p_date:d})
+  if(error){alert(error.message);return}
+  kitchenCloseRecipe()
+  const comps=(r&&r.components)||[], subs=(r&&r.sub_preps)||[], raws=(r&&r.raws)||[]
+  let body='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0"><span class="muted" style="font-size:13px">\u{1F4C5} Day:</span><input type="date" value="'+d+'" onchange="kitchenShowProduction(this.value)" style="max-width:170px" />'
+    +'<b>'+(r?r.meals:0)+'</b><span class="muted" style="font-size:13px">meals · '+(r?r.dishes:0)+' dishes on the imported list</span></div>'
+  if(!comps.length){
+    body+='<p class="muted">No dish list imported for this date yet — load it in Manage → Weekly packing orders, then come back.</p>'
+  } else {
+    const stations=[...new Set(comps.map(c=>c.station))]
+    stations.forEach(st=>{
+      const rows=comps.filter(c=>c.station===st)
+      body+='<h2 style="font-size:15px;margin:14px 0 2px">'+esc(st)+'</h2>'
+      rows.forEach(c=>{
+        const rec=kitchenRecipes.find(x=>x.component_id===c.component_id)
+        const nm=rec?'<a class="link" onclick="kitchenShowRecipe(\''+rec.id+'\','+(c.kg!=null?c.kg:'null')+')">'+esc(c.name)+' ↗</a>':esc(c.name)
+        body+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="flex:1;min-width:0">'+nm+'</span><b>'+(c.kg!=null?c.kg+' kg':'–')+(c.unknown_grams>0?' +?':'')+'</b></div>'
+      })
+    })
+    if(subs.length){
+      body+='<h2 style="font-size:15px;margin:16px 0 2px">Sub-preparations <span class="muted" style="font-size:12px;font-weight:400">· derived from the recipes above</span></h2>'
+      subs.forEach(x=>{
+        const badge=x.prep_type==='bulk_prep'?' <span class="pill" style="background:rgba(59,130,246,.18);color:#93c5fd;font-size:10px">bulk prep</span>':''
+        body+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="flex:1;min-width:0"><a class="link" onclick="kitchenShowRecipe(\''+x.recipe_id+'\','+x.kg+')">'+esc(x.name)+' ↗</a>'+badge+'</span><b>'+x.kg+' kg</b></div>'
+      })
+    }
+    if(raws.length){
+      body+='<h2 style="font-size:15px;margin:16px 0 2px">Raw materials <span class="muted" style="font-size:12px;font-weight:400">· everything the recipes call for, totalled</span></h2>'
+      raws.forEach(x=>{
+        body+='<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px"><span style="flex:1;min-width:0">'+esc(x.name)+'</span><b>'+x.kg+' kg</b></div>'
+      })
+      body+='<p class="muted" style="font-size:11px;margin-top:8px">Covers components with an imported recipe — quantities scale from the dish list via the BOM. Components without recipes are not included in raw totals.</p>'
+    }
+  }
+  const m=document.createElement('div'); m.id='kitchenRecipeModal'
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;overflow-y:auto;padding:20px 12px'
+  m.innerHTML='<div class="card" style="max-width:640px;margin:0 auto">'
+    +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h2 style="margin:0">Production needs</h2><button class="ghost sm" onclick="kitchenCloseRecipe()">✕ Close</button></div>'
+    +body+'</div>'
   m.onclick=function(e){ if(e.target===m)kitchenCloseRecipe() }
   document.body.appendChild(m)
 }
