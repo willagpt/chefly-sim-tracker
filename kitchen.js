@@ -115,7 +115,7 @@ function _kFmtQty(kg){
 }
 window.kitchenCloseRecipe=function(){const m=$('kitchenRecipeModal'); if(m)m.remove()}
 window.kitchenShowRecipe=async function(rid,kg){
-  const {data:r,error}=await sb.from('sim_component_recipes').select('*, sim_component_ingredients(*)').eq('id',rid).maybeSingle()
+  const {data:r,error}=await sb.from('sim_component_recipes').select('*, sim_component_ingredients!recipe_id(*)').eq('id',rid).maybeSingle()
   if(error||!r){alert(error?error.message:'Recipe not found.');return}
   const ings=(r.sim_component_ingredients||[]).sort((a,b)=>a.sort_order-b.sort_order)
   const scaled=kg!=null&&!isNaN(kg)
