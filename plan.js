@@ -19,7 +19,7 @@ function stdFor(id){return planStd[id]||null}
 function catOfItem(it){return catalog.find(c=>c.id===it.catalog_id)||null}
 function batchOf(catId){const t=catalog.find(c=>c.id===catId);return (t&&t.is_batch)?t:null}
 function loadsFor(t,qty){if(!t||!t.capacity_per_load||!qty)return null;return Math.ceil(qty/Number(t.capacity_per_load))}
-function kindCapMins(kind){return planVessels.filter(v=>v.kind===kind).reduce((s,v)=>s+(Number(v.daily_hours)||0)*60,0)}
+function kindCapMins(kind){return planVessels.filter(v=>v.kind===kind).reduce((s,v)=>s+((Number(v.daily_hours)||0)*60)/(Number(v.time_factor)||1),0)}
 function kindVesselCount(kind){return planVessels.filter(v=>v.kind===kind).length}
 function kindLabel(k){return (typeof equipKindLabel==='function')?equipKindLabel(k):(k||'vessel')}
 function itemKind(it){const t=catOfItem(it);return t?t.equipment_kind:null}
@@ -245,7 +245,7 @@ function timelineHtml(){
     rows+=`<div style="display:grid;grid-template-columns:120px repeat(7,1fr);gap:4px;align-items:center;margin-bottom:4px;font-size:11px"><span>${esc(kindLabel(kind))} pool</span>${cells}</div>`
   })
   vids.forEach(vid=>{
-    const v=planVessels.find(x=>x.equipment_id===vid); const cap=(v?Number(v.daily_hours):8)*60
+    const v=planVessels.find(x=>x.equipment_id===vid); const cap=((v?Number(v.daily_hours):8)*60)/((v&&Number(v.time_factor))||1)
     const cells=DAY_LBL.map((l,i)=>capCell(vesselDayMins(vid,addDaysIso(planWeekStart,i)),cap)).join('')
     rows+=`<div style="display:grid;grid-template-columns:120px repeat(7,1fr);gap:4px;align-items:center;margin-bottom:4px;font-size:11px"><span>${v?esc(v.name):'Vessel'}</span>${cells}</div>`
   })
