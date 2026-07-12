@@ -8,6 +8,7 @@ let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packCo
 let packBom={}, packCompStat={}, packCompName={}   // dish BOM + kitchen component status (cook queue)
 let packViewDate=null   // set to a past yyyy-mm-dd to view history read-only
 let packNextStaged=null // next future staged dish list {date,dishes,meals} for the empty-state hint
+let packPrep=false      // true when viewing a FUTURE day (prep mode: order + print, no packing)
 let packShowPlan=false  // dish list toggle: live/packed view vs planned order
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
@@ -17,8 +18,8 @@ window.loadPacking=async function(){
   const qd=packViewDate||today
   let {data:sh}=await sb.from('sim_pack_shifts').select('*').eq('shift_date',qd).maybeSingle()
   if(!sh){
-    if(packViewDate){const box=$('packBody');if(box)box.innerHTML='<div class="card"><h2 style="margin-top:0">Packing history</h2>'+packHistoryPicker()+'<p class="muted" style="margin-top:10px">No packing shift recorded on '+esc(packViewDate)+'.</p></div>';return}
-    const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data
+    if(packViewDate&&packViewDate<today){const box=$('packBody');if(box)box.innerHTML='<div class="card"><h2 style="margin-top:0">Packing history</h2>'+packHistoryPicker()+'<p class="muted" style="margin-top:10px">No packing shift recorded on '+esc(packViewDate)+'.</p></div>';return}
+    const ins=await sb.from('sim_pack_shifts').insert({shift_date:qd,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data
   }
   packShift=sh
   const [pos,mem,asg,runs,brk,cfg,comp,bomQ,csQ,cnQ,nsQ]=await Promise.all([
@@ -83,6 +84,7 @@ function _daySpan(a,b){if(!a||!b)return '';let m=Math.round((new Date(b)-new Dat
 function renderPacking(){
   const box=$('packBody'); if(!box)return
   const viewing=!!packViewDate
+  packPrep=viewing&&packViewDate>new Date().toISOString().slice(0,10)
   const done=packRuns.filter(r=>r.status==='done'), packing=packRuns.find(r=>r.status==='packing')
   const next=packRuns.find(r=>r.status==='pending')
   const skipped=packRuns.filter(r=>r.status==='skipped').length
@@ -93,7 +95,7 @@ function renderPacking(){
   const avgCo=cos.length?(cos.reduce((s,r)=>s+Number(r.changeover_mins),0)/cos.length):null
   let html=''
   html+=`<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>${viewing?'<span class="pill off">📅 history</span>':`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>${viewing?(packPrep?'<span class="pill" style="background:rgba(249,115,22,.18);color:#fdba74">🛠 prep — packing opens on the day</span>':'<span class="pill off">📅 history</span>'):`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
     <div class="stat-grid" style="margin-top:10px">
       <div class="stat"><div class="n">${done.length}/${packRuns.length}</div><div class="l">Dishes</div></div>
       <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
@@ -108,10 +110,10 @@ function renderPacking(){
   html+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Dish list</h2><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">`
   html+=`<button class="ghost sm" onclick="packGuides()">🖨 Packing guides (PDF)</button>`
   if(packRuns.length) html+=`<button class="ghost sm" onclick="packTogglePlan()">${packShowPlan?'Live view':'Plan order'}</button><button class="ghost sm" onclick="packPlanReport()">Print plan (PDF)</button>`
-  if(packRuns.length&&!viewing&&!packShowPlan) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
+  if(packRuns.length&&(!viewing||packPrep)&&!packShowPlan) html+=`<button class="ghost sm" onclick="packSaveDefault()">Save order</button>`
   html+=`</span></div>`
   if(!packRuns.length){
-    html+=viewing?`<p class="muted">No dishes were loaded on this day.</p>`:`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
+    html+=(viewing&&!packPrep)?`<p class="muted">No dishes were loaded on this day.</p>`:`<p class="muted">No dishes loaded for ${packPrep?'this day':'today'} yet.</p><button class="green" onclick="packImportDishes()">Load ${packPrep?"this day's":"today's"} dish list</button>`
     if(!viewing&&packNextStaged){
       const nd=new Date(packNextStaged.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
       html+=`<p class="muted" style="margin-top:10px">\u{1F4E6} Next staged list: <b style="color:var(--txt)">${nd}</b> — ${packNextStaged.dishes} dishes, ${packNextStaged.meals.toLocaleString()} meals. It loads here on that morning.</p>`
@@ -133,24 +135,24 @@ function renderPacking(){
       if(_dayStart) html+=`<div class="muted" style="font-size:13px;margin:-2px 0 8px">🕒 Day: <b style="color:var(--txt)">${fmtTime(_dayStart)}</b> → <b style="color:var(--txt)">${_dayEnd?fmtTime(_dayEnd):'in progress'}</b>${(_dayStart&&_dayEnd)?' · '+_daySpan(_dayStart,_dayEnd)+' elapsed':''}</div>`
       started.forEach((r,i)=>{ html+=packedRunRow(r,i+1,_plannedRank[r.id]) })
     }
-    if(viewing){
+    if(viewing&&!packPrep){
       if(pending.length){ html+=`<p class="muted" style="margin:16px 0 4px">Never started</p>`; pending.forEach(r=>{ html+=packHistRow(r) }) }
     } else {
-      html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⠿ to reorder.</p><div id="packDishList">`
+      html+=`<p class="muted" style="margin:16px 0 4px">${packPrep?'Planned order — drag ⠿ to set the sequence for the day.':'Still to pack — drag ⠿ to reorder.'}</p><div id="packDishList">`
       if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
       else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
       html+='</div>'
     }
     if(skippedRuns.length){
       html+=`<p class="muted" style="margin:16px 0 4px">Skipped</p>`
-      skippedRuns.forEach(r=>{ html+=viewing?packHistRow(r):packRunRow(r) })
+      skippedRuns.forEach(r=>{ html+=(viewing&&!packPrep)?packHistRow(r):packRunRow(r) })
     }
-    if(!viewing)html+='<button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
+    if(!viewing||packPrep)html+='<button class="ghost sm" style="margin-top:10px" onclick="packImportDishes()">Re-load from sheet (clears timings)</button>'
   }
   html+='</div>'
 
   html+=`<div class="card"><h2>Team &amp; positions</h2>`
-  if(viewing){
+  if(viewing&&!packPrep){
     const asgn=packPositions.map(p=>{const a=packAssignments[p.id];return a?`<div style="font-size:13px;margin-bottom:4px"><span class="muted">${esc(p.label)}:</span> <b>${esc(packMemberName(a.member_id))}</b></div>`:''}).join('')
     html+=asgn||'<p class="muted">No roster recorded for this day.</p>'
   } else {
@@ -162,7 +164,7 @@ function renderPacking(){
   }
   html+='</div>'
 
-  if(viewing){
+  if(viewing&&!packPrep){
     html+=`<div class="card"><h2>Breaks</h2>`
     html+=packBreaks.length?packBreaks.map(b=>`<div class="task-item"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">${brkDuration(b)}${b.approved_by?' · '+esc(b.approved_by):''}</div></div></div>`).join(''):'<p class="muted">No breaks recorded.</p>'
     html+='</div>'
@@ -171,6 +173,7 @@ function renderPacking(){
   }
   const onBreak=packBreaks.filter(b=>b.started_at&&!b.ended_at)
   const loggedBreaks=packBreaks.filter(b=>!(b.started_at&&!b.ended_at))
+  if(!packPrep){
   html+=`<div class="card"><h2>Breaks <span class="pill ${onBreak.length?'live':'off'}">${onBreak.length} on break now</span></h2>`
   if(onBreak.length){
     html+='<div style="margin-bottom:10px">'+onBreak.map(b=>`<div class="task-item" style="background:rgba(245,158,11,.12);border-color:var(--amber)"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">⏸ on break · <span class="brk-elapsed" data-start="${b.started_at}">0:00</span>${b.approved_by?' · '+esc(b.approved_by):''}</div></div><button class="green sm" onclick="packEndBreak('${b.id}')">◀ Back</button></div>`).join('')+'</div>'
@@ -182,6 +185,7 @@ function renderPacking(){
     html+='<p class="muted" style="margin:12px 0 4px">Earlier today</p>'+loggedBreaks.slice(-8).reverse().map(b=>`<div class="task-item"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">${brkDuration(b)}${b.approved_by?' · '+esc(b.approved_by):''}</div></div><button class="ghost sm" onclick="packDelBreak('${b.id}')">✕</button></div>`).join('')
   }
   html+='</div>'
+  }
 
   html+=packRulesCard()
   box.innerHTML=html
@@ -249,7 +253,7 @@ function packRunRow(r){
   else if(r.status==='skipped')pill='<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">skipped</span>'
   else pill='<span class="pill off">pending</span>'
   let act=''
-  if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
+  if(r.status==='pending'){ act=packPrep?'<span class="muted" style="font-size:12px">starts on the day</span>':`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
   else if(r.status==='skipped'){ act=`<button class="ghost sm" onclick="packUnskip('${r.id}')">Un-skip</button>` }
   else if(r.status==='done'){ const rt=packRate(r); const rtTxt=rt!=null?` · <span class="${rt>=packTarget?'vs-good':'vs-bad'}">${Math.round(rt)}/hr</span>`:''; act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.line_count?' · '+r.line_count+'p':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}${rtTxt}</span>` }
   const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
@@ -383,7 +387,7 @@ function packAttachDnD(){
 }
 async function packPersistOrder(orderIds){
   const ups=[]
-  orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update({sort_order:i}).eq('id',id)) } })
+  orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update({sort_order:i,planned_seq:i}).eq('id',id)) } })
   if(ups.length) await Promise.all(ups)
   await loadPacking()
 }
@@ -484,20 +488,21 @@ window.packEndBreak=async function(id){
 }
 window.packDelBreak=async function(id){ await sb.from('sim_pack_breaks').delete().eq('id',id); await loadPacking() }
 window.packImportDishes=async function(){
-  const today=new Date().toISOString().slice(0,10)
-  const {data:imp}=await sb.from('sim_pack_dish_import').select('*').eq('import_date',today).order('sort_order')
-  if(!imp||!imp.length){alert('No dish list found for today yet. The morning import may not have run — you can run it from the Scheduled panel, or it will appear once it does.');return}
+  const d=(packShift&&packShift.shift_date)||new Date().toISOString().slice(0,10)
+  const {data:imp}=await sb.from('sim_pack_dish_import').select('*').eq('import_date',d).order('sort_order')
+  if(!imp||!imp.length){alert('No dish list staged for '+new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})+' yet. Stage it in Manage → Weekly packing orders (paste the sheet or its link), then load it here.');return}
   if(packRuns.length && !confirm('Re-load the dish list? This clears the current timings for today.'))return
   const {data:ord}=await sb.from('sim_pack_dish_order').select('*')
   const orderBy={}; (ord||[]).forEach(o=>{orderBy[o.sku]=o.sort_order})
-  const rows=imp.map(d=>({sku:d.sku,dish_name:d.dish_name,planned_qty:d.qty,_o:(orderBy[d.sku]!=null?orderBy[d.sku]:1000+d.sort_order)})).sort((a,b)=>a._o-b._o)
+  const rows=imp.map(d2=>({sku:d2.sku,dish_name:d2.dish_name,planned_qty:d2.qty,_o:(orderBy[d2.sku]!=null?orderBy[d2.sku]:1000+d2.sort_order)})).sort((a,b)=>a._o-b._o)
   await sb.from('sim_pack_runs').delete().eq('shift_id',packShift.id)
-  const ins=rows.map((d,i)=>({shift_id:packShift.id,dish_name:d.dish_name,sku:d.sku,planned_qty:d.planned_qty,sort_order:i,planned_seq:i,status:'pending'}))
+  const ins=rows.map((d2,i)=>({shift_id:packShift.id,dish_name:d2.dish_name,sku:d2.sku,planned_qty:d2.planned_qty,sort_order:i,planned_seq:i,status:'pending'}))
   const {error}=await sb.from('sim_pack_runs').insert(ins)
   if(error){alert(error.message);return}
   await loadPacking()
 }
 window.packStartDish=async function(id){
+  if(packViewDate){alert('This is a prep/history view — packing can only start on the day itself.');return}
   if(packRuns.some(r=>r.status==='packing')){alert('Finish the current dish first.');return}
   const r=packRuns.find(x=>x.id===id); if(!r)return
   const pendings=packRuns.filter(x=>x.status==='pending').sort((a,b)=>a.sort_order-b.sort_order)
@@ -825,11 +830,11 @@ function packHistoryPicker(){
   if(!(typeof isManagerUp==='function'&&isManagerUp())) return ''
   const today=new Date().toISOString().slice(0,10)
   const v=packViewDate||today
-  return `<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="muted" style="font-size:13px">📅 View day:</span><input type="date" value="${v}" max="${today}" onchange="packViewHistory(this.value)" style="max-width:180px" />${packViewDate?`<a class="link" style="font-size:13px" onclick="packViewHistory('')">← Back to today</a>`:''}</div>`
+  return `<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="muted" style="font-size:13px">📅 View / prep day:</span><input type="date" value="${v}" onchange="packViewHistory(this.value)" style="max-width:180px" />${packViewDate?`<a class="link" style="font-size:13px" onclick="packViewHistory('')">← Back to today</a>`:''}</div>`
 }
 window.packViewHistory=async function(d){
   const today=new Date().toISOString().slice(0,10)
-  packViewDate=(d&&d<today)?d:null
+  packViewDate=(d&&d!==today)?d:null
   await loadPacking()
 }
 function packHistRow(r){
