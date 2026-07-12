@@ -87,7 +87,7 @@ function renderPacking(){
   const avgCo=cos.length?(cos.reduce((s,r)=>s+Number(r.changeover_mins),0)/cos.length):null
   let html=''
   html+=`<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${packShift.shift_date}</h2>${viewing?'<span class="pill off">📅 history</span>':`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>${viewing?'<span class="pill off">📅 history</span>':`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
     <div class="stat-grid" style="margin-top:10px">
       <div class="stat"><div class="n">${done.length}/${packRuns.length}</div><div class="l">Dishes</div></div>
       <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
