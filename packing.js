@@ -7,6 +7,7 @@ let packShift=null, packPositions=[], packMembers=[], packAssignments={}, packRu
 let packChannel=null, packLiveT=null, packDragging=false, packTarget=500, packComponents={}
 let packBom={}, packCompStat={}, packCompName={}   // dish BOM + kitchen component status (cook queue)
 let packViewDate=null   // set to a past yyyy-mm-dd to view history read-only
+let packNextStaged=null // next future staged dish list {date,dishes,meals} for the empty-state hint
 let packShowPlan=false  // dish list toggle: live/packed view vs planned order
 const PACK_CO_TARGET=3   // minutes — SKU change target
 
@@ -20,7 +21,7 @@ window.loadPacking=async function(){
     const ins=await sb.from('sim_pack_shifts').insert({shift_date:today,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data
   }
   packShift=sh
-  const [pos,mem,asg,runs,brk,cfg,comp,bomQ,csQ,cnQ]=await Promise.all([
+  const [pos,mem,asg,runs,brk,cfg,comp,bomQ,csQ,cnQ,nsQ]=await Promise.all([
     sb.from('sim_pack_positions').select('*').eq('active',true).order('sort_order'),
     sb.from('sim_pack_members').select('*').eq('active',true).order('sort_order').order('full_name'),
     sb.from('sim_pack_assignments').select('*').eq('shift_id',sh.id),
@@ -30,7 +31,8 @@ window.loadPacking=async function(){
     sb.from('sim_pack_dish_components').select('*'),
     sb.from('sim_dish_bom').select('sku,component_id'),
     sb.from('sim_component_status').select('*').eq('shift_date',qd),
-    sb.from('sim_components').select('id,name').eq('active',true)
+    sb.from('sim_components').select('id,name').eq('active',true),
+    sb.from('sim_pack_dish_import').select('import_date,qty').gt('import_date',qd).order('import_date')
   ])
   packPositions=pos.data||[]; packMembers=mem.data||[]; packRuns=runs.data||[]; packBreaks=brk.data||[]
   packTarget=(cfg&&cfg.data&&Number(cfg.data.target_per_hour))||500
@@ -39,6 +41,10 @@ window.loadPacking=async function(){
   packBom={}; ((bomQ&&bomQ.data)||[]).forEach(b=>{(packBom[b.sku]=packBom[b.sku]||[]).push(b.component_id)})
   packCompStat={}; ((csQ&&csQ.data)||[]).forEach(s=>{packCompStat[s.component_id]=s.status})
   packCompName={}; ((cnQ&&cnQ.data)||[]).forEach(c=>{packCompName[c.id]=c.name})
+  packNextStaged=null
+  {const nr=(nsQ&&nsQ.data)||[]
+   if(nr.length){const d0=nr[0].import_date; const same=nr.filter(r=>r.import_date===d0)
+     packNextStaged={date:d0,dishes:same.length,meals:same.reduce((a,r)=>a+(Number(r.qty)||0),0)}}}
   renderPacking()
   packSubscribe()
   if(packTimer)clearInterval(packTimer); packTimer=setInterval(packTick,1000)
@@ -106,6 +112,10 @@ function renderPacking(){
   html+=`</span></div>`
   if(!packRuns.length){
     html+=viewing?`<p class="muted">No dishes were loaded on this day.</p>`:`<p class="muted">No dishes loaded for today yet.</p><button class="green" onclick="packImportDishes()">Load today's dish list</button>`
+    if(!viewing&&packNextStaged){
+      const nd=new Date(packNextStaged.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
+      html+=`<p class="muted" style="margin-top:10px">\u{1F4E6} Next staged list: <b style="color:var(--txt)">${nd}</b> — ${packNextStaged.dishes} dishes, ${packNextStaged.meals.toLocaleString()} meals. It loads here on that morning.</p>`
+    }
   } else if(packShowPlan){
     html+=packPlanList()
   } else {
