@@ -895,25 +895,34 @@ window.packPlanReport=async function(){
    Big type for the line and for training new packers. Modes: the day's planned
    pack order, or the full A-Z set. Locations live on sim_components
    (manager-editable in the modal). jsPDF WinAnsi: keep PDF text ASCII-ish. */
-let _pgComps=[], _pgBom=[], _pgNames={}
+let _pgComps=[], _pgBom=[], _pgNames={}, _pgLocs=[]
 async function _pgLoad(){
-  const [c,b,ni]=await Promise.all([
+  const [c,b,ni,lo]=await Promise.all([
     sb.from('sim_components').select('id,name,storage_location,active'),
     sb.from('sim_dish_bom').select('id,sku,component_id,grams'),
-    sb.from('sim_pack_dish_import').select('sku,dish_name,imported_at').order('imported_at',{ascending:false})
+    sb.from('sim_pack_dish_import').select('sku,dish_name,imported_at').order('imported_at',{ascending:false}),
+    sb.from('sim_storage_locations').select('id,name').order('sort_order').order('name')
   ])
   if(c.error)throw new Error(c.error.message)
   if(b.error)throw new Error(b.error.message)
   _pgComps=c.data||[]; _pgBom=b.data||[]
   _pgNames={}; ((ni&&ni.data)||[]).forEach(r=>{ if(!(r.sku in _pgNames)) _pgNames[r.sku]=r.dish_name })
+  _pgLocs=(lo&&lo.data)||[]
 }
 function _pgUsedComps(){
   const used=new Set(_pgBom.map(x=>x.component_id))
   return _pgComps.filter(c=>used.has(c.id)).sort((a,b)=>a.name.localeCompare(b.name))
 }
 function _pgLocNames(){
-  const s=new Set(); _pgComps.forEach(c=>{const v=(c.storage_location||'').trim(); if(v)s.add(v)})
+  const s=new Set()
+  _pgLocs.forEach(l=>{const v=(l.name||'').trim(); if(v)s.add(v)})
+  _pgComps.forEach(c=>{const v=(c.storage_location||'').trim(); if(v)s.add(v)})
   return [...s].sort((a,b)=>a.localeCompare(b))
+}
+function _pgLocChipsHTML(){
+  if(!_pgLocs.length)return '<span class="muted" style="font-size:13px">No locations defined yet - add your fridges/freezers/stores once and every dropdown below will offer them.</span>'
+  return _pgLocs.map(l=>'<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(249,115,22,.15);color:var(--accent);border-radius:14px;padding:3px 10px;font-size:13px;font-weight:600">'+esc(l.name)
+    +'<a class="link" style="font-size:12px;cursor:pointer" onclick="packGuidesDelLoc(\''+l.id+'\')" title="Remove from list">✕</a></span>').join(' ')
 }
 function _pgLocSelect(c){
   const cur=(c.storage_location||'').trim()
@@ -946,6 +955,7 @@ function _pgWeightListHTML(){
   return h
 }
 function _pgRefreshLocs(){
+  const ch=document.getElementById('pgLocChips'); if(ch)ch.innerHTML=_pgLocChipsHTML()
   const el=document.getElementById('pgLocList'); if(el)el.innerHTML=_pgLocListHTML()
   const n=document.getElementById('pgLocMsg')
   if(n){const comps=_pgUsedComps(),missing=comps.filter(c=>!(c.storage_location||'').trim()).length
@@ -966,6 +976,8 @@ window.packGuides=async function(){
   body+='<button class="green" onclick="packGuidesPDF()">🖨 Generate PDF</button>'
   if(isManagerUp()){
     body+='<h3 style="margin:18px 0 2px">Storage locations</h3>'
+    body+='<div id="pgLocChips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px"></div>'
+    body+='<button class="ghost sm" onclick="packGuidesAddLoc()" style="margin:0 0 10px">+ Add location</button>'
     body+='<p class="muted" id="pgLocMsg" style="margin:0 0 8px"></p>'
     body+='<div id="pgLocList" style="max-height:300px;overflow-y:auto;border:1px solid rgba(128,128,128,.25);border-radius:8px;padding:2px 10px"></div>'
     body+='<div id="pgWeightSec"><h3 style="margin:18px 0 2px">Missing weights</h3>'
@@ -981,11 +993,29 @@ window.packGuides=async function(){
   document.body.appendChild(m)
   _pgRefreshLocs()
 }
+window.packGuidesAddLoc=async function(){
+  const v=(prompt('New location name (e.g. Walk-in 1 - shelf 2):')||'').trim()
+  if(!v)return
+  const {data,error}=await sb.from('sim_storage_locations').upsert({name:v},{onConflict:'name'}).select().single()
+  if(error){alert(error.message);return}
+  if(data&&!_pgLocs.some(l=>l.id===data.id))_pgLocs.push(data)
+  _pgRefreshLocs()
+}
+window.packGuidesDelLoc=async function(id){
+  const l=_pgLocs.find(x=>x.id===id); if(!l)return
+  if(!confirm('Remove "'+l.name+'" from the location list? Components already set to it keep their value.'))return
+  const {error}=await sb.from('sim_storage_locations').delete().eq('id',id)
+  if(error){alert(error.message);return}
+  _pgLocs=_pgLocs.filter(x=>x.id!==id)
+  _pgRefreshLocs()
+}
 window.packGuidesSetLoc=async function(id,sel){
   let v=sel.value
   if(v==='__new'){
     v=(prompt('New location name (e.g. Walk-in 1 - shelf 2):')||'').trim()
     if(!v){const c=_pgComps.find(x=>x.id===id);sel.value=(c&&c.storage_location)||'';return}
+    const ins=await sb.from('sim_storage_locations').upsert({name:v},{onConflict:'name'}).select().single()
+    if(!ins.error&&ins.data&&!_pgLocs.some(l=>l.id===ins.data.id))_pgLocs.push(ins.data)
   }
   const {error}=await sb.from('sim_components').update({storage_location:v||null}).eq('id',id)
   if(error){alert(error.message);_pgRefreshLocs();return}
