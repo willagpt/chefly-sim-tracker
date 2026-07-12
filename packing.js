@@ -934,10 +934,54 @@ function _pgLocSelect(c){
 function _pgLocListHTML(){
   let h=''
   _pgUsedComps().forEach(c=>{
+    const unset=((c.storage_location||'').trim())?'0':'1'
     h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(128,128,128,.15)">'
+      +'<input type="checkbox" class="pgSel" data-cid="'+c.id+'" data-unset="'+unset+'" onchange="_pgBulkCount()" style="width:18px;height:18px;flex:0 0 auto;margin:0">'
       +'<div style="flex:1;min-width:0;font-size:13px">'+esc(c.name)+'</div>'+_pgLocSelect(c)+'</div>'
   })
   return h
+}
+function _pgBulkOptions(){
+  let o='<option value="">- pick location -</option>'
+  _pgLocNames().forEach(l=>{o+='<option value="'+esc(l)+'">'+esc(l)+'</option>'})
+  o+='<option value="__new">+ New location…</option>'
+  return o
+}
+function _pgBulkBarHTML(){
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 8px">'
+    +'<select id="pgBulkLoc" style="width:170px;flex:0 0 auto">'+_pgBulkOptions()+'</select>'
+    +'<button class="ghost sm" id="pgBulkBtn" onclick="packGuidesBulkApply()">Apply to ticked (0)</button>'
+    +'<span style="font-size:12px" class="muted">tick: <a class="link" onclick="packGuidesSel(\'all\')">all</a> · <a class="link" onclick="packGuidesSel(\'unset\')">unset only</a> · <a class="link" onclick="packGuidesSel(\'none\')">none</a></span>'
+    +'</div>'
+}
+window._pgBulkCount=function(){
+  const n=document.querySelectorAll('#pgLocList .pgSel:checked').length
+  const b=document.getElementById('pgBulkBtn'); if(b)b.textContent='Apply to ticked ('+n+')'
+}
+window.packGuidesSel=function(mode){
+  document.querySelectorAll('#pgLocList .pgSel').forEach(cb=>{
+    if(mode==='all')cb.checked=true
+    else if(mode==='none')cb.checked=false
+    else cb.checked=(cb.dataset.unset==='1')
+  })
+  _pgBulkCount()
+}
+window.packGuidesBulkApply=async function(){
+  const ids=[...document.querySelectorAll('#pgLocList .pgSel:checked')].map(cb=>cb.dataset.cid)
+  if(!ids.length){alert('Tick at least one component first (or use the links to tick all / unset only).');return}
+  const selEl=document.getElementById('pgBulkLoc')
+  let v=selEl?selEl.value:''
+  if(v==='__new'){
+    v=(prompt('New location name (e.g. Walk-in 1 - shelf 2):')||'').trim()
+    if(!v)return
+    const ins=await sb.from('sim_storage_locations').upsert({name:v},{onConflict:'name'}).select().single()
+    if(!ins.error&&ins.data&&!_pgLocs.some(l=>l.id===ins.data.id))_pgLocs.push(ins.data)
+  }
+  if(!v){alert('Pick a location to apply.');return}
+  const {error}=await sb.from('sim_components').update({storage_location:v}).in('id',ids)
+  if(error){alert(error.message);return}
+  _pgComps.forEach(c=>{ if(ids.indexOf(c.id)>=0)c.storage_location=v })
+  _pgRefreshLocs()
 }
 function _pgMissingWeights(){
   const compById={}; _pgComps.forEach(c=>{compById[c.id]=c})
@@ -956,7 +1000,8 @@ function _pgWeightListHTML(){
 }
 function _pgRefreshLocs(){
   const ch=document.getElementById('pgLocChips'); if(ch)ch.innerHTML=_pgLocChipsHTML()
-  const el=document.getElementById('pgLocList'); if(el)el.innerHTML=_pgLocListHTML()
+  const bl=document.getElementById('pgBulkLoc'); if(bl){const cur=bl.value;bl.innerHTML=_pgBulkOptions();bl.value=cur}
+  const el=document.getElementById('pgLocList'); if(el){el.innerHTML=_pgLocListHTML();_pgBulkCount()}
   const n=document.getElementById('pgLocMsg')
   if(n){const comps=_pgUsedComps(),missing=comps.filter(c=>!(c.storage_location||'').trim()).length
     n.textContent=missing? missing+' of '+comps.length+' components have no location yet - they print as "-" until set.' : 'All '+comps.length+' components have a location.'}
@@ -979,6 +1024,7 @@ window.packGuides=async function(){
     body+='<div id="pgLocChips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px"></div>'
     body+='<button class="ghost sm" onclick="packGuidesAddLoc()" style="margin:0 0 10px">+ Add location</button>'
     body+='<p class="muted" id="pgLocMsg" style="margin:0 0 8px"></p>'
+    body+=_pgBulkBarHTML()
     body+='<div id="pgLocList" style="max-height:300px;overflow-y:auto;border:1px solid rgba(128,128,128,.25);border-radius:8px;padding:2px 10px"></div>'
     body+='<div id="pgWeightSec"><h3 style="margin:18px 0 2px">Missing weights</h3>'
       +'<p class="muted" id="pgWeightMsg" style="margin:0 0 8px"></p>'
