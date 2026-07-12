@@ -109,11 +109,93 @@ window.poDayHint=function(){
   else {el.innerHTML='<b style="color:#86efac">'+lbl+'</b>'}
 }
 function _poEnsureDay(){
-  if($('poDay'))return
-  const inp=$('poDate'); if(!inp||!inp.parentNode)return
-  const d=document.createElement('div'); d.id='poDay'; d.className='muted'; d.style.cssText='margin:2px 0 6px;font-size:13px'
-  inp.parentNode.insertBefore(d,inp.nextSibling)
-  inp.addEventListener('change',window.poDayHint)
+  if(!$('poDay')){
+    const inp=$('poDate')
+    if(inp&&inp.parentNode){
+      const d=document.createElement('div'); d.id='poDay'; d.className='muted'; d.style.cssText='margin:2px 0 6px;font-size:13px'
+      inp.parentNode.insertBefore(d,inp.nextSibling)
+      inp.addEventListener('change',window.poDayHint)
+    }
+  }
+  _poEnsureFile()
+}
+const _PO_URL_RE=/https?:\/\/docs\.google\.com\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/
+function _poEnsureFile(){
+  if($('poFileBtn'))return
+  const ta=$('poText'); if(!ta||!ta.parentNode)return
+  const w=document.createElement('div'); w.style.cssText='margin:6px 0 2px'
+  w.innerHTML='<button id="poFileBtn" class="ghost sm" onclick="poPickFile()">📄 Import from file (.xlsx / .csv)</button>'
+    +' <span class="muted" style="font-size:12px">…or drop the file / paste the Google Sheets link into the box above</span>'
+    +'<input id="poFile" type="file" accept=".xlsx,.xls,.csv" style="display:none">'
+  ta.parentNode.insertBefore(w,ta.nextSibling)
+  $('poFile').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)poReadFile(f);e.target.value=''})
+  ;['dragover','dragenter'].forEach(ev=>ta.addEventListener(ev,e=>{e.preventDefault();ta.style.outline='2px dashed var(--accent)'}))
+  ;['dragleave','dragend'].forEach(ev=>ta.addEventListener(ev,()=>{ta.style.outline=''}))
+  ta.addEventListener('drop',e=>{
+    e.preventDefault(); ta.style.outline=''
+    const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]
+    if(f){poReadFile(f);return}
+    const txt=(e.dataTransfer&&(e.dataTransfer.getData('text/uri-list')||e.dataTransfer.getData('text/plain'))||'').trim()
+    if(_PO_URL_RE.test(txt))poFetchSheet(txt)
+  })
+  ta.addEventListener('paste',e=>{
+    const txt=((e.clipboardData&&e.clipboardData.getData('text'))||'').trim()
+    if(_PO_URL_RE.test(txt)&&txt.split(/\s/).length===1){e.preventDefault();poFetchSheet(txt)}
+  })
+}
+window.poPickFile=function(){const f=$('poFile');if(f)f.click()}
+async function _poXlsxLib(){
+  if(window.XLSX)return
+  await new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=res;sc.onerror=()=>rej(new Error('Could not load the spreadsheet reader - check the internet connection.'));document.head.appendChild(sc)})
+}
+function _poSheetToText(wb){
+  const name=wb.SheetNames.find(n=>/all\s*dishes/i.test(n))||wb.SheetNames[0]
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:''})
+  const lines=rows.map(r=>r.map(c=>String(c==null?'':c).replace(/\t/g,' ').trim()).join('\t'))
+    .filter(l=>l.replace(/\t/g,'').trim()!=='')
+  return {tab:name,text:lines.join('\n')}
+}
+function _poFinish(srcLabel,wb){
+  const {tab,text}=_poSheetToText(wb)
+  if(!text){msg($('poMsg'),'That '+srcLabel+' looks empty - is it the right one?',false);return}
+  $('poText').value=text
+  const rows=_parsePackOrders(text)
+  const meals=rows.reduce((s,r)=>s+r.qty,0)
+  if(!rows.length){msg($('poMsg'),'Read the '+srcLabel+' (tab: '+tab+') but found no dish rows - check it has Dish Name, SKU, Quantity … Total columns.',false);return}
+  msg($('poMsg'),'Read the '+srcLabel+' (tab: '+tab+'): '+rows.length+' dishes, '+meals+' meals. Check the date above, then hit Load orders.',true)
+  $('poPreview').innerHTML=rows.map(r=>esc(r.sku)+' · '+esc(r.dish_name)+' — <b>'+r.qty+'</b>').join('<br>')
+}
+window.poReadFile=async function(f){
+  try{await _poXlsxLib()}catch(e){msg($('poMsg'),e.message,false);return}
+  try{
+    const buf=await f.arrayBuffer()
+    _poFinish('file "'+f.name+'"',XLSX.read(buf,{type:'array'}))
+  }catch(e){msg($('poMsg'),'Could not read that file: '+(e.message||e),false)}
+}
+window.poFetchSheet=async function(url){
+  const m=String(url).match(_PO_URL_RE)
+  if(!m){msg($('poMsg'),'That does not look like a Google Sheets link.',false);return}
+  const id=m[1]
+  msg($('poMsg'),'Fetching the Google Sheet…',true)
+  try{await _poXlsxLib()}catch(e){msg($('poMsg'),e.message,false);return}
+  let wb=null
+  try{
+    const r=await fetch('https://docs.google.com/spreadsheets/d/'+id+'/export?format=xlsx')
+    if(!r.ok)throw new Error('export blocked')
+    wb=XLSX.read(await r.arrayBuffer(),{type:'array'})
+  }catch(e1){
+    try{
+      const r2=await fetch('https://docs.google.com/spreadsheets/d/'+id+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent('All Dishes'))
+      const t2=await r2.text()
+      if(!r2.ok||t2.trim().startsWith('<'))throw new Error('gviz blocked')
+      wb=XLSX.read(t2,{type:'string'})
+      wb.SheetNames[0]='All Dishes'; wb.Sheets['All Dishes']=wb.Sheets[Object.keys(wb.Sheets)[0]]
+    }catch(e2){
+      msg($('poMsg'),'Could not open that Google Sheet. In Google Sheets go to Share and set "Anyone with the link" to "Viewer", then paste the link again — or use File → Download → .xlsx and drop the file here instead.',false)
+      return
+    }
+  }
+  try{_poFinish('Google Sheet',wb)}catch(e){msg($('poMsg'),'Could not read that sheet: '+(e.message||e),false)}
 }
 function _poDefaultDate(){
   _poEnsureDay()
