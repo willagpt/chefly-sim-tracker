@@ -94,7 +94,35 @@ window.addStaff=async function(){
 }
 
 // ---- packing team roster (admin) ----
+function _poDayLabel(d){
+  if(!d)return ''
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+}
+window.poDayHint=function(){
+  const el=$('poDay'); if(!el)return
+  const d=$('poDate').value
+  if(!d){el.textContent='';return}
+  const today=new Date().toISOString().slice(0,10)
+  const lbl=_poDayLabel(d)
+  if(d<today){el.innerHTML='<b style="color:#fca5a5">'+lbl+' — that is in the PAST.</b>'}
+  else if(d===today){el.innerHTML='<b style="color:#fcd34d">'+lbl+' — that is TODAY.</b>'}
+  else {el.innerHTML='<b style="color:#86efac">'+lbl+'</b>'}
+}
+function _poEnsureDay(){
+  if($('poDay'))return
+  const inp=$('poDate'); if(!inp||!inp.parentNode)return
+  const d=document.createElement('div'); d.id='poDay'; d.className='muted'; d.style.cssText='margin:2px 0 6px;font-size:13px'
+  inp.parentNode.insertBefore(d,inp.nextSibling)
+  inp.addEventListener('change',window.poDayHint)
+}
+function _poDefaultDate(){
+  _poEnsureDay()
+  const el=$('poDate'); if(!el)return
+  if(!el.value){ const d=new Date(); do{d.setDate(d.getDate()+1)}while(d.getDay()!==1); el.value=d.toISOString().slice(0,10) }  // next Monday
+  poDayHint()
+}
 async function loadPackRoster(){
+  _poDefaultDate()
   if(!isAdmin()) return
   const box=$('packRosterList'); if(!box) return; box.innerHTML='<p class="muted">Loading…</p>'
   const {data,error}=await sb.from('sim_pack_members').select('*').order('sort_order').order('full_name')
@@ -441,10 +469,15 @@ window.importPackOrders=async function(){
   const rows=_parsePackOrders($('poText').value)
   if(!rows.length){msg($('poMsg'),'No dishes found. Paste the All Dishes rows (Dish, SKU, Quantity … Total).',false);return}
   const meals=rows.reduce((s,r)=>s+r.qty,0)
-  if(!confirm('Load '+rows.length+' dishes ('+meals+' meals) for '+date+'?\n\nThis replaces any existing list for that date.'))return
+  const today=new Date().toISOString().slice(0,10)
+  const lbl=_poDayLabel(date).toUpperCase()
+  let warn=''
+  if(date<today)warn='\n\nWARNING: that date is in the PAST. The pack team will never see this list.'
+  else if(date===today)warn='\n\nNOTE: that is TODAY. The pack team loads this list today, not later in the week.'
+  if(!confirm('This list will be packed on:\n\n'+lbl+'\n\n'+rows.length+' dishes, '+meals+' meals. It replaces any existing list for that date.'+warn+'\n\nCorrect?'))return
   const {data,error}=await sb.rpc('sim_import_pack_dishes',{p_date:date,p_rows:rows})
   if(error){msg($('poMsg'),error.message,false);return}
-  msg($('poMsg'),'Loaded '+data+' dishes ('+meals+' meals) for '+date+'. On that day, open Packing → "Load today’s dish list".',true)
+  msg($('poMsg'),'Loaded '+data+' dishes ('+meals+' meals) for '+_poDayLabel(date)+'. On that day, open Packing → "Load today’s dish list".',true)
   $('poPreview').innerHTML=rows.map(r=>esc(r.sku)+' · '+esc(r.dish_name)+' — <b>'+r.qty+'</b>').join('<br>')
   $('poText').value=''
 }
