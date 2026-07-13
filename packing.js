@@ -387,7 +387,7 @@ function packAttachDnD(){
 }
 async function packPersistOrder(orderIds){
   const ups=[]
-  orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update({sort_order:i,planned_seq:i}).eq('id',id)) } })
+  orderIds.forEach((id,i)=>{ const r=packRuns.find(x=>x.id===id); if(r && r.sort_order!==i){ ups.push(sb.from('sim_pack_runs').update(packPrep?{sort_order:i,planned_seq:i}:{sort_order:i}).eq('id',id)) } })
   if(ups.length) await Promise.all(ups)
   await loadPacking()
 }
