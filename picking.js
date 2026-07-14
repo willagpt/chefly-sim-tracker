@@ -5,15 +5,22 @@
    and can edit times afterwards. Data: sim_pick_areas / sim_pick_days / sim_pick_records. */
 
 let pickAreas=[], pickDay=null, pickRecords=[], pickViewDate=null, pickTimerInt=null
+let pickNames=[]   // dropdown of people: packing team roster + signed-up accounts
 
 window.loadPicking=async function(){
   const box=$('pickingBody'); if(!box)return
   const today=new Date().toISOString().slice(0,10)
   const qd=pickViewDate||today
-  const [{data:areas},{data:days}]=await Promise.all([
+  const [{data:areas},{data:days},mem,prof]=await Promise.all([
     sb.from('sim_pick_areas').select('*').eq('active',true).order('sort_order'),
-    sb.from('sim_pick_days').select('*').eq('pick_date',qd).limit(1)
+    sb.from('sim_pick_days').select('*').eq('pick_date',qd).limit(1),
+    sb.from('sim_pack_members').select('full_name,active').eq('active',true),
+    sb.from('sim_profiles').select('full_name')
   ])
+  const nameSet=new Set()
+  ;((mem&&mem.data)||[]).forEach(m=>{if(m.full_name)nameSet.add(m.full_name.trim())})
+  ;((prof&&prof.data)||[]).forEach(p=>{if(p.full_name)nameSet.add(p.full_name.trim())})
+  pickNames=[...nameSet].filter(Boolean).sort((x,y)=>x.localeCompare(y))
   pickAreas=areas||[]
   pickDay=(days&&days[0])||null
   if(!pickDay){
@@ -109,7 +116,13 @@ window.renderPicking=function(){
       if(mgr) html+='<a class="link" style="font-size:12px" onclick="pickEditTimes(\''+r.id+'\')">edit times</a><a class="link" style="font-size:12px" onclick="pickDelRecord(\''+r.id+'\')">remove</a>'
       html+='</div>'
     })
-    html+='<div style="display:flex;gap:8px;margin-top:8px"><input id="pickName_'+a.id+'" placeholder="Name" style="max-width:200px" /><button class="ghost sm" onclick="pickAddPerson(\''+a.id+'\')">+ Add person</button></div>'
+    html+='<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">'
+    html+='<select id="pickSel_'+a.id+'" style="max-width:220px" onchange="$(\'pickName_\'+this.id.slice(8)).style.display=this.value===\'__other\'?\'\':\'none\'">'
+    html+='<option value="">— pick a person —</option>'
+    pickNames.forEach(n=>{html+='<option value="'+esc(n)+'">'+esc(n)+'</option>'})
+    html+='<option value="__other">✎ Someone else (type a name)</option></select>'
+    html+='<input id="pickName_'+a.id+'" placeholder="Name" style="max-width:180px;display:none" />'
+    html+='<button class="ghost sm" onclick="pickAddPerson(\''+a.id+'\')">+ Add person</button></div>'
     html+='</div>'
   })
 
@@ -133,8 +146,10 @@ window.renderPicking=function(){
 window.pickSetDate=function(d){ const today=_pkToday(); pickViewDate=(d&&d!==today)?d:null; pickDay=null; loadPicking() }
 
 window.pickAddPerson=async function(areaId){
-  const el=$('pickName_'+areaId); const nm=(el&&el.value||'').trim()
-  if(!nm){alert('Type a name first.');return}
+  const sel=$('pickSel_'+areaId), el=$('pickName_'+areaId)
+  let nm=(sel&&sel.value)||''
+  if(nm==='__other'||!nm) nm=(el&&el.value||'').trim(); else nm=nm.trim()
+  if(!nm){alert('Pick a person from the list (or choose "Someone else" and type a name).');return}
   if(!pickDay)return
   await sb.from('sim_pick_records').insert({pick_day_id:pickDay.id,area_id:areaId,person_name:nm})
   loadPicking()
