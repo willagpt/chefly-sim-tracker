@@ -103,15 +103,15 @@ window.renderPicking=function(){
       if(totalBoxes>0&&span>0) html+=' · '+Math.round(totalBoxes/(span/60))+' boxes/hr'
       html+='</p>'
     }
-    if(!recs.length) html+='<p class="muted">Nobody on this station yet.</p>'
+    if(!recs.length) html+='<p class="muted">Nobody on this station yet — pick a name below and tap <b>+ Add person</b>; their ▶ START button appears here.</p>'
     recs.forEach(r=>{
       const running=r.start_time&&!r.finish_time
       html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)">'
       html+='<b style="min-width:110px">'+esc(r.person_name||'(no name)')+'</b>'
       html+='<span class="muted" style="font-size:13px">'+(r.start_time?fmtTime(r.start_time):'not started')+(r.finish_time?' → '+fmtTime(r.finish_time):(running?' → running':''))+'</span>'
       html+='<b>'+_pkFmtMins(_pkMins(r))+'</b>'
-      if(isToday&&!r.start_time) html+='<button class="green sm" onclick="pickStart(\''+r.id+'\')">▶ Start</button>'
-      if(isToday&&running) html+='<button class="sm" onclick="pickFinish(\''+r.id+'\')">✓ Finish</button>'
+      if(isToday&&!r.start_time) html+='<button class="green" style="font-size:18px;font-weight:800;padding:12px 22px;min-width:170px" onclick="pickStart(\''+r.id+'\')">▶ START</button>'
+      if(isToday&&running) html+='<button style="font-size:18px;font-weight:800;padding:12px 22px;min-width:170px" onclick="pickFinish(\''+r.id+'\')">✓ FINISH</button>'
       if(!isToday&&!r.start_time) html+='<span class="muted" style="font-size:12px">starts on the day</span>'
       if(mgr) html+='<a class="link" style="font-size:12px" onclick="pickEditTimes(\''+r.id+'\')">edit times</a><a class="link" style="font-size:12px" onclick="pickDelRecord(\''+r.id+'\')">remove</a>'
       html+='</div>'
@@ -215,13 +215,18 @@ function _pkParseCSV(text){
 function _pkMapPos(pos){
   const p=(pos||'').toLowerCase()
   if(!p)return null
-  if(p.includes('liner'))return 'LINER'
-  if(p.includes('box'))return 'Boxes (make outbox)'
-  if(p.includes('ice'))return 'Ice placement'
-  if(p.includes('pick'))return 'Picking'
-  if(p.includes('clos'))return 'Closing'
-  if(p.includes('transport')||p.includes('driver'))return 'Transport'
+  if(p.includes('liner'))return 'liner'
+  if(p.includes('box'))return 'box'
+  if(p.includes('ice'))return 'ice'
+  if(p.includes('pick'))return 'pick'
+  if(p.includes('clos'))return 'clos'
+  if(p.includes('transport')||p.includes('driver'))return 'transport'
   return null
+}
+function _pkAreaForKeyword(kw){
+  if(!kw)return null
+  const hits=pickAreas.filter(a=>a.name.toLowerCase().includes(kw))
+  return hits.length?hits[0]:null   // first in line order; with merged Liners both liner people land there
 }
 window.pickImportRoster=async function(){
   const url=prompt('Paste the Google Sheet link for the picking roster (columns: Date, Position, Name):')
@@ -241,19 +246,17 @@ window.pickImportRoster=async function(){
   const iPos=head.findIndex(h=>h.includes('position')), iName=head.findIndex(h=>h.includes('name'))
   if(iPos<0||iName<0){alert('Could not find "Position" and "Name" columns in the sheet.');return}
   if(!pickDay){alert('No picking day loaded.');return}
-  const byName={}; pickAreas.forEach(a=>byName[a.name]=a)
-  let linerN=0, added=0, skipped=[]
+  let added=0, skipped=[]
   const inserts=[]
   const have=new Set(pickRecords.map(r=>r.area_id+'|'+(r.person_name||'').toLowerCase()))
   rows.slice(1).forEach(r=>{
     const pos=(r[iPos]||'').trim(), nm=(r[iName]||'').trim()
     if(!pos&&!nm)return
-    let target=_pkMapPos(pos)
-    if(target==='LINER'){linerN++; target=linerN===1?'Liner part 1':'Liner part 2'}
     if(!nm)return
-    if(!target||!byName[target]){skipped.push(pos||'(blank)');return}
-    if(have.has(byName[target].id+'|'+nm.toLowerCase()))return
-    inserts.push({pick_day_id:pickDay.id,area_id:byName[target].id,person_name:nm}); added++
+    const area=_pkAreaForKeyword(_pkMapPos(pos))
+    if(!area){skipped.push(pos||'(blank)');return}
+    if(have.has(area.id+'|'+nm.toLowerCase()))return
+    inserts.push({pick_day_id:pickDay.id,area_id:area.id,person_name:nm}); added++
   })
   if(inserts.length)await sb.from('sim_pick_records').insert(inserts)
   let note=added+' people added to today\'s stations.'
