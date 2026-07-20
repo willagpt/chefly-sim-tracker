@@ -200,7 +200,7 @@ window.poFetchSheet=async function(url){
 function _poDefaultDate(){
   _poEnsureDay()
   const el=$('poDate'); if(!el)return
-  if(!el.value){ const d=new Date(); do{d.setDate(d.getDate()+1)}while(d.getDay()!==1); el.value=d.toISOString().slice(0,10) }  // next Monday
+  if(!el.value){ const d=new Date(); while(d.getDay()!==1){d.setDate(d.getDate()+1)} el.value=d.toISOString().slice(0,10) }  // today if Monday, else next Monday
   poDayHint()
 }
 async function loadPackRoster(){
