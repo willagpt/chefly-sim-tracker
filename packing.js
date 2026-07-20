@@ -74,7 +74,7 @@ function packLiveRefresh(){
 }
 function packMemberName(id){const m=packMembers.find(x=>x.id===id);return m?m.full_name:'—'}
 function packMemberOptions(sel){return '<option value="">— unassigned —</option>'+packMembers.map(m=>`<option value="${m.id}" ${sel===m.id?'selected':''}>${esc(m.full_name)}</option>`).join('')}
-function packCompCount(sku){return (sku!=null&&packComponents[sku]!=null)?packComponents[sku]:null}
+function packCompCount(sku){ if(sku!=null&&packComponents[sku]!=null)return packComponents[sku]; if(sku!=null&&packBom[sku]&&packBom[sku].length)return packBom[sku].length; return null }
 function packRate(r){ // meals per hour for a finished dish
   const q=(r.qty_packed!=null?r.qty_packed:r.planned_qty)
   if(!r.total_minutes||r.total_minutes<=0||q==null) return null
@@ -114,6 +114,14 @@ function renderPacking(){
   html+=`</span></div>`
   if(!packRuns.length){
     html+=(viewing&&!packPrep)?`<p class="muted">No dishes were loaded on this day.</p>`:`<p class="muted">No dishes loaded for ${packPrep?'this day':'today'} yet.</p><button class="green" onclick="packImportDishes()">Load ${packPrep?"this day's":"today's"} dish list</button>`
+    if(typeof isManagerUp==='function'&&isManagerUp()&&(!viewing||packPrep)){
+      html+=`<div style="margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px">
+        <b>Nothing staged for this day?</b> Stage it right here — no need to go to Manage.
+        <textarea id="pkStage" rows="3" style="width:100%;margin-top:8px" placeholder="Paste the Google Sheet LINK, or copy-paste the All Dishes rows"></textarea>
+        <button class="green sm" style="margin-top:6px" onclick="packStageImport()">\u{1F4E5} Stage &amp; load for this day</button>
+        <div id="pkStageMsg" class="msg"></div>
+      </div>`
+    }
     if(!viewing&&packNextStaged){
       const nd=new Date(packNextStaged.date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})
       html+=`<p class="muted" style="margin-top:10px">\u{1F4E6} Next staged list: <b style="color:var(--txt)">${nd}</b> — ${packNextStaged.dishes} dishes, ${packNextStaged.meals.toLocaleString()} meals. It loads here on that morning.</p>`
@@ -401,7 +409,7 @@ window.packSetTarget=async function(){
 }
 window.packSetComponents=async function(sku){
   if(sku==null||sku===''){alert('This dish has no SKU.');return}
-  const cur=packComponents[sku]
+  const cur=packCompCount(sku)
   const v=prompt('How many components for SKU '+sku+'? (number of items to assemble — used to judge how many people to put on the line)', cur!=null?cur:'')
   if(v===null)return
   const t=String(v).trim()
@@ -1197,4 +1205,40 @@ window._packGuidesRender=function(pages,dateLabel){
     t(W-M,H-18,'Chefly SIM Tracker - card '+(pi+1)+' of '+pages.length,7.5,'normal',GREY,{align:'right'})
   })
   return doc
+}
+
+// ---- stage a dish list for the viewed day, right on the Packing screen ----
+window.packStageImport=async function(){
+  const el=$('pkStage'), mel=$('pkStageMsg')
+  const raw=(el&&el.value||'').trim()
+  if(!raw){msg(mel,'Paste the Google Sheet link or the dish rows first.',false);return}
+  const d=(packShift&&packShift.shift_date)||packViewDate||new Date().toISOString().slice(0,10)
+  let text=raw
+  if(_PO_URL_RE.test(raw)&&raw.split(/\s/).length===1){
+    msg(mel,'Fetching the Google Sheet…',true)
+    try{await _poXlsxLib()}catch(e){msg(mel,e.message,false);return}
+    let wb=null
+    try{
+      const r=await fetch('https://docs.google.com/spreadsheets/d/'+raw.match(_PO_URL_RE)[1]+'/export?format=xlsx')
+      if(!r.ok)throw new Error('export blocked')
+      wb=XLSX.read(await r.arrayBuffer(),{type:'array'})
+    }catch(e1){
+      try{
+        const r2=await fetch('https://docs.google.com/spreadsheets/d/'+raw.match(_PO_URL_RE)[1]+'/gviz/tq?tqx=out:csv&sheet='+encodeURIComponent('All Dishes'))
+        const t2=await r2.text()
+        if(!r2.ok||t2.trim().startsWith('<'))throw new Error('gviz blocked')
+        wb=XLSX.read(t2,{type:'string'})
+        wb.SheetNames[0]='All Dishes'; wb.Sheets['All Dishes']=wb.Sheets[Object.keys(wb.Sheets)[0]]
+      }catch(e2){msg(mel,'Could not open that Google Sheet. Set Share to "Anyone with the link → Viewer" and try again.',false);return}
+    }
+    text=_poSheetToText(wb).text
+  }
+  const rows=_parsePackOrders(text)
+  if(!rows.length){msg(mel,'No dish rows found — check the link or the pasted rows.',false);return}
+  const meals=rows.reduce((s,r)=>s+r.qty,0)
+  const lbl=new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}).toUpperCase()
+  if(!confirm('Stage and load this list for:\n\n'+lbl+'\n\n'+rows.length+' dishes, '+meals+' meals. It replaces any staged list for that date.\n\nCorrect?'))return
+  const {error}=await sb.rpc('sim_import_pack_dishes',{p_date:d,p_rows:rows})
+  if(error){msg(mel,error.message,false);return}
+  await packImportDishes()
 }
