@@ -801,7 +801,7 @@ window.packEodReport=async function(){
     body,
     didParseCell:d=>{
       if(d.section!=='body')return
-      const r=S.rows[d.row.index]
+      const r=S.rows[d.row.index]; if(!r)return
       if(d.column.index===6&&r.changeover_mins!=null&&Number(r.changeover_mins)>PACK_CO_TARGET){d.cell.styles.fontStyle='bold';d.cell.styles.fillColor=[247,232,224]}
       if(d.column.index===7&&r._excl){d.cell.styles.textColor=GREY;d.cell.styles.fontStyle='italic';d.cell.styles.fontSize=6.4}
       if(d.column.index===7&&!r._excl&&r._rate!=null&&r._rate>=packTarget){d.cell.styles.fontStyle='bold'}
@@ -809,7 +809,7 @@ window.packEodReport=async function(){
     didDrawCell:d=>{
       if(d.section!=='body'||d.column.index!==8)return
       const r=S.rows[d.row.index]
-      if(r._excl||r._rate==null)return
+      if(!r||r._excl||r._rate==null)return
       const maxw=d.cell.width-8, frac=Math.min(1,r._rate/(packTarget*1.5))
       doc.setFillColor.apply(doc,(r._rate>=packTarget?ORANGE:[201,194,187]))
       doc.rect(d.cell.x+4,d.cell.y+d.cell.height/2-2.5,Math.max(1.5,frac*maxw),5,'F')
