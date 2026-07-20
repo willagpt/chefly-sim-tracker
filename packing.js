@@ -1042,7 +1042,7 @@ window.packGuides=async function(){
   body+='<label style="display:block;margin:10px 0 6px"><input type="radio" name="pgMode" value="day" checked> Day pack order &nbsp;<input id="pgDate" type="date" value="'+d+'" style="width:auto;display:inline-block"></label>'
   body+='<label style="display:block;margin:0 0 12px"><input type="radio" name="pgMode" value="all"> Full set A-Z (every dish on file)</label>'
   body+='<button class="green" onclick="packGuidesPDF()">🖨 Generate PDF</button> <button class="ghost" onclick="packPrepSheetPDF()">🧺 Line prep sheet (PDF)</button>'
-  body+='<p class="muted" style="margin:6px 0 0;font-size:12px">Line prep sheet = the fridge pull list for the chosen day: totals per walk-in, then exact amounts to stage on the line for each dish, in pack order.</p>'
+  body+='<p class="muted" style="margin:6px 0 0;font-size:12px">Line prep sheet = dish by dish in pack order: the exact amounts to stage on the line before each dish starts, plus whole-day totals per walk-in on the last page.</p>'
   if(isManagerUp()){
     body+='<h3 style="margin:18px 0 2px">Storage locations</h3>'
     body+='<div id="pgLocChips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px"></div>'
@@ -1245,9 +1245,9 @@ window.packStageImport=async function(){
 }
 
 /* ---------- LINE PREP SHEET (fridge pull list, PDF) ----------
-   For the prep/runner role: page 1 = the day's total pull grouped by storage
-   location (one walk per fridge); then every dish in pack order with the exact
-   amount of each component to stage on the line before it starts.
+   For the prep/runner role: dish-by-dish IN PACK ORDER first (stage each dish's
+   amounts on the line before it starts), then the day's totals grouped by
+   storage location as a reference for bulk pulls, on the last pages.
    total = per-meal grams x planned meals. Missing weights print as CHECK. */
 window.packPrepSheetPDF=async function(){
   const d=($('pgDate')&&$('pgDate').value)||(packShift&&packShift.shift_date)||new Date().toISOString().slice(0,10)
@@ -1293,27 +1293,8 @@ window.packPrepSheetPDF=async function(){
     doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(201,194,187);doc.text(dayLbl+(sub?('  -  '+sub):''),M,40)
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(251,250,248);doc.text(runs.length+' dishes',W-M,24,{align:'right'})
   }
-  // ---- PAGE 1: totals grouped by location ----
-  header('TOTAL PULL FOR THE DAY - one trip per location')
-  const byLoc={}
-  Object.values(totals).forEach(t=>{const k=t.loc||'(no location set)';(byLoc[k]=byLoc[k]||[]).push(t)})
-  let y=76
-  Object.keys(byLoc).sort().forEach(loc=>{
-    const rows=byLoc[loc].sort((a,b)=>b.g-a.g).map(t=>[t.name, t.g>0?fmtKg(t.g):'', t.check?'+ CHECK (a weight is missing)':''])
-    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,ORANGE)
-    if(y>H-90){doc.addPage();header('TOTAL PULL - continued');y=76}
-    doc.text(loc.toUpperCase(),M,y)
-    doc.setDrawColor.apply(doc,LINE);doc.line(M,y+3,W-M,y+3)
-    doc.autoTable({startY:y+8,margin:{left:M,right:M,top:76,bottom:36},theme:'plain',
-      styles:{font:'helvetica',fontSize:9.5,cellPadding:{top:2.6,bottom:2.6,left:2,right:2},textColor:INK,lineColor:SOFT,lineWidth:{bottom:.5}},
-      columnStyles:{1:{cellWidth:70,halign:'right',fontStyle:'bold',fontSize:11},2:{cellWidth:150,textColor:ORANGE,fontSize:8}},
-      body:rows,
-      didDrawPage:dd=>{if(dd.pageNumber>1)header('TOTAL PULL - continued')}})
-    y=doc.lastAutoTable.finalY+18
-  })
-  // ---- PAGE 2+: per-dish setup in pack order ----
-  doc.addPage()
-  header('PER DISH - stage this on the line BEFORE each start')
+  // ---- PAGE 1+: per-dish setup, IN PACK ORDER (the prep person works dish by dish) ----
+  header('IN PACK ORDER - stage this on the line BEFORE each start')
   let y2=76
   dishBlocks.forEach(bk=>{
     const need=30+bk.lines.length*16+18
@@ -1340,9 +1321,28 @@ window.packPrepSheetPDF=async function(){
     })
     y2+=8
   })
+  // ---- LAST PAGES: day totals grouped by location (reference for bulk pulls) ----
+  doc.addPage()
+  header('REFERENCE - whole-day totals, one trip per location')
+  const byLoc={}
+  Object.values(totals).forEach(t=>{const k=t.loc||'(no location set)';(byLoc[k]=byLoc[k]||[]).push(t)})
+  let y=76
+  Object.keys(byLoc).sort().forEach(loc=>{
+    const rows=byLoc[loc].sort((a,b)=>b.g-a.g).map(t=>[t.name, t.g>0?fmtKg(t.g):'', t.check?'+ CHECK (a weight is missing)':''])
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,ORANGE)
+    if(y>H-90){doc.addPage();header('REFERENCE TOTALS - continued');y=76}
+    doc.text(loc.toUpperCase(),M,y)
+    doc.setDrawColor.apply(doc,LINE);doc.line(M,y+3,W-M,y+3)
+    doc.autoTable({startY:y+8,margin:{left:M,right:M,top:76,bottom:36},theme:'plain',
+      styles:{font:'helvetica',fontSize:9.5,cellPadding:{top:2.6,bottom:2.6,left:2,right:2},textColor:INK,lineColor:SOFT,lineWidth:{bottom:.5}},
+      columnStyles:{1:{cellWidth:70,halign:'right',fontStyle:'bold',fontSize:11},2:{cellWidth:150,textColor:ORANGE,fontSize:8}},
+      body:rows,
+      didDrawPage:dd=>{if(dd.pageNumber>1)header('REFERENCE TOTALS - continued')}})
+    y=doc.lastAutoTable.finalY+18
+  })
   const n=doc.getNumberOfPages()
   for(let p=1;p<=n;p++){doc.setPage(p)
-    doc.setDrawColor.apply(doc,LINE);doc.line(M,H-28,W-M,H-28)
+    doc.setDrawColor.apply(doc,LINE);doc.setLineWidth(.8);doc.line(M,H-28,W-M,H-28)
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GREY)
     doc.text('total = grams per meal x planned meals - pull a little extra to cover spillage - generated '+new Date().toLocaleString('en-GB'),M,H-18)
     doc.text('Chefly SIM Tracker - page '+p+' of '+n,W-M,H-18,{align:'right'})}
