@@ -1041,7 +1041,8 @@ window.packGuides=async function(){
   let body='<p class="muted" style="margin-top:-4px">One A4 card per dish - what goes in, the weight, and where to find it. Print, laminate, clip to the line. Reprint after any menu change.</p>'
   body+='<label style="display:block;margin:10px 0 6px"><input type="radio" name="pgMode" value="day" checked> Day pack order &nbsp;<input id="pgDate" type="date" value="'+d+'" style="width:auto;display:inline-block"></label>'
   body+='<label style="display:block;margin:0 0 12px"><input type="radio" name="pgMode" value="all"> Full set A-Z (every dish on file)</label>'
-  body+='<button class="green" onclick="packGuidesPDF()">🖨 Generate PDF</button>'
+  body+='<button class="green" onclick="packGuidesPDF()">🖨 Generate PDF</button> <button class="ghost" onclick="packPrepSheetPDF()">🧺 Line prep sheet (PDF)</button>'
+  body+='<p class="muted" style="margin:6px 0 0;font-size:12px">Line prep sheet = the fridge pull list for the chosen day: totals per walk-in, then exact amounts to stage on the line for each dish, in pack order.</p>'
   if(isManagerUp()){
     body+='<h3 style="margin:18px 0 2px">Storage locations</h3>'
     body+='<div id="pgLocChips" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 8px"></div>'
@@ -1241,4 +1242,109 @@ window.packStageImport=async function(){
   const {error}=await sb.rpc('sim_import_pack_dishes',{p_date:d,p_rows:rows})
   if(error){msg(mel,error.message,false);return}
   await packImportDishes()
+}
+
+/* ---------- LINE PREP SHEET (fridge pull list, PDF) ----------
+   For the prep/runner role: page 1 = the day's total pull grouped by storage
+   location (one walk per fridge); then every dish in pack order with the exact
+   amount of each component to stage on the line before it starts.
+   total = per-meal grams x planned meals. Missing weights print as CHECK. */
+window.packPrepSheetPDF=async function(){
+  const d=($('pgDate')&&$('pgDate').value)||(packShift&&packShift.shift_date)||new Date().toISOString().slice(0,10)
+  try{await _eodLibs()}catch(e){alert(e.message);return}
+  try{await _pgLoad()}catch(e){alert(e.message);return}
+  const sh=await sb.from('sim_pack_shifts').select('id,shift_date').eq('shift_date',d).maybeSingle()
+  if(sh.error){alert(sh.error.message);return}
+  let runs=[]
+  if(sh.data){
+    const rr=await sb.from('sim_pack_runs').select('sku,dish_name,planned_qty,sort_order,planned_seq,status').eq('shift_id',sh.data.id)
+    if(rr.error){alert(rr.error.message);return}
+    runs=(rr.data||[]).filter(r=>r.status!=='skipped')
+      .sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
+  }
+  if(!runs.length){alert('No dish list loaded for '+d+' - load the day first.');return}
+  const compById={}; _pgComps.forEach(c=>{compById[c.id]=c})
+  const bySku={}; _pgBom.forEach(b=>{(bySku[b.sku]=bySku[b.sku]||[]).push(b)})
+  const fmtKg=g=> g>=1000 ? ((Math.round(g/100)/10)+' kg') : (Math.round(g)+' g')
+  // per-dish rows + day totals per component
+  const dishBlocks=[], totals={}
+  runs.forEach((r,i)=>{
+    const lines=(bySku[r.sku]||[]).map(b=>{
+      const c=compById[b.component_id]||{}
+      const per=b.grams!=null?Number(b.grams):null
+      const tot=(per!=null&&r.planned_qty!=null)?per*Number(r.planned_qty):null
+      const loc=(c.storage_location||'').trim()||null
+      const key=(c.name||'?')+'||'+(loc||'-')
+      if(tot!=null){ if(!totals[key])totals[key]={name:c.name||'(unknown)',loc:loc,g:0,check:false}; totals[key].g+=tot }
+      else { if(!totals[key])totals[key]={name:c.name||'(unknown)',loc:loc,g:0,check:false}; totals[key].check=true }
+      return {name:c.name||'(unknown component)',loc:loc,per:per,tot:tot}
+    }).sort((a,b)=>(b.per||0)-(a.per||0))
+    dishBlocks.push({seq:i+1,sku:r.sku,dish:r.dish_name,qty:r.planned_qty,lines:lines})
+  })
+  const {jsPDF}=window.jspdf
+  const doc=new jsPDF({unit:'pt',format:'a4'})
+  const W=595.28,H=841.89,M=34
+  const INK=[28,26,25],ORANGE=[232,84,29],GREY=[138,133,128],LINE=[220,215,209],SOFT=[236,232,227]
+  const dayLbl=new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+  const header=(sub)=>{
+    doc.setFillColor.apply(doc,INK);doc.rect(0,0,W,54,'F')
+    doc.setFillColor.apply(doc,ORANGE);doc.rect(0,0,6,54,'F')
+    doc.setFont('helvetica','bold');doc.setFontSize(15);doc.setTextColor(251,250,248);doc.text('LINE PREP - FRIDGE PULL LIST',M,24)
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(201,194,187);doc.text(dayLbl+(sub?('  -  '+sub):''),M,40)
+    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(251,250,248);doc.text(runs.length+' dishes',W-M,24,{align:'right'})
+  }
+  // ---- PAGE 1: totals grouped by location ----
+  header('TOTAL PULL FOR THE DAY - one trip per location')
+  const byLoc={}
+  Object.values(totals).forEach(t=>{const k=t.loc||'(no location set)';(byLoc[k]=byLoc[k]||[]).push(t)})
+  let y=76
+  Object.keys(byLoc).sort().forEach(loc=>{
+    const rows=byLoc[loc].sort((a,b)=>b.g-a.g).map(t=>[t.name, t.g>0?fmtKg(t.g):'', t.check?'+ CHECK (a weight is missing)':''])
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,ORANGE)
+    if(y>H-90){doc.addPage();header('TOTAL PULL - continued');y=76}
+    doc.text(loc.toUpperCase(),M,y)
+    doc.setDrawColor.apply(doc,LINE);doc.line(M,y+3,W-M,y+3)
+    doc.autoTable({startY:y+8,margin:{left:M,right:M,top:76,bottom:36},theme:'plain',
+      styles:{font:'helvetica',fontSize:9.5,cellPadding:{top:2.6,bottom:2.6,left:2,right:2},textColor:INK,lineColor:SOFT,lineWidth:{bottom:.5}},
+      columnStyles:{1:{cellWidth:70,halign:'right',fontStyle:'bold',fontSize:11},2:{cellWidth:150,textColor:ORANGE,fontSize:8}},
+      body:rows,
+      didDrawPage:dd=>{if(dd.pageNumber>1)header('TOTAL PULL - continued')}})
+    y=doc.lastAutoTable.finalY+18
+  })
+  // ---- PAGE 2+: per-dish setup in pack order ----
+  doc.addPage()
+  header('PER DISH - stage this on the line BEFORE each start')
+  let y2=76
+  dishBlocks.forEach(bk=>{
+    const need=30+bk.lines.length*16+18
+    if(y2+need>H-40){doc.addPage();header('PER DISH - continued');y2=76}
+    doc.setFillColor(250,238,230);doc.rect(M,y2-4,W-2*M,22,'F')
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,INK)
+    doc.text('#'+bk.seq+'  SKU '+(bk.sku||'-')+'  '+bk.dish,M+6,y2+11)
+    doc.setTextColor.apply(doc,ORANGE)
+    doc.text((bk.qty!=null?bk.qty+' MEALS':''),W-M-6,y2+11,{align:'right'})
+    y2+=26
+    if(!bk.lines.length){
+      doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,GREY)
+      doc.text('No components on file - check with the lead.',M+6,y2+4); y2+=20
+    } else bk.lines.forEach(l=>{
+      doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.setTextColor.apply(doc,INK)
+      doc.text(l.name,M+14,y2+4)
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,GREY)
+      doc.text((l.loc?l.loc:'-')+(l.per!=null?('   -   '+l.per+' g each'):''),M+250,y2+4)
+      doc.setFont('helvetica','bold');doc.setFontSize(11)
+      if(l.tot!=null){doc.setTextColor.apply(doc,INK);doc.text(fmtKg(l.tot),W-M-6,y2+4,{align:'right'})}
+      else {doc.setTextColor.apply(doc,ORANGE);doc.text('CHECK',W-M-6,y2+4,{align:'right'})}
+      doc.setDrawColor.apply(doc,SOFT);doc.setLineWidth(.5);doc.line(M+14,y2+8,W-M,y2+8)
+      y2+=16
+    })
+    y2+=8
+  })
+  const n=doc.getNumberOfPages()
+  for(let p=1;p<=n;p++){doc.setPage(p)
+    doc.setDrawColor.apply(doc,LINE);doc.line(M,H-28,W-M,H-28)
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GREY)
+    doc.text('total = grams per meal x planned meals - pull a little extra to cover spillage - generated '+new Date().toLocaleString('en-GB'),M,H-18)
+    doc.text('Chefly SIM Tracker - page '+p+' of '+n,W-M,H-18,{align:'right'})}
+  doc.save('Chefly-Line-Prep-'+d+'.pdf')
 }
