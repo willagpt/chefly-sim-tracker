@@ -53,9 +53,14 @@ window.setMyPassword=async function(){
   const a=$('np1').value, b=$('np2').value
   if(a.length<6){msg($('loginMsg'),'Password must be 6+ characters.',false);return}
   if(a!==b){msg($('loginMsg'),'Passwords do not match.',false);return}
-  const {error}=await sb.auth.updateUser({password:a})
-  if(error){msg($('loginMsg'),error.message,false);return}
-  await sb.from('sim_profiles').update({must_change_password:false}).eq('id',me.id)
+  // Set the password through the sim-admin function (service role) so ANY password is
+  // accepted, including one the person used before — the standard auth.updateUser call
+  // rejects reusing a password ("New password should be different from the old password").
+  const {data,error}=await sb.functions.invoke('sim-admin',{body:{action:'set_own_password',password:a}})
+  if(error||data?.error){msg($('loginMsg'),(data&&data.error)||error.message,false);return}
+  // Re-authenticate with the new password in case the server-side update revoked this session.
+  const em=(me&&me.email)||$('email').value.trim().toLowerCase()
+  if(em){const {data:s}=await sb.auth.signInWithPassword({email:em,password:a}); if(s&&s.user) me=s.user}
   profile.must_change_password=false; clearMsg($('loginMsg')); await showApp()
 }
 window.signOut=async function(){await sb.auth.signOut();location.reload()}
