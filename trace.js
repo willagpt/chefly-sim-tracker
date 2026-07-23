@@ -5,6 +5,7 @@
    deliveries (and invoice / supplier) that went into it. */
 
 let trIngredients=[], trGoods=[], trProfs=[], trStaffs=[], _trLotsAt=0, _biCache={}, _mmOrders=[]
+let trSuppliers=[], _spEditId=null
 
 function giCode(g){const d=String(g.received_date||'').split('-');return d.length===3?('GI '+d[2]+'/'+d[1]+'/'+d[0].slice(2)):'GI ?'}
 function trIngName(id){const i=trIngredients.find(x=>x.id===id);return i?i.name:'(ingredient)'}
@@ -15,6 +16,116 @@ async function trEnsureIngredients(force){
   if(trIngredients.length&&!force) return
   const {data}=await sb.from('sim_ingredients').select('*').eq('active',true).order('sort_order').order('name')
   trIngredients=data||[]
+}
+async function trEnsureSuppliers(force){
+  if(trSuppliers.length&&!force) return
+  const {data}=await sb.from('sim_suppliers').select('*').order('sort_order').order('name')
+  trSuppliers=data||[]
+}
+// pill state for a supplier's certificate: reused for the list and the dropdowns
+function supplierStatus(sup){
+  const t=String((sup&&sup.cert_type)||'').trim().toLowerCase()
+  const noneNeeded=(!t||['none','n/a','na','not required','not needed'].includes(t))
+  if(!sup||!sup.cert_expiry){
+    if(noneNeeded) return {cls:'na',label:'N/A'}
+    return {cls:'red',label:'no expiry set'}
+  }
+  const days=Math.round((new Date(sup.cert_expiry)-new Date(_trIsoToday()))/864e5)
+  if(days<0) return {cls:'red',label:'expired'}
+  if(days<=30) return {cls:'amber',label:days+'d left'}
+  return {cls:'green',label:'valid'}
+}
+function _supPill(st){
+  const c={green:'#16a34a',amber:'#d97706',red:'#dc2626',na:'#64748b'}[st.cls]||'#64748b'
+  return `<span class="pill" style="background:${c};color:#fff">${esc(st.label)}</span>`
+}
+function populateSupplierSelect(selectId,includeBlank){
+  const sel=$(selectId); if(!sel)return; const cur=sel.value
+  let html=includeBlank?'<option value="">— pick supplier —</option>':''
+  html+=trSuppliers.map(s=>{const st=supplierStatus(s);return `<option value="${s.id}">${esc(s.name)}${st.label?' · '+esc(st.label):''}</option>`}).join('')
+  html+='<option value="__other__">— other / not listed —</option>'
+  sel.innerHTML=html
+  if(cur)sel.value=cur
+}
+window.giSupplierChanged=function(){
+  const other=$('giSupplier')&&$('giSupplier').value==='__other__'
+  const box=$('giSupplierOther'); if(box){other?show(box):hide(box)}
+}
+function renderSupplierList(){
+  const box=$('supplierList'); if(!box)return; box.innerHTML=''
+  trSuppliers.forEach(s=>{
+    const st=supplierStatus(s)
+    const prod=String(s.products||''); const prodShort=prod.length>60?(prod.slice(0,60)+'…'):prod
+    const emailHtml=s.email?esc(s.email):'<span style="color:#dc2626">no email</span>'
+    const d=document.createElement('div'); d.className='task-item'
+    d.innerHTML=`<div style="min-width:0"><b>${esc(s.name)}</b> ${_supPill(st)}<div class="meta">${esc(s.category)||'food'}${prodShort?' · '+esc(prodShort):''}${s.cert_expiry?' · cert '+esc(s.cert_expiry):''} · ${emailHtml}</div></div>`
+    const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Edit'; b.onclick=()=>editSupplier(s.id)
+    d.appendChild(b); box.appendChild(d)
+  })
+  if(!trSuppliers.length) box.innerHTML='<p class="muted">No suppliers yet. Add one above.</p>'
+}
+window.saveSupplier=async function(){
+  if(!isManagerUp()){msg($('spMsg'),'Managers only.',false);return}
+  const name=$('spName').value.trim(); if(!name){msg($('spMsg'),'Enter a supplier name.',false);return}
+  const rec={name,
+    category:$('spCategory').value||'food',
+    products:$('spProducts').value.trim()||null,
+    address:$('spAddress').value.trim()||null,
+    contact:$('spContact').value.trim()||null,
+    email:$('spEmail').value.trim()||null,
+    cert_type:$('spCertType').value.trim()||null,
+    cert_ref:$('spCertRef').value.trim()||null,
+    cert_expiry:$('spCertExpiry').value||null,
+    approval_status:$('spApproval').value||'approved'}
+  let error
+  if(_spEditId){ ({error}=await sb.from('sim_suppliers').update(rec).eq('id',_spEditId)) }
+  else { const order=(trSuppliers.length?Math.max(...trSuppliers.map(s=>s.sort_order||0)):0)+1; ({error}=await sb.from('sim_suppliers').insert(Object.assign({},rec,{sort_order:order,active:true}))) }
+  if(error){msg($('spMsg'),error.message,false);return}
+  msg($('spMsg'),_spEditId?'Supplier updated.':'Supplier added.',true)
+  supplierFormReset()
+  await trEnsureSuppliers(true); renderSupplierList(); populateSupplierSelect('giSupplier',true); populateSupplierSelect('inSupplier',true)
+}
+window.editSupplier=function(id){
+  const s=trSuppliers.find(x=>x.id===id); if(!s)return
+  _spEditId=id
+  $('spName').value=s.name||''
+  $('spCategory').value=s.category||'food'
+  $('spProducts').value=s.products||''
+  $('spAddress').value=s.address||''
+  $('spContact').value=s.contact||''
+  $('spEmail').value=s.email||''
+  $('spCertType').value=s.cert_type||''
+  $('spCertRef').value=s.cert_ref||''
+  $('spCertExpiry').value=s.cert_expiry||''
+  $('spApproval').value=s.approval_status||'approved'
+  const b=$('spSaveBtn'); if(b)b.textContent='Save changes'
+  const c=$('spCancelBtn'); if(c)c.classList.remove('hidden')
+  clearMsg($('spMsg')); if($('spName').scrollIntoView)$('spName').scrollIntoView({behavior:'smooth',block:'center'})
+}
+window.supplierFormReset=function(){
+  _spEditId=null
+  ;['spName','spProducts','spAddress','spContact','spEmail','spCertType','spCertRef','spCertExpiry'].forEach(id=>{const e=$(id);if(e)e.value=''})
+  if($('spCategory'))$('spCategory').value='food'
+  if($('spApproval'))$('spApproval').value='approved'
+  const b=$('spSaveBtn'); if(b)b.textContent='Add supplier'
+  const c=$('spCancelBtn'); if(c)c.classList.add('hidden')
+}
+// ---- certificate renewal reminder settings (admin only) ----
+async function renderCertReminderCard(){
+  const card=$('certRemindCard'); if(!card)return
+  if(!isAdmin()){card.classList.add('hidden');return}
+  card.classList.remove('hidden')
+  const {data}=await sb.from('sim_cert_reminder_settings').select('*').limit(1).maybeSingle()
+  const s=data||{}
+  if($('crEnabled'))$('crEnabled').checked=!!s.enabled
+  if($('crFromEmail'))$('crFromEmail').value=s.from_email||'kaja@eatchefly.com'
+}
+window.saveCertReminders=async function(){
+  if(!isAdmin()){msg($('crMsg'),'Admins only.',false);return}
+  const rec={enabled:$('crEnabled').checked, from_email:$('crFromEmail').value.trim()||'kaja@eatchefly.com'}
+  const {error}=await sb.from('sim_cert_reminder_settings').update(rec).eq('id',true)
+  if(error){msg($('crMsg'),error.message,false);return}
+  msg($('crMsg'),'Saved.',true)
 }
 async function trEnsureLots(force){
   const now=Date.now()
@@ -37,18 +148,23 @@ window.initTrace=async function(){
   if($('giDate')&&!$('giDate').value)$('giDate').value=_trIsoToday()
   if($('tbTo')&&!$('tbTo').value)$('tbTo').value=_trIsoToday()
   if($('tbFrom')&&!$('tbFrom').value){const d=new Date(Date.now()-6*864e5);$('tbFrom').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-  await trEnsureIngredients(true); await trEnsureLots(true)
+  await trEnsureSuppliers(true); await trEnsureIngredients(true); await trEnsureLots(true)
+  renderSupplierList(); await renderCertReminderCard()
+  populateSupplierSelect('giSupplier',true); populateSupplierSelect('inSupplier',true); giSupplierChanged()
   renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
 }
 
 // ---- ingredients master ----
 window.addIngredient=async function(){
   const name=$('inName').value.trim(); if(!name){msg($('inMsg'),'Enter an ingredient name.',false);return}
-  const uom=($('inUom').value||'kg').trim()||'kg', supplier=$('inSupplier').value.trim()||null
+  const uom=($('inUom').value||'kg').trim()||'kg'
+  const supSel=$('inSupplier')?$('inSupplier').value:''
+  let supplier_id=null, supplier=null
+  if(supSel&&supSel!=='__other__'){ supplier_id=supSel; const s=trSuppliers.find(x=>x.id===supSel); supplier=s?s.name:null }
   const order=(trIngredients.length?Math.max(...trIngredients.map(i=>i.sort_order||0)):0)+1
-  const {error}=await sb.from('sim_ingredients').insert({name,uom,supplier,sort_order:order})
+  const {error}=await sb.from('sim_ingredients').insert({name,uom,supplier,supplier_id,sort_order:order})
   if(error){msg($('inMsg'),error.message,false);return}
-  $('inName').value='';$('inSupplier').value='';msg($('inMsg'),'Ingredient added.',true)
+  $('inName').value='';if($('inSupplier'))$('inSupplier').value='';msg($('inMsg'),'Ingredient added.',true)
   await trEnsureIngredients(true); renderIngredientList(); populateGiIngSelect()
 }
 window.addIngredientInline=async function(){
@@ -64,7 +180,8 @@ function renderIngredientList(){
   const box=$('ingredientList'); if(!box)return; box.innerHTML=''
   trIngredients.forEach(i=>{
     const d=document.createElement('div'); d.className='task-item'
-    d.innerHTML=`<div><b>${esc(i.name)}</b><div class="meta">${esc(i.uom)||'kg'}${i.supplier?' · '+esc(i.supplier):''}</div></div>`
+    const supName=i.supplier_id?(((trSuppliers.find(s=>s.id===i.supplier_id)||{}).name)||i.supplier):i.supplier
+    d.innerHTML=`<div><b>${esc(i.name)}</b><div class="meta">${esc(i.uom)||'kg'}${supName?' · '+esc(supName):''}</div></div>`
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'
     b.onclick=async()=>{if(!confirm('Remove '+i.name+'? Past deliveries keep their records.'))return;await sb.from('sim_ingredients').update({active:false}).eq('id',i.id);await trEnsureIngredients(true);renderIngredientList();populateGiIngSelect()}
     d.appendChild(b); box.appendChild(d)
@@ -83,13 +200,18 @@ window.addGoodsIn=async function(){
   const date=$('giDate').value||_trIsoToday()
   const qty=$('giQty').value?Number($('giQty').value):null
   const uom=($('giUom').value||'kg').trim()||'kg'
-  const supplier=$('giSupplier').value.trim()||null
+  const supSel=$('giSupplier')?$('giSupplier').value:''
+  let supplier_id=null, supplier=null, chosen=null
+  if(supSel==='__other__'){ supplier=(($('giSupplierOther')&&$('giSupplierOther').value)||'').trim()||null }
+  else if(supSel){ supplier_id=supSel; chosen=trSuppliers.find(x=>x.id===supSel)||null; supplier=chosen?chosen.name:null }
   const invoice=$('giInvoice').value.trim()||null
   const notes=$('giNotes').value.trim()||null
-  const {data,error}=await sb.from('sim_goods_in').insert({ingredient_id:ing,received_date:date,qty,uom,supplier,invoice_ref:invoice,notes}).select().single()
+  const {data,error}=await sb.from('sim_goods_in').insert({ingredient_id:ing,received_date:date,qty,uom,supplier,supplier_id,invoice_ref:invoice,notes}).select().single()
   if(error){msg($('giMsg'),error.message,false);return}
   $('giQty').value='';$('giInvoice').value='';$('giNotes').value=''
-  msg($('giMsg'),'Delivery logged — code '+(data?giCode(data):'')+'. This is the sticker date.',true)
+  const expired=chosen&&chosen.cert_expiry&&(new Date(chosen.cert_expiry)<new Date(_trIsoToday()))
+  if(expired) msg($('giMsg'),'⚠ '+chosen.name+"'s certificate is expired — logged, but chase renewal",false)
+  else msg($('giMsg'),'Delivery logged — code '+(data?giCode(data):'')+'. This is the sticker date.',true)
   await trEnsureLots(true); renderGoodsInList(); populateTraceLotSelect()
 }
 function renderGoodsInList(){

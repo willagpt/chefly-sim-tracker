@@ -213,7 +213,7 @@
           <div><label for="giUom">Unit</label><input id="giUom" list="uomList" value="kg" /></div>
         </div>
         <div class="row">
-          <div><label for="giSupplier">Supplier</label><input id="giSupplier" type="text" placeholder="e.g. supplier name" /></div>
+          <div><label for="giSupplier">Supplier</label><select id="giSupplier" onchange="giSupplierChanged()"></select><input id="giSupplierOther" type="text" placeholder="Supplier name" class="hidden" style="margin-top:8px" /></div>
           <div><label for="giInvoice">Invoice / delivery note ref</label><input id="giInvoice" type="text" placeholder="optional" /></div>
         </div>
         <label for="giNotes">Notes (e.g. supplier batch no.)</label>
@@ -243,6 +243,46 @@
         <div id="tbBody" style="margin-top:10px"></div>
       </div>
       <div class="card">
+        <h2>Approved suppliers</h2>
+        <p class="muted" style="margin-top:-8px">Your approved supplier list with live certificate status. Deliveries and ingredients link to these. Managers can add or edit.</p>
+        <div class="row">
+          <div><label for="spName">Name</label><input id="spName" type="text" placeholder="e.g. ABC Meats" /></div>
+          <div><label for="spCategory">Category</label><select id="spCategory"><option value="food">food</option><option value="packaging">packaging</option><option value="gas">gas</option><option value="other">other</option></select></div>
+        </div>
+        <label for="spProducts">Supplies (products)</label>
+        <input id="spProducts" type="text" placeholder="e.g. beef brisket, chicken breast" />
+        <div class="row">
+          <div><label for="spAddress">Address</label><input id="spAddress" type="text" placeholder="optional" /></div>
+          <div><label for="spContact">Contact</label><input id="spContact" type="text" placeholder="optional" /></div>
+        </div>
+        <label for="spEmail">Email</label>
+        <input id="spEmail" type="email" inputmode="email" placeholder="orders@supplier.com" />
+        <div class="row">
+          <div><label for="spCertType">Certificate type</label><input id="spCertType" type="text" placeholder="e.g. BRC, SALSA, none" /></div>
+          <div><label for="spCertRef">Certificate ref</label><input id="spCertRef" type="text" placeholder="optional" /></div>
+        </div>
+        <div class="row">
+          <div><label for="spCertExpiry">Certificate expiry</label><input id="spCertExpiry" type="date" /></div>
+          <div><label for="spApproval">Approval status</label><select id="spApproval"><option value="approved">approved</option><option value="pending">pending</option><option value="suspended">suspended</option></select></div>
+        </div>
+        <div class="row">
+          <button class="green" id="spSaveBtn" onclick="saveSupplier()">Add supplier</button>
+          <button class="ghost hidden" id="spCancelBtn" onclick="supplierFormReset()">Cancel edit</button>
+        </div>
+        <div id="spMsg" class="msg"></div>
+        <div id="supplierList" style="margin-top:14px"></div>
+      </div>
+      <div class="card hidden" id="certRemindCard">
+        <h2>Certificate renewal reminders</h2>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:4px"><input type="checkbox" id="crEnabled" style="width:auto" /> Automatically email suppliers before their certificate expires</label>
+        <label for="crFromEmail" style="margin-top:10px">From email</label>
+        <input id="crFromEmail" type="email" inputmode="email" placeholder="kaja@eatchefly.com" />
+        <p class="muted" id="crCadence" style="margin-top:8px">Reminders at 30, 14, 7 days before, then weekly overdue.</p>
+        <button class="green" onclick="saveCertReminders()">Save</button>
+        <p class="muted" style="margin-top:8px">Suppliers with no email are skipped.</p>
+        <div id="crMsg" class="msg"></div>
+      </div>
+      <div class="card">
         <h2>Ingredients</h2>
         <p class="muted" style="margin-top:-8px">The master list of raw materials you receive. Deliveries are logged against these.</p>
         <div class="row">
@@ -250,7 +290,7 @@
           <div><label for="inUom">Unit</label><input id="inUom" list="uomList" value="kg" /></div>
         </div>
         <label for="inSupplier">Usual supplier (optional)</label>
-        <input id="inSupplier" type="text" placeholder="e.g. supplier name" />
+        <select id="inSupplier"></select>
         <button class="ghost" onclick="addIngredient()">Add ingredient</button>
         <div id="inMsg" class="msg"></div>
         <div id="ingredientList" style="margin-top:14px"></div>
@@ -367,6 +407,7 @@
         </div>
         <datalist id="uomList"><option value="kg"><option value="units"><option value="each"><option value="trays"><option value="packs"><option value="sleeves"><option value="litres"></datalist>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:14px"><input type="checkbox" id="ntReqUnits" style="width:auto" checked /> Records amount produced (required to finish)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqLot" style="width:auto" /> Requires ingredient lot(s) to finish (traceability)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqProduct" style="width:auto" /> Requires a product (e.g. what's being packed)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntWaste" style="width:auto" /> Track waste (show the box, optional)</label>
         <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:10px"><input type="checkbox" id="ntReqWaste" style="width:auto" /> Require a waste figure to finish</label>
