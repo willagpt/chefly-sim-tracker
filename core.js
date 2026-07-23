@@ -29,11 +29,13 @@ function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
 function uomCat(c){return (c&&c.uom)||'kg'}
 function uomFor(log){return (log&&log.uom)||uomCat(catFor(log))}
 function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==false}
+function requiresLot(log){const c=catFor(log);return !!(c && c.requires_lot)}
 function requiresWaste(log){const c=catFor(log);return !!(c&&c.require_waste)}
 function showsWaste(log){const c=catFor(log);return !!(c&&(c.track_waste||c.require_waste))}
 function finishErr(error){
   if(/VALUE_TOO_HIGH/.test(error.message)) return 'That number looks wrong — it is over the 1000 kg per-task limit. Please re-check and re-enter (e.g. 22.94, not 2294).'
   if(/KG_REQUIRED/.test(error.message)) return 'Please enter the amount produced before finishing this task.'
+  if(/LOT_REQUIRED/.test(error.message)) return 'Record the ingredient lot(s) used before finishing this task.'
   if(/WASTE_REQUIRED/.test(error.message)) return 'Please enter the waste (kg) for this task before finishing.'
   return error.message
 }

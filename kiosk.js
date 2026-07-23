@@ -69,6 +69,10 @@ window.kioskStopFor=async function(id){
   if(requiresUnits(l) && (units==null||isNaN(units))){ alert('Please enter the amount produced ('+kuom+') before finishing this task.'); return }
   if(requiresWaste(l) && (waste==null||isNaN(waste))){ alert('Please enter the waste ('+kuom+') for this task before finishing. If there was none, enter 0.'); return }
   if(!(l.photos&&l.photos.length)){ alert('A photo of the work is required before finishing.\n\nPlease add a photo above, then finish.'); return }
+  if(requiresLot(l)){
+    const {data:bi}=await sb.from('sim_batch_inputs').select('id').eq('log_id',id).limit(1)
+    if(!bi||!bi.length){ alert('Record the ingredient lot(s) used on this task before finishing. Use the "Traceability — ingredient lots used" box on the card, then finish.'); return }
+  }
   const startTemp=gv('ts'), finishTemp=gv('tf')
   if(requiresTemp(l) && (startTemp==null||isNaN(startTemp)||finishTemp==null||isNaN(finishTemp))){ alert('Enter the start and finish temperature (°C) to finish this cook/chill step.'); return }
   const _sTAt=requiresTemp(l)?tempStamp(l.log_date,($('tst_'+p)&&$('tst_'+p).value),l.start_time):null
