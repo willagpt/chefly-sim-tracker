@@ -37,6 +37,7 @@ window.editTask=function(id){
       <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_requnits_${id}" style="width:auto" ${t.requires_units!==false?'checked':''}/> Records amount produced (required to finish)</label>
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqlot_${id}" style="width:auto" ${t.requires_lot?'checked':''}/> Requires ingredient lot(s) to finish (traceability)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqproduct_${id}" style="width:auto" ${t.requires_product?'checked':''}/> Requires a product (e.g. what's being packed)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_waste_${id}" style="width:auto" ${t.track_waste?'checked':''}/> Track waste (show the box, optional)</label>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_reqwaste_${id}" style="width:auto" ${t.require_waste?'checked':''}/> Require a waste figure to finish</label>
@@ -65,6 +66,7 @@ window.saveTask=async function(id){
   const trackWaste=$('et_waste_'+id).checked
   const reqWaste=$('et_reqwaste_'+id).checked
   const reqUnits=$('et_requnits_'+id).checked
+  const reqLot=$('et_reqlot_'+id).checked
   const uom=($('et_uom_'+id).value||'kg').trim()||'kg'
   const reqProduct=$('et_reqproduct_'+id).checked
   const isBatch=$('et_batch_'+id).checked
@@ -75,7 +77,7 @@ window.saveTask=async function(id){
   const recTemp=$('et_temp_'+id).checked||tTarget!=null
   const tDir=$('et_tdir_'+id).value||'min'
   const tMax=$('et_tmax_'+id).value?Number($('et_tmax_'+id).value):null
-  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,requires_product:reqProduct,uom,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,records_temp:recTemp,temp_target:tTarget,temp_dir:tDir,temp_max_minutes:tMax}).eq('id',id)
+  const {error}=await sb.from('sim_task_catalog').update({name,station,expected_units:units,expected_staff:staff,track_waste:trackWaste,require_waste:reqWaste,requires_units:reqUnits,requires_lot:reqLot,requires_product:reqProduct,uom,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,records_temp:recTemp,temp_target:tTarget,temp_dir:tDir,temp_max_minutes:tMax}).eq('id',id)
   if(error){msg($('addMsg'),error.message,false);return}
   await loadCatalog(); msg($('addMsg'),'Task updated.',true)
 }
@@ -92,9 +94,9 @@ window.addTask=async function(){
   const recTemp=(($('ntTemp')&&$('ntTemp').checked)||tTarget!=null)
   const tDir=($('ntTempDir')&&$('ntTempDir').value)||'min'
   const tMax=($('ntTempMax')&&$('ntTempMax').value)?Number($('ntTempMax').value):null
-  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,requires_product:$('ntReqProduct').checked,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,records_temp:recTemp,temp_target:tTarget,temp_dir:tDir,temp_max_minutes:tMax,sort_order:order})
+  const {error}=await sb.from('sim_task_catalog').insert({name,station,expected_units:units,expected_staff:1,uom,track_waste:$('ntWaste').checked,require_waste:$('ntReqWaste').checked,requires_units:$('ntReqUnits').checked,requires_lot:$('ntReqLot').checked,requires_product:$('ntReqProduct').checked,is_batch:isBatch,capacity_per_load:cap,cook_minutes:cook,equipment_kind:kind,records_temp:recTemp,temp_target:tTarget,temp_dir:tDir,temp_max_minutes:tMax,sort_order:order})
   if(error){msg($('addMsg'),error.message,false);return}
-  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;$('ntReqProduct').checked=false;if($('ntBatch'))$('ntBatch').checked=false;if($('ntCap'))$('ntCap').value='';if($('ntCook'))$('ntCook').value='';if($('ntKind'))$('ntKind').value='';if($('ntTemp'))$('ntTemp').checked=false;if($('ntTempTarget'))$('ntTempTarget').value='';if($('ntTempMax'))$('ntTempMax').value='';msg($('addMsg'),'Task added.',true);await loadCatalog()
+  $('ntName').value='';$('ntStation').value='';$('ntUnits').value='';$('ntWaste').checked=false;$('ntReqWaste').checked=false;$('ntReqUnits').checked=true;$('ntReqLot').checked=false;$('ntReqProduct').checked=false;if($('ntBatch'))$('ntBatch').checked=false;if($('ntCap'))$('ntCap').value='';if($('ntCook'))$('ntCook').value='';if($('ntKind'))$('ntKind').value='';if($('ntTemp'))$('ntTemp').checked=false;if($('ntTempTarget'))$('ntTempTarget').value='';if($('ntTempMax'))$('ntTempMax').value='';msg($('addMsg'),'Task added.',true);await loadCatalog()
 }
 
 // ---- products / recipes ----
@@ -145,7 +147,7 @@ function _hhmmLocal(t){if(!t)return '';const d=new Date(t);return String(d.getHo
 function tempStamp(dateStr,hhmm,fallbackIso){if(!hhmm)return fallbackIso;const d=new Date((dateStr||new Date().toISOString().slice(0,10))+'T'+hhmm+':00');return isNaN(d.getTime())?fallbackIso:d.toISOString()}
 function runCardHTML(l,m){
   const p=m+'_'+l.id
-  const cat=catFor(l); const ru=!cat||cat.requires_units!==false; const sw=!!(cat&&(cat.track_waste||cat.require_waste)); const rw=!!(cat&&cat.require_waste); const u=uomFor(l); const rt=!!(cat&&(cat.records_temp||cat.temp_target!=null)); const th=tempHint(cat)
+  const cat=catFor(l); const ru=!cat||cat.requires_units!==false; const sw=!!(cat&&(cat.track_waste||cat.require_waste)); const rw=!!(cat&&cat.require_waste); const u=uomFor(l); const rt=!!(cat&&(cat.records_temp||cat.temp_target!=null)); const th=tempHint(cat); const rl=!!(cat&&cat.requires_lot)
   const paused=l.status==='paused'
   const stopFn=m==='k'?'kioskStopFor':'stopTaskFor'
   const md=m==='k'?'kiosk':'main'
@@ -157,7 +159,7 @@ function runCardHTML(l,m){
     ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
     ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
     ${rt?`<label>Cook/chill check${th}</label><div class="row"><div><label>Start °C</label><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><label>Start time</label><input id="tst_${p}" type="time" value="${_hhmmLocal(l.start_time)}" /></div></div><div class="row"><div><label>Finish °C</label><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div><div><label>Finish time</label><input id="tft_${p}" type="time" /></div></div>`:''}
-    <label>Traceability — ingredient lots used (goods-in code)</label>
+    <label>Traceability — ingredient lots used (goods-in code)${rl?' <span style="color:#dc2626;font-weight:700">• required</span>':''}</label>
     <div id="bi_${p}"></div>
     <div class="row"><div style="flex:2"><select id="lot_${p}"><option value="">— ingredient · goods-in code —</option></select></div><div><input id="lotq_${p}" type="number" inputmode="decimal" placeholder="qty" /></div><div><button class="ghost sm" style="width:100%;margin-top:0;padding:12px" onclick="addBatchInput('${l.id}','${md}')">+ Add</button></div></div>
     <div class="row"><div><label>People on task</label><input id="st_${p}" type="number" inputmode="numeric" min="1" value="${l.staff_count||1}" /></div><div><label>Change over (mins)</label><input id="ch_${p}" type="number" inputmode="numeric" placeholder="0" /></div></div>
@@ -206,6 +208,10 @@ window.stopTaskFor=async function(id){
   if(requiresUnits(l) && (units==null||isNaN(units))){ unitsGateOK(); return }
   if(requiresWaste(l) && (waste==null||isNaN(waste))){ wasteGateOK(); return }
   if(!photoGateOK(l)) return
+  if(requiresLot(l)){
+    const {data:bi}=await sb.from('sim_batch_inputs').select('id').eq('log_id',id).limit(1)
+    if(!bi||!bi.length){ alert('Record the ingredient lot(s) used on this task before finishing. Use the "Traceability — ingredient lots used" box on the card, then finish.'); return }
+  }
   const startTemp=gv('ts'), finishTemp=gv('tf')
   if(requiresTemp(l) && (startTemp==null||isNaN(startTemp)||finishTemp==null||isNaN(finishTemp))){ alert('Enter the start and finish temperature (°C) to finish this cook/chill step.'); return }
   const _sTAt=requiresTemp(l)?tempStamp(l.log_date,($('tst_'+p)&&$('tst_'+p).value),l.start_time):null
@@ -252,7 +258,7 @@ window.importTasksCsv=async function(){
   const hdr=rows[0].map(h=>h.trim().toLowerCase())
   const idx=(...names)=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k}return -1}
   const iName=idx('name','task','task name'); if(iName<0){msg($('impMsg'),'CSV must have a "name" column.',false);return}
-  const C={station:idx('station'),expected:idx('expected_units','expected'),uom:idx('uom','unit'),requnits:idx('requires_units','records_amount'),reqproduct:idx('requires_product','product'),trackwaste:idx('track_waste'),reqwaste:idx('require_waste'),batch:idx('is_batch','batch'),cap:idx('capacity_per_load','capacity'),cook:idx('cook_minutes','cook'),kind:idx('equipment_kind','vessel_type'),rectemp:idx('records_temp','records_temperature'),ttarget:idx('temp_target'),tdir:idx('temp_dir'),tmax:idx('temp_max_minutes','temp_max')}
+  const C={station:idx('station'),expected:idx('expected_units','expected'),uom:idx('uom','unit'),requnits:idx('requires_units','records_amount'),reqlot:idx('requires_lot','requires_lots'),reqproduct:idx('requires_product','product'),trackwaste:idx('track_waste'),reqwaste:idx('require_waste'),batch:idx('is_batch','batch'),cap:idx('capacity_per_load','capacity'),cook:idx('cook_minutes','cook'),kind:idx('equipment_kind','vessel_type'),rectemp:idx('records_temp','records_temperature'),ttarget:idx('temp_target'),tdir:idx('temp_dir'),tmax:idx('temp_max_minutes','temp_max')}
   const get=(r,i)=>(i>=0&&i<r.length)?String(r[i]).trim():''
   const numOr=v=>v===''?null:(isNaN(Number(v))?null:Number(v))
   const existing=new Map(catalog.map(c=>[(c.name||'').toLowerCase(),c]))
@@ -264,6 +270,7 @@ window.importTasksCsv=async function(){
       expected_units:C.expected>=0?numOr(get(r,C.expected)):null,
       uom:(C.uom>=0?get(r,C.uom):'')||'kg',
       requires_units:C.requnits>=0?_csvBool(get(r,C.requnits)):true,
+      requires_lot:C.reqlot>=0?_csvBool(get(r,C.reqlot)):false,
       requires_product:C.reqproduct>=0?_csvBool(get(r,C.reqproduct)):false,
       track_waste:C.trackwaste>=0?_csvBool(get(r,C.trackwaste)):false,
       require_waste:C.reqwaste>=0?_csvBool(get(r,C.reqwaste)):false,
@@ -284,12 +291,12 @@ window.importTasksCsv=async function(){
   $('taskCsvText').value=''; await loadCatalog()
 }
 window.exportTasksCsv=function(){
-  const cols=['name','station','expected_units','uom','requires_units','requires_product','track_waste','require_waste','is_batch','capacity_per_load','cook_minutes','equipment_kind','records_temp','temp_target','temp_dir','temp_max_minutes']
+  const cols=['name','station','expected_units','uom','requires_units','requires_lot','requires_product','track_waste','require_waste','is_batch','capacity_per_load','cook_minutes','equipment_kind','records_temp','temp_target','temp_dir','temp_max_minutes']
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"'
   const lines=[cols.join(',')].concat(catalog.map(t=>cols.map(c=>q(t[c])).join(',')))
   const blob=new Blob([lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chefly-tasks.csv';a.click()
 }
 window.downloadTaskTemplate=function(){
-  const tmpl='name,station,expected_units,uom,requires_units,requires_product,track_waste,require_waste,is_batch,capacity_per_load,cook_minutes,equipment_kind\nGrilled Chicken Sous Vide,Kitchen,,kg,yes,no,no,no,yes,100,120,sous_vide\nVacuum Tumble,Prep,,kg,yes,yes,no,no,no,,,\n'
+  const tmpl='name,station,expected_units,uom,requires_units,requires_lot,requires_product,track_waste,require_waste,is_batch,capacity_per_load,cook_minutes,equipment_kind\nGrilled Chicken Sous Vide,Kitchen,,kg,yes,no,no,no,no,yes,100,120,sous_vide\nVacuum Tumble,Prep,,kg,yes,no,yes,no,no,no,,,\n'
   const blob=new Blob([tmpl],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='chefly-tasks-template.csv';a.click()
 }
