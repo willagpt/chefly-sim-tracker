@@ -195,6 +195,16 @@
     </div>
 
     <div id="traceTab" class="hidden">
+      <div class="card" id="gapsCard">
+        <h2 style="margin:0 0 2px">Record gaps (fix before audit) <span id="gapsBadge" class="pill" style="background:#16a34a;color:#fff">0</span></h2>
+        <p class="muted" style="margin-top:2px">Completed runs missing a required traceability record — an ingredient lot or a cook/chill temperature. Clear these before an inspection.</p>
+        <div class="row">
+          <div><label for="gapFrom">From</label><input id="gapFrom" type="date" /></div>
+          <div><label for="gapTo">To</label><input id="gapTo" type="date" /></div>
+        </div>
+        <button class="ghost" onclick="loadTraceGaps()">Refresh</button>
+        <div id="gapsBody" style="margin-top:10px"></div>
+      </div>
       <div class="card">
         <h2>Expected deliveries (MarketMan)</h2>
         <p class="muted" style="margin-top:-8px">Orders placed in MarketMan. Tap Receive when a delivery arrives — every line is logged into GoodsIn with today's date as the code, and we try to confirm receipt in MarketMan too.</p>
@@ -243,6 +253,22 @@
         <div id="tbBody" style="margin-top:10px"></div>
       </div>
       <div class="card">
+        <h2>Recall / traceability form (3.4)</h2>
+        <p class="muted" style="margin-top:-8px">Start from a received delivery or a finished batch, build the approved 3.4 form (prefilled from the traced data), then save it to the audit history or print it. Manager/admin only.</p>
+        <div class="row">
+          <div><label for="rcLot">From goods-in delivery</label><select id="rcLot"></select></div>
+          <div><label for="rcBatch">…or from a finished batch</label><select id="rcBatch"></select></div>
+        </div>
+        <button class="ghost" onclick="rcBuild()">Build form</button>
+        <div id="rcForm" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h2>Audit &amp; recall history</h2>
+        <p class="muted" style="margin-top:-8px">Saved trace audits and recall forms, most recent first. Open one to view or reprint it.</p>
+        <button class="ghost" onclick="loadAuditHistory()">Refresh</button>
+        <div id="auditHistBody" style="margin-top:10px"></div>
+      </div>
+      <div class="card">
         <h2>Approved suppliers</h2>
         <p class="muted" style="margin-top:-8px">Your approved supplier list with live certificate status. Deliveries and ingredients link to these. Managers can add or edit.</p>
         <div class="row">
@@ -289,6 +315,8 @@
           <div><label for="inName">Name</label><input id="inName" type="text" placeholder="e.g. Chicken breast" /></div>
           <div><label for="inUom">Unit</label><input id="inUom" list="uomList" value="kg" /></div>
         </div>
+        <label for="inCategory">Category (food / packaging / gas — packaging &amp; gas trace like any material)</label>
+        <select id="inCategory"><option value="food">food</option><option value="packaging">packaging</option><option value="gas">gas</option></select>
         <label for="inSupplier">Usual supplier (optional)</label>
         <select id="inSupplier"></select>
         <button class="ghost" onclick="addIngredient()">Add ingredient</button>
@@ -426,6 +454,12 @@
         <button class="ghost" onclick="addTask()">Add task</button>
         <div id="addMsg" class="msg"></div>
         <div id="taskList" style="margin-top:14px"></div>
+      </div>
+      <div class="card">
+        <h2>Products &amp; shelf life (Use By = production + shelf life)</h2>
+        <p class="muted" style="margin-top:-8px">Shelf life in days for each finished product. When a task with a product finishes, its Use By date (production date + shelf life) and batch code are filled in automatically. Default is 9 days.</p>
+        <div id="shelfList"></div>
+        <div id="shelfMsg" class="msg"></div>
       </div>
       <div class="card">
         <h2>Recipes (multi-step routes)</h2>
