@@ -104,6 +104,32 @@ async function loadProducts(){
   const {data}=await sb.from('sim_products').select('*').eq('active',true).order('sort_order').order('name')
   products=data||[]
   populateProductSelects(); renderProductList()
+  if(typeof renderProductShelf==='function') renderProductShelf()
+}
+// ---- products & shelf life admin (Use By = production + shelf life) ----
+function renderProductShelf(){
+  const box=$('shelfList'); if(!box)return; box.innerHTML=''
+  products.forEach(p=>{
+    const d=document.createElement('div'); d.className='task-item'
+    const sl=(p.shelf_life_days!=null)?p.shelf_life_days:9
+    d.innerHTML=`<div style="min-width:0"><b>${esc(p.name)}</b><div class="meta">Use By = production date + shelf life</div></div>`
+    const wrap=document.createElement('div'); wrap.style.display='flex'; wrap.style.gap='8px'; wrap.style.alignItems='center'; wrap.style.flexShrink='0'
+    const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.value=sl; inp.style.width='72px'; inp.id='shelf_'+p.id
+    const unit=document.createElement('span'); unit.className='muted'; unit.textContent='days'
+    const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Save'; b.onclick=()=>saveShelfLife(p.id)
+    wrap.appendChild(inp); wrap.appendChild(unit); wrap.appendChild(b); d.appendChild(wrap); box.appendChild(d)
+  })
+  if(!products.length) box.innerHTML='<p class="muted">No products yet. Products are created when staff add or pick one on a task.</p>'
+}
+window.saveShelfLife=async function(id){
+  const inp=$('shelf_'+id); if(!inp)return
+  const v=inp.value===''?9:Number(inp.value)
+  if(isNaN(v)||v<0){msg($('shelfMsg'),'Enter a number of days (0 or more).',false);return}
+  const {error}=await sb.from('sim_products').update({shelf_life_days:v}).eq('id',id)
+  if(error){msg($('shelfMsg'),error.message,false);return}
+  const p=products.find(x=>x.id===id); if(p)p.shelf_life_days=v
+  await ensureSimProducts(true)
+  msg($('shelfMsg'),'Shelf life saved.',true)
 }
 function populateProductSelects(){
   ['sProduct','kProduct'].forEach(id=>{const sel=$(id); if(!sel)return; const cur=sel.value; sel.innerHTML='<option value="">— select product —</option>'+products.map(p=>`<option>${esc(p.name)}</option>`).join(''); if(cur)sel.value=cur})
@@ -218,7 +244,9 @@ window.stopTaskFor=async function(id){
   const _fTAt=requiresTemp(l)?tempStamp(l.log_date,($('tft_'+p)&&$('tft_'+p).value),new Date().toISOString()):null
   let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,status:'completed'}).eq('id',id)
+  let _useBy=null,_batchCode=null
+  if(l.product){ await ensureSimProducts(); _useBy=useByFor(l.log_date,l.product); _batchCode=batchCodeFor(l.product,l.log_date) }
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,use_by:_useBy,batch_code:_batchCode,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
   activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await loadEquipState(); populateEquipSelect('sEquip'); await refreshMyRecent(); if(typeof loadMyDay==='function') loadMyDay(); if(isManagerUp())await refreshDashboard()
 }
