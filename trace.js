@@ -6,6 +6,7 @@
 
 let trIngredients=[], trGoods=[], trProfs=[], trStaffs=[], _trLotsAt=0, _biCache={}, _mmOrders=[]
 let trSuppliers=[], _spEditId=null
+let _tfCtx=null, _tbCtx=null, _rcData=null, _rcBatches=[], _auditCache={}
 
 function giCode(g){const d=String(g.received_date||'').split('-');return d.length===3?('GI '+d[2]+'/'+d[1]+'/'+d[0].slice(2)):'GI ?'}
 function trIngName(id){const i=trIngredients.find(x=>x.id===id);return i?i.name:'(ingredient)'}
@@ -148,23 +149,61 @@ window.initTrace=async function(){
   if($('giDate')&&!$('giDate').value)$('giDate').value=_trIsoToday()
   if($('tbTo')&&!$('tbTo').value)$('tbTo').value=_trIsoToday()
   if($('tbFrom')&&!$('tbFrom').value){const d=new Date(Date.now()-6*864e5);$('tbFrom').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  if($('gapTo')&&!$('gapTo').value)$('gapTo').value=_trIsoToday()
+  if($('gapFrom')&&!$('gapFrom').value){const d=new Date(Date.now()-13*864e5);$('gapFrom').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
   await trEnsureSuppliers(true); await trEnsureIngredients(true); await trEnsureLots(true)
   renderSupplierList(); await renderCertReminderCard()
   populateSupplierSelect('giSupplier',true); populateSupplierSelect('inSupplier',true); giSupplierChanged()
   renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
+  loadTraceGaps()
+  await rcPopulate(); loadAuditHistory()
+}
+
+// ---- Record gaps dashboard: completed runs missing a required lot or temperature ----
+window.loadTraceGaps=async function(){
+  if(!isManagerUp())return
+  const box=$('gapsBody'); if(!box)return
+  box.innerHTML='<p class="muted">Loading…</p>'
+  const from=$('gapFrom')?$('gapFrom').value:'' , to=$('gapTo')?$('gapTo').value:''
+  const {data:cat}=await sb.from('sim_task_catalog').select('id,requires_lot,records_temp,temp_target')
+  const catById={}; (cat||[]).forEach(c=>catById[c.id]=c)
+  let q=sb.from('sim_task_logs').select('*').eq('status','completed').order('log_date',{ascending:false})
+  if(from)q=q.gte('log_date',from); if(to)q=q.lte('log_date',to)
+  const {data:logs,error}=await q
+  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  const list=logs||[]
+  const needLotIds=list.filter(l=>{const c=catById[l.catalog_id];return c&&c.requires_lot}).map(l=>l.id)
+  const haveLot=new Set()
+  if(needLotIds.length){const {data:bi}=await sb.from('sim_batch_inputs').select('log_id').in('log_id',needLotIds);(bi||[]).forEach(x=>haveLot.add(x.log_id))}
+  await trEnsureNames()
+  const gaps=[]
+  list.forEach(l=>{
+    const c=catById[l.catalog_id]; if(!c)return
+    const miss=[]
+    if(c.requires_lot && !haveLot.has(l.id)) miss.push('missing lot')
+    if((c.records_temp||c.temp_target!=null) && (l.start_temp==null||l.finish_temp==null)) miss.push('missing temperature')
+    if(miss.length) gaps.push({l,miss})
+  })
+  const badge=$('gapsBadge'); if(badge){badge.textContent=gaps.length;badge.style.background=gaps.length?'#dc2626':'#16a34a';badge.style.color='#fff'}
+  if(!gaps.length){box.innerHTML='<p style="color:#16a34a;font-weight:600">✓ No record gaps in this range.</p>';return}
+  box.innerHTML=gaps.map(g=>{
+    const l=g.l
+    return `<div class="task-item"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''}<div class="meta">${esc(l.log_date)} · ${esc(trWho(l))} · <span style="color:#dc2626;font-weight:700">${g.miss.map(esc).join(' · ')}</span></div></div></div>`
+  }).join('')
 }
 
 // ---- ingredients master ----
 window.addIngredient=async function(){
   const name=$('inName').value.trim(); if(!name){msg($('inMsg'),'Enter an ingredient name.',false);return}
   const uom=($('inUom').value||'kg').trim()||'kg'
+  const category=($('inCategory')&&$('inCategory').value)||'food'
   const supSel=$('inSupplier')?$('inSupplier').value:''
   let supplier_id=null, supplier=null
   if(supSel&&supSel!=='__other__'){ supplier_id=supSel; const s=trSuppliers.find(x=>x.id===supSel); supplier=s?s.name:null }
   const order=(trIngredients.length?Math.max(...trIngredients.map(i=>i.sort_order||0)):0)+1
-  const {error}=await sb.from('sim_ingredients').insert({name,uom,supplier,supplier_id,sort_order:order})
+  const {error}=await sb.from('sim_ingredients').insert({name,uom,category,supplier,supplier_id,sort_order:order})
   if(error){msg($('inMsg'),error.message,false);return}
-  $('inName').value='';if($('inSupplier'))$('inSupplier').value='';msg($('inMsg'),'Ingredient added.',true)
+  $('inName').value='';if($('inSupplier'))$('inSupplier').value='';if($('inCategory'))$('inCategory').value='food';msg($('inMsg'),'Ingredient added.',true)
   await trEnsureIngredients(true); renderIngredientList(); populateGiIngSelect()
 }
 window.addIngredientInline=async function(){
@@ -181,7 +220,8 @@ function renderIngredientList(){
   trIngredients.forEach(i=>{
     const d=document.createElement('div'); d.className='task-item'
     const supName=i.supplier_id?(((trSuppliers.find(s=>s.id===i.supplier_id)||{}).name)||i.supplier):i.supplier
-    d.innerHTML=`<div><b>${esc(i.name)}</b><div class="meta">${esc(i.uom)||'kg'}${supName?' · '+esc(supName):''}</div></div>`
+    const cat=i.category&&i.category!=='food'?' · '+esc(i.category):(i.category?' · food':'')
+    d.innerHTML=`<div><b>${esc(i.name)}</b><div class="meta">${esc(i.uom)||'kg'}${cat}${supName?' · '+esc(supName):''}</div></div>`
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'
     b.onclick=async()=>{if(!confirm('Remove '+i.name+'? Past deliveries keep their records.'))return;await sb.from('sim_ingredients').update({active:false}).eq('id',i.id);await trEnsureIngredients(true);renderIngredientList();populateGiIngSelect()}
     d.appendChild(b); box.appendChild(d)
@@ -243,10 +283,13 @@ window.traceForward=async function(){
   await trEnsureNames()
   const g=trGoods.find(x=>x.id===gid)
   const head=g?`<p class="muted"><b>${esc(lotLabel(g))}</b>${g.invoice_ref?' · invoice '+esc(g.invoice_ref):''} — used in ${ids.length} batch${ids.length===1?'':'es'}:</p>`:''
+  const usedTot=(bi||[]).reduce((s,x)=>s+(Number(x.qty)||0),0)
+  const producedTot=(logs||[]).reduce((s,l)=>s+(Number(l.units)||0),0)
+  _tfCtx={subject:g?lotLabel(g):gid, product:null, reconciliation:{received:g&&g.qty!=null?Number(g.qty):null, used:usedTot||null, produced:producedTot||null}}
   box.innerHTML=head+(logs||[]).map(l=>{
     const q=bi.filter(x=>x.log_id===l.id).reduce((s,x)=>s+(Number(x.qty)||0),0)
     return `<div class="task-item"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''}<div class="meta">${l.log_date} · ${esc(trWho(l))} · ${l.units!=null?l.units+' '+esc(uomFor(l))+' out':(l.status==='completed'?'no amount':'still running')}${q?' · '+q+' used':''}</div></div></div>`
-  }).join('')
+  }).join('')+_auditPanel('forward',_tfCtx)
 }
 
 // ---- trace back: production range → lots consumed ----
@@ -268,10 +311,185 @@ window.traceBack=async function(){
   const {data:gis}=await sb.from('sim_goods_in').select('*').in('id',giIds)
   const giById={}; (gis||[]).forEach(g=>giById[g.id]=g)
   await trEnsureIngredients(); await trEnsureNames()
+  const usedTot=(bi||[]).reduce((s,x)=>s+(Number(x.qty)||0),0)
+  const producedTot=list.reduce((s,l)=>s+(Number(l.units)||0),0)
+  const rangeLbl=(from||'…')+' → '+(to||'…')+(f?(' · '+f):'')
+  _tbCtx={subject:rangeLbl, product:f||null, date_from:from||null, date_to:to||null, reconciliation:{received:null, used:usedTot||null, produced:producedTot||null}}
   box.innerHTML=list.map(l=>{
     const lots=(byLog[l.id]||[]).map(x=>{const g=giById[x.goods_in_id];return g?('🏷 '+esc(trIngName(g.ingredient_id))+' '+esc(giCode(g))+(x.qty?' ('+x.qty+')':'')+(g.supplier?' · '+esc(g.supplier):'')+(g.invoice_ref?' · inv '+esc(g.invoice_ref):'')):''}).filter(Boolean).join('<br>')
-    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''} <span class="muted">· ${l.log_date} · ${esc(trWho(l))}${l.units!=null?' · '+l.units+' '+esc(uomFor(l)):''}</span></div><div class="muted" style="font-size:13px">${lots}</div></div>`
+    return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''} <span class="muted">· ${l.log_date} · ${esc(trWho(l))}${l.units!=null?' · '+l.units+' '+esc(uomFor(l)):''}${l.use_by?' · Use by '+esc(l.use_by):''}${l.batch_code?' · batch '+esc(l.batch_code):''}</span></div><div class="muted" style="font-size:13px">${lots}</div></div>`
+  }).join('')+_auditPanel('backward',_tbCtx)
+}
+
+// ==== D: save a trace as an audit record ====
+function _auditPanel(type,ctx){
+  const pre=type==='forward'?'fwd':'bwd'
+  const r=(ctx&&ctx.reconciliation)||{}
+  const recon=[r.received!=null?'received '+r.received:'',r.used!=null?'used '+r.used:'',r.produced!=null?'produced '+r.produced:''].filter(Boolean).join(' · ')||'not computable from the qty fields'
+  return `<div class="card" style="margin-top:12px;background:rgba(148,163,184,.08)">
+    <b>Save as audit record</b>
+    <div class="muted" style="font-size:13px;margin:4px 0 8px">Subject: ${esc((ctx&&ctx.subject)||'')} · reconciliation: ${esc(recon)}</div>
+    <label for="${pre}_find">Findings</label><textarea id="${pre}_find" rows="2" placeholder="What the trace showed"></textarea>
+    <label for="${pre}_nc">Non-conformance</label><textarea id="${pre}_nc" rows="2" placeholder="Any non-conformance found"></textarea>
+    <label for="${pre}_ca">Corrective action</label><textarea id="${pre}_ca" rows="2" placeholder="Action taken / required"></textarea>
+    <label for="${pre}_res">Result</label>
+    <select id="${pre}_res"><option value="pass">pass</option><option value="observations">observations</option><option value="fail">fail</option></select>
+    <button class="green" onclick="saveTraceAudit('${type}')">Save as audit record</button>
+    <div id="${pre}_msg" class="msg"></div>
+  </div>`
+}
+window.saveTraceAudit=async function(type){
+  if(!isManagerUp())return
+  const ctx=type==='forward'?_tfCtx:_tbCtx
+  const pre=type==='forward'?'fwd':'bwd'
+  if(!ctx){msg($(pre+'_msg'),'Run the trace first.',false);return}
+  const rec={audit_type:type, title:(type==='forward'?'Trace forward':'Trace back'),
+    subject_code:ctx.subject||null, product:ctx.product||null,
+    date_from:ctx.date_from||null, date_to:ctx.date_to||null,
+    reconciliation:ctx.reconciliation||null,
+    findings:($(pre+'_find')&&$(pre+'_find').value.trim())||null,
+    non_conformance:($(pre+'_nc')&&$(pre+'_nc').value.trim())||null,
+    corrective_action:($(pre+'_ca')&&$(pre+'_ca').value.trim())||null,
+    result:($(pre+'_res')&&$(pre+'_res').value)||null, status:'open',
+    created_by:(me&&me.id)||null}
+  const {error}=await sb.from('sim_trace_audits').insert(rec)
+  if(error){msg($(pre+'_msg'),error.message,false);return}
+  msg($(pre+'_msg'),'Saved to audit history.',true); loadAuditHistory()
+}
+
+// ==== C: Recall / traceability form (3.4) ====
+const RC_FIELDS=[
+  {id:'s1_test',label:'Date/time of test',s:1},
+  {id:'s1_product',label:'Product name',s:1},
+  {id:'s1_desc',label:'Product description',s:1,ta:1},
+  {id:'s1_code',label:'Product code',s:1},
+  {id:'s1_receipt',label:'Date of receipt / quantity',s:1},
+  {id:'s1_invoice',label:'Invoice no.',s:1},
+  {id:'s1_supplier',label:'Supplier / country of origin',s:1},
+  {id:'s1_packuse',label:'Pack date / use-by date',s:1},
+  {id:'s1_storage',label:'Storage condition',s:1},
+  {id:'s1_comments',label:'Comments',s:1,ta:1},
+  {id:'s2_receipt',label:'Date/time of receipt',s:2},
+  {id:'s2_stock',label:'Available stock',s:2},
+  {id:'s2_despatch',label:'Date of despatch',s:2},
+  {id:'s2_components',label:'Components (names / codes / dates)',s:2,ta:1},
+  {id:'s2_customers',label:'Other customers who had this batch',s:2,ta:1},
+  {id:'s2_comments',label:'Comments',s:2,ta:1},
+  {id:'s2_signed',label:'Signed',s:2},
+  {id:'s2_position',label:'Position',s:2},
+  {id:'s2_auditor',label:'Auditor name',s:2},
+  {id:'s2_date',label:'Date',s:2}
+]
+function _rcNow(){const d=new Date();return _trIsoToday()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+async function rcPopulate(){
+  const sel=$('rcLot')
+  if(sel) sel.innerHTML='<option value="">— goods-in delivery —</option>'+trGoods.map(g=>`<option value="${g.id}">${esc(lotLabel(g))}</option>`).join('')
+  const bsel=$('rcBatch')
+  if(bsel){
+    const {data}=await sb.from('sim_task_logs').select('*').eq('status','completed').not('product','is',null).order('log_date',{ascending:false}).limit(120)
+    _rcBatches=data||[]
+    bsel.innerHTML='<option value="">— finished batch —</option>'+_rcBatches.map(l=>`<option value="${l.id}">${esc(l.product||l.task_name)}${l.batch_code?' · '+esc(l.batch_code):''} · ${esc(l.log_date||'')}</option>`).join('')
+  }
+}
+window.rcBuild=async function(){
+  const box=$('rcForm'); if(!box)return
+  if(!isManagerUp())return
+  const gid=$('rcLot')?$('rcLot').value:'' , lid=$('rcBatch')?$('rcBatch').value:''
+  const f={s1_test:_rcNow(), s2_date:_trIsoToday()}
+  await trEnsureIngredients()
+  if(lid){
+    const l=_rcBatches.find(x=>x.id===lid)||{}
+    const {data:bi}=await sb.from('sim_batch_inputs').select('*').eq('log_id',lid)
+    const giIds=[...new Set((bi||[]).map(x=>x.goods_in_id))]
+    let gis=[]; if(giIds.length){const r=await sb.from('sim_goods_in').select('*').in('id',giIds);gis=r.data||[]}
+    f.s1_product=l.product||''; f.s1_code=l.batch_code||''
+    f.s1_packuse=(l.log_date||'')+(l.use_by?' / use by '+l.use_by:'')
+    f.s2_components=gis.map(g=>trIngName(g.ingredient_id)+' '+giCode(g)+(g.supplier?' ('+g.supplier+')':'')).join('; ')
+    if(gis[0]){f.s1_supplier=gis[0].supplier||''; f.s1_invoice=gis[0].invoice_ref||''; f.s1_receipt=(gis[0].received_date||'')+(gis[0].qty!=null?(' · '+gis[0].qty+' '+(gis[0].uom||'kg')):'')}
+    _rcData={subjectCode:l.batch_code||l.id||'', product:l.product||''}
+  } else if(gid){
+    const g=trGoods.find(x=>x.id===gid)||{}
+    f.s1_product=trIngName(g.ingredient_id); f.s1_code=giCode(g); f.s1_supplier=g.supplier||''; f.s1_invoice=g.invoice_ref||''
+    f.s1_receipt=(g.received_date||'')+(g.qty!=null?(' · '+g.qty+' '+(g.uom||'kg')):'')
+    f.s2_receipt=g.received_date||''; f.s2_components=trIngName(g.ingredient_id)+' '+giCode(g)
+    const {data:bi}=await sb.from('sim_batch_inputs').select('*').eq('goods_in_id',gid)
+    const logIds=[...new Set((bi||[]).map(x=>x.log_id))]
+    let logs=[]; if(logIds.length){const r=await sb.from('sim_task_logs').select('*').in('id',logIds);logs=r.data||[]}
+    f.s2_customers=logs.map(l=>(l.product||l.task_name)+(l.batch_code?' ['+l.batch_code+']':'')+' '+(l.log_date||'')).join('; ')
+    _rcData={subjectCode:giCode(g), product:trIngName(g.ingredient_id)}
+  } else { alert('Pick a goods-in delivery or a finished batch first, then Build form.'); return }
+  const fld=x=>`<div style="margin-bottom:8px"><label for="rc_${x.id}">${esc(x.label)}</label>${x.ta?`<textarea id="rc_${x.id}" rows="2">${esc(f[x.id]||'')}</textarea>`:`<input id="rc_${x.id}" type="text" value="${esc(f[x.id]||'')}" />`}</div>`
+  box.innerHTML='<h3 style="margin:6px 0">Section 1 — sample under test</h3>'+RC_FIELDS.filter(x=>x.s===1).map(fld).join('')
+    +'<h3 style="margin:12px 0 6px">Section 2 — distribution &amp; sign-off</h3>'+RC_FIELDS.filter(x=>x.s===2).map(fld).join('')
+    +'<div class="row"><button class="green" onclick="rcSave()">Save record</button><button class="ghost" onclick="rcPrint()">Print</button></div><div id="rcMsg" class="msg"></div>'
+}
+function _rcGather(){const o={}; RC_FIELDS.forEach(x=>{const e=$('rc_'+x.id); o[x.id]=e?e.value:''}); return o}
+window.rcSave=async function(){
+  if(!isManagerUp())return
+  if(!_rcData){msg($('rcMsg'),'Build the form first.',false);return}
+  const form=_rcGather()
+  const rec={audit_type:'recall', title:'Recall / traceability form (3.4)', subject_code:_rcData.subjectCode||null, product:_rcData.product||null, form_data:form, result:'open', status:'open', created_by:(me&&me.id)||null}
+  const {error}=await sb.from('sim_trace_audits').insert(rec)
+  if(error){msg($('rcMsg'),error.message,false);return}
+  msg($('rcMsg'),'Recall record saved to audit history.',true); loadAuditHistory()
+}
+function rcRenderPrint(form,meta){
+  const today=_trIsoToday().split('-').reverse().join('/')
+  const cell='border:1px solid #000;padding:7px 9px;font-size:13px;vertical-align:top'
+  const rows=s=>RC_FIELDS.filter(x=>x.s===s).map(x=>`<tr><td style="${cell};width:230px;font-weight:600">${esc(x.label)}</td><td style="${cell}">${esc((form&&form[x.id])||'')}</td></tr>`).join('')
+  $('printArea').innerHTML=`<div style="font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;padding:8px">
+    <h1 style="font-size:20px;margin:0 0 2px">Recall / Traceability Test Record (3.4)</h1>
+    <p style="margin:2px 0 10px;font-size:13px">Subject: <b>${esc((meta&&meta.subject)||'')}</b>${meta&&meta.product?' &nbsp;·&nbsp; Product: <b>'+esc(meta.product)+'</b>':''} &nbsp;·&nbsp; Printed: ${today}</p>
+    <h2 style="font-size:15px;margin:10px 0 4px">Section 1 — sample under test</h2>
+    <table style="width:100%;border-collapse:collapse">${rows(1)}</table>
+    <h2 style="font-size:15px;margin:14px 0 4px">Section 2 — distribution &amp; sign-off</h2>
+    <table style="width:100%;border-collapse:collapse">${rows(2)}</table>
+    <p style="margin-top:16px;font-size:12px;color:#333">Generated by SIM Tracker traceability. Retain with your HACCP records.</p>
+  </div>`
+}
+window.rcPrint=function(){ if(!_rcData){alert('Build the form first.');return} rcRenderPrint(_rcGather(),{subject:_rcData.subjectCode,product:_rcData.product}); window.print() }
+
+// ==== D: audit & recall history ====
+window.loadAuditHistory=async function(){
+  const box=$('auditHistBody'); if(!box)return
+  box.innerHTML='<p class="muted">Loading…</p>'
+  const {data,error}=await sb.from('sim_trace_audits').select('*').order('created_at',{ascending:false}).limit(50)
+  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  await trEnsureNames()
+  if(!data||!data.length){box.innerHTML='<p class="muted">No saved audits or recall records yet.</p>';return}
+  _auditCache={}; data.forEach(a=>_auditCache[a.id]=a)
+  box.innerHTML=data.map(a=>{
+    const who=a.created_by?(((trProfs.find(p=>p.id===a.created_by)||{}).full_name)||'—'):'—'
+    const dt=String(a.created_at||'').slice(0,10)
+    const res=a.result?' · '+esc(a.result):''
+    return `<div class="task-item"><div style="min-width:0"><b>${esc(a.audit_type)}</b> · ${esc(a.subject_code||a.title||'')}<div class="meta">${esc(dt)}${res} · ${esc(who)}${a.product?' · '+esc(a.product):''}</div></div><button class="ghost sm" onclick="auditView('${a.id}')">View / print</button></div>`
   }).join('')
+}
+window.auditView=function(id){
+  const a=_auditCache[id]; if(!a)return
+  if(a.audit_type==='recall'&&a.form_data){ rcRenderPrint(a.form_data,{subject:a.subject_code,product:a.product}); window.print(); return }
+  auditRenderPrint(a); window.print()
+}
+function auditRenderPrint(a){
+  const today=_trIsoToday().split('-').reverse().join('/')
+  const r=a.reconciliation||{}
+  const recon=[r.received!=null?'Received: '+r.received:'',r.used!=null?'Used: '+r.used:'',r.produced!=null?'Produced: '+r.produced:''].filter(Boolean).join(' &nbsp;·&nbsp; ')||'—'
+  const row=(k,v)=>`<tr><td style="border:1px solid #000;padding:7px 9px;font-size:13px;width:200px;font-weight:600">${esc(k)}</td><td style="border:1px solid #000;padding:7px 9px;font-size:13px">${esc(v||'—')}</td></tr>`
+  $('printArea').innerHTML=`<div style="font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;padding:8px">
+    <h1 style="font-size:20px;margin:0 0 2px">Traceability Audit Record — ${esc(a.audit_type)}</h1>
+    <p style="margin:2px 0 10px;font-size:13px">Printed: ${today}</p>
+    <table style="width:100%;border-collapse:collapse">
+      ${row('Subject',a.subject_code||a.title)}
+      ${row('Product',a.product)}
+      ${row('Range',[a.date_from,a.date_to].filter(Boolean).join(' → '))}
+      <tr><td style="border:1px solid #000;padding:7px 9px;font-size:13px;font-weight:600">Reconciliation</td><td style="border:1px solid #000;padding:7px 9px;font-size:13px">${recon}</td></tr>
+      ${row('Findings',a.findings)}
+      ${row('Non-conformance',a.non_conformance)}
+      ${row('Corrective action',a.corrective_action)}
+      ${row('Result',a.result)}
+    </table>
+    <p style="margin-top:16px;font-size:12px;color:#333">Generated by SIM Tracker traceability. Retain with your HACCP records.</p>
+  </div>`
 }
 
 // ---- lot picker on running task cards (app + kiosk) ----
