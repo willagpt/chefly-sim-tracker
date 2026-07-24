@@ -79,7 +79,9 @@ window.kioskStopFor=async function(id){
   const _fTAt=requiresTemp(l)?tempStamp(l.log_date,($('tft_'+p)&&$('tft_'+p).value),new Date().toISOString()):null
   let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
-  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,status:'completed'}).eq('id',id)
+  let _useBy=null,_batchCode=null
+  if(l.product){ await ensureSimProducts(); _useBy=useByFor(l.log_date,l.product); _batchCode=batchCodeFor(l.product,l.log_date) }
+  const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,use_by:_useBy,batch_code:_batchCode,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
   kActiveLogs=kActiveLogs.filter(x=>x.id!==id); await loadEquipState(); populateEquipSelect('kEquip'); kioskRenderRunning()
   if(typeof loadMyDayKiosk==='function') loadMyDayKiosk()

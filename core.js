@@ -9,6 +9,31 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 // ---- shared state ----
 let me=null, profile=null, catalog=[], products=[], activeLogs=[], timerInt=null
 let lastFinishIds=new Set(), notifyReady=false, booting=false, kStaff=null, kActiveLogs=[], kTimerInt=null
+let simProducts=[]  // cached sim_products (with shelf_life_days) for Use By / batch code
+
+// ---- Use By + batch code (traceability) ----
+async function ensureSimProducts(force){
+  if(simProducts.length&&!force) return
+  const {data}=await sb.from('sim_products').select('id,name,active,sort_order,shelf_life_days').order('sort_order').order('name')
+  simProducts=data||[]
+}
+function shelfLifeFor(productName){
+  const n=String(productName||'').trim().toLowerCase()
+  const p=simProducts.find(x=>String(x.name||'').trim().toLowerCase()===n)
+  const d=(p&&p.shelf_life_days!=null)?Number(p.shelf_life_days):9
+  return (d==null||isNaN(d))?9:d
+}
+function _traceIsoDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function useByFor(logDate,productName){
+  const base=(logDate&&/^\d{4}-\d{2}-\d{2}/.test(logDate))?new Date(logDate.slice(0,10)+'T00:00:00'):new Date()
+  base.setDate(base.getDate()+shelfLifeFor(productName))
+  return _traceIsoDate(base)
+}
+function batchCodeFor(productName,logDate){
+  const alnum=String(productName||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)||'PROD'
+  const iso=(logDate&&/^\d{4}-\d{2}-\d{2}/.test(logDate))?logDate.slice(0,10):_traceIsoDate(new Date())
+  return alnum+'-'+iso.slice(2).replace(/-/g,'')
+}
 
 // ---- tiny helpers ----
 const $ = id => document.getElementById(id)
