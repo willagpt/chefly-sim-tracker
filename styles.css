@@ -69,5 +69,42 @@ a.link{color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-de
 .lb-count{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font-size:15px;background:rgba(0,0,0,.45);padding:4px 12px;border-radius:999px}
 #logEdit{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}
 #logEdit .le-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;max-width:560px;width:100%;margin:auto}
+/* ---- CCP / food safety checks (floor-friendly: big targets, colour-coded) ---- */
+.ccp-alert{border-radius:12px;padding:14px 16px;margin-bottom:14px;font-size:15px;line-height:1.45;border:1px solid}
+.ccp-alert b{display:block;font-size:16px;margin-bottom:2px}
+.ccp-alert.bad{background:rgba(239,68,68,.15);color:#fca5a5;border-color:rgba(239,68,68,.45)}
+.ccp-alert.warn{background:rgba(245,158,11,.15);color:#fcd34d;border-color:rgba(245,158,11,.45)}
+.ccp-card{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.ccp-card.ok{border-left-color:var(--green)}
+.ccp-card.bad{border-left-color:var(--red)}
+.ccp-card.idle{border-left-color:var(--amber)}
+.ccp-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ccp-code{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent)}
+.ccp-name{font-size:19px;font-weight:800;line-height:1.25;margin-top:2px}
+.ccp-state{flex-shrink:0;display:inline-block;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.ccp-state.ok{background:rgba(34,197,94,.18);color:#86efac}
+.ccp-state.bad{background:rgba(239,68,68,.18);color:#fca5a5}
+.ccp-state.idle{background:rgba(245,158,11,.18);color:#fcd34d}
+.ccp-limit{margin-top:10px;font-size:15px}
+.ccp-limit b{font-variant-numeric:tabular-nums}
+.ccp-last{margin-top:6px;font-size:13px;color:var(--muted)}
+button.ccp-go{margin-top:14px;padding:20px;font-size:19px;letter-spacing:.5px}
+.ccp-form:empty{display:none}
+.ccp-formin{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+input.ccp-big{font-size:34px;font-weight:800;text-align:center;padding:18px;font-variant-numeric:tabular-nums}
+.ccp-verdict{margin-top:12px;border-radius:12px;font-size:16px;font-weight:800;text-align:center}
+.ccp-verdict:empty{display:none}
+.ccp-verdict.pass{padding:12px;background:rgba(34,197,94,.15);color:#86efac;border:1px solid rgba(34,197,94,.4)}
+.ccp-verdict.fail{padding:12px;background:rgba(239,68,68,.18);color:#fca5a5;border:1px solid rgba(239,68,68,.5)}
+.ccp-fail{margin-top:14px;padding:14px;border-radius:12px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.4)}
+.ccp-fail-head{font-size:15px;font-weight:800;color:#fca5a5;line-height:1.35}
+.ccp-tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.5px}
+.ccp-tag.pass{background:rgba(34,197,94,.2);color:#86efac}
+.ccp-tag.fail{background:rgba(239,68,68,.22);color:#fca5a5}
+.ccp-tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:12px}
+.ccp-table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+.ccp-table th{text-align:left;padding:10px;background:var(--panel2);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+.ccp-table td{padding:10px;border-top:1px solid var(--line);vertical-align:top}
+.ccp-table .muted{font-size:12px}
 #printArea{display:none}
 @media print{ body{background:#fff} body>*{display:none !important} #printArea{display:block !important} }
