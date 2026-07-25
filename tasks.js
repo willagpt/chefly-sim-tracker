@@ -11,10 +11,10 @@ window.renderTaskList=function(){
   catalog.forEach(t=>{
     const d=document.createElement('div'); d.className='task-item'; d.id='task_'+t.id
     const wasteMeta=t.require_waste?' · waste required':(t.track_waste?' · waste optional':'')
-    const _u=t.uom||'kg'
+    const _u=esc(t.uom||'kg')
     const prodMeta=t.requires_product?' · product required':''
     const tempMeta=(t.records_temp||t.temp_target!=null)?` · 🌡 ${t.temp_dir==='max'?'≤':'≥'}${t.temp_target==null?'?':t.temp_target}°`:''
-    const batchMeta=t.is_batch?` · 🔥 batch ${t.capacity_per_load??'?'}${_u}/load · ${t.cook_minutes??'?'}min · ${t.equipment_kind||'?'}`:''
+    const batchMeta=t.is_batch?` · 🔥 batch ${t.capacity_per_load??'?'}${_u}/load · ${t.cook_minutes??'?'}min · ${esc(t.equipment_kind||'?')}`:''
     d.innerHTML=`<div><b>${esc(t.name)}</b><div class="meta">${esc(t.station)||'—'} · expected ${t.expected_units??'–'} ${_u} · ${t.expected_staff??'–'} ppl${t.requires_units===false?' · no '+_u:' · '+_u+' required'}${wasteMeta}${prodMeta}${batchMeta}${tempMeta}</div></div>`
     const ctl=document.createElement('div'); ctl.style.display='flex'; ctl.style.gap='8px'; ctl.style.flexShrink='0'
     const e=document.createElement('button'); e.className='ghost sm'; e.textContent='Edit'; e.onclick=()=>editTask(t.id)
@@ -27,13 +27,13 @@ window.editTask=function(id){
   const t=catalog.find(c=>c.id===id); if(!t) return
   const d=$('task_'+id); if(!d) return
   d.style.flexDirection='column'; d.style.alignItems='stretch'
-  const esc=s=>(s||'').replace(/"/g,'&quot;')
+  const escAttr=s=>(s||'').replace(/"/g,'&quot;')
   d.innerHTML=`
-    <input id="et_name_${id}" value="${esc(t.name)}" placeholder="Task name" />
+    <input id="et_name_${id}" value="${escAttr(t.name)}" placeholder="Task name" />
     <div class="row" style="margin-top:8px">
-      <input id="et_station_${id}" value="${esc(t.station)}" placeholder="Station" />
+      <input id="et_station_${id}" value="${escAttr(t.station)}" placeholder="Station" />
       <input id="et_units_${id}" type="number" value="${t.expected_units??''}" placeholder="Expected" />
-      <input id="et_uom_${id}" list="uomList" value="${t.uom||'kg'}" placeholder="Unit" style="max-width:90px" />
+      <input id="et_uom_${id}" list="uomList" value="${esc(t.uom||'kg')}" placeholder="Unit" style="max-width:90px" />
       <input id="et_staff_${id}" type="number" value="${t.expected_staff??''}" placeholder="Ppl" />
     </div>
     <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-top:8px"><input type="checkbox" id="et_requnits_${id}" style="width:auto" ${t.requires_units!==false?'checked':''}/> Records amount produced (required to finish)</label>
@@ -182,8 +182,8 @@ function runCardHTML(l,m){
     <div class="muted">${l.product?esc(l.product)+' · ':''}${l.staff_count||1} ppl · started ${fmtTime(l.start_time)}</div>
     ${l.equipment_id?'<div class="muted">🔧 '+esc(((typeof equipById==='function'&&equipById(l.equipment_id))||{}).name||'vessel')+(l.planned_minutes?' · '+l.planned_minutes+'m planned':'')+'</div>':''}
     <div class="timer" id="timer_${p}">00:00:00</div>
-    ${ru?`<label>Amount produced (${u})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
-    ${sw?`<label>Waste (${u})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
+    ${ru?`<label>Amount produced (${esc(u)})</label><input id="u_${p}" type="number" inputmode="decimal" placeholder="${u==='kg'?'e.g. 22.5':'e.g. 150'}" />`:''}
+    ${sw?`<label>Waste (${esc(u)})${rw?' — required':''}</label><input id="w_${p}" type="number" inputmode="decimal" placeholder="e.g. 3" />`:''}
     ${rt?`<label>Cook/chill check${th}</label><div class="row"><div><label>Start °C</label><input id="ts_${p}" type="number" inputmode="decimal" placeholder="start °" /></div><div><label>Start time</label><input id="tst_${p}" type="time" value="${_hhmmLocal(l.start_time)}" /></div></div><div class="row"><div><label>Finish °C</label><input id="tf_${p}" type="number" inputmode="decimal" placeholder="finish °" /></div><div><label>Finish time</label><input id="tft_${p}" type="time" /></div></div>`:''}
     <label>Traceability — ingredient lots used (goods-in code)${rl?' <span style="color:#dc2626;font-weight:700">• required</span>':''}</label>
     <div id="bi_${p}"></div>
@@ -245,6 +245,7 @@ window.stopTaskFor=async function(id){
   let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
   let _useBy=null,_batchCode=null
+  // NOTE: cached — a shelf-life change made elsewhere today is not picked up until reload. Review.
   if(l.product){ await ensureSimProducts(); _useBy=useByFor(l.log_date,l.product); _batchCode=batchCodeFor(l.product,l.log_date) }
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,use_by:_useBy,batch_code:_batchCode,status:'completed'}).eq('id',id)
   if(error){alert(finishErr(error));return}
@@ -253,9 +254,9 @@ window.stopTaskFor=async function(id){
 async function refreshMyRecent(){
   const today=new Date().toISOString().slice(0,10)
   const {data}=await sb.from('sim_task_logs').select('*').eq('user_id',me.id).eq('log_date',today).order('start_time',{ascending:false})
-  const box=$('myRecent'); if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
+  const box=$('myRecent'); if(!box) return; if(!data||!data.length){box.innerHTML='<p class="muted">No tasks logged yet today.</p>';return}
   box.innerHTML=''
-  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='completed'?'<span class="pill done">done</span>':(l.status==='paused'?'<span class="pill off">❚❚ paused</span>':'<span class="pill live">● running</span>');const _u=uomFor(l);const uph=l.units_per_hour?`${l.units_per_hour} ${_u}/hr`:'';d.innerHTML=`<div><b>${esc(l.task_name)}</b> ${status}<div class="meta">${l.product?esc(l.product)+' · ':''}${l.units??'–'} ${_u} · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' '+_u+' waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
+  data.forEach(l=>{const d=document.createElement('div');d.className='task-item';const status=l.status==='completed'?'<span class="pill done">done</span>':(l.status==='paused'?'<span class="pill off">❚❚ paused</span>':'<span class="pill live">● running</span>');const _u=esc(uomFor(l));const uph=l.units_per_hour?`${l.units_per_hour} ${_u}/hr`:'';d.innerHTML=`<div><b>${esc(l.task_name)}</b> ${status}<div class="meta">${l.product?esc(l.product)+' · ':''}${l.units??'–'} ${_u} · ${l.total_minutes??'–'} min · ${uph}${l.waste_kg?' · '+l.waste_kg+' '+_u+' waste':''}${l.photos&&l.photos.length?' · 📷 '+l.photos.length:''}</div></div>`;box.appendChild(d)})
 }
 
 // ---- bulk CSV import / export (task catalog) ----
