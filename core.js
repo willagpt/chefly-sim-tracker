@@ -9,6 +9,31 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 // ---- shared state ----
 let me=null, profile=null, catalog=[], products=[], activeLogs=[], timerInt=null
 let lastFinishIds=new Set(), notifyReady=false, booting=false, kStaff=null, kActiveLogs=[], kTimerInt=null
+let simProducts=[]  // cached sim_products (with shelf_life_days) for Use By / batch code
+
+// ---- Use By + batch code (traceability) ----
+async function ensureSimProducts(force){
+  if(simProducts.length&&!force) return
+  const {data}=await sb.from('sim_products').select('id,name,active,sort_order,shelf_life_days').order('sort_order').order('name')
+  simProducts=data||[]
+}
+function shelfLifeFor(productName){
+  const n=String(productName||'').trim().toLowerCase()
+  const p=simProducts.find(x=>String(x.name||'').trim().toLowerCase()===n)
+  const d=(p&&p.shelf_life_days!=null)?Number(p.shelf_life_days):9
+  return (d==null||isNaN(d))?9:d
+}
+function _traceIsoDate(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function useByFor(logDate,productName){
+  const base=(logDate&&/^\d{4}-\d{2}-\d{2}/.test(logDate))?new Date(logDate.slice(0,10)+'T00:00:00'):new Date()
+  base.setDate(base.getDate()+shelfLifeFor(productName))
+  return _traceIsoDate(base)
+}
+function batchCodeFor(productName,logDate){
+  const alnum=String(productName||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)||'PROD'
+  const iso=(logDate&&/^\d{4}-\d{2}-\d{2}/.test(logDate))?logDate.slice(0,10):_traceIsoDate(new Date())
+  return alnum+'-'+iso.slice(2).replace(/-/g,'')
+}
 
 // ---- tiny helpers ----
 const $ = id => document.getElementById(id)
@@ -29,11 +54,13 @@ function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
 function uomCat(c){return (c&&c.uom)||'kg'}
 function uomFor(log){return (log&&log.uom)||uomCat(catFor(log))}
 function requiresUnits(log){const c=catFor(log);return !c || c.requires_units!==false}
+function requiresLot(log){const c=catFor(log);return !!(c && c.requires_lot)}
 function requiresWaste(log){const c=catFor(log);return !!(c&&c.require_waste)}
 function showsWaste(log){const c=catFor(log);return !!(c&&(c.track_waste||c.require_waste))}
 function finishErr(error){
   if(/VALUE_TOO_HIGH/.test(error.message)) return 'That number looks wrong — it is over the 1000 kg per-task limit. Please re-check and re-enter (e.g. 22.94, not 2294).'
   if(/KG_REQUIRED/.test(error.message)) return 'Please enter the amount produced before finishing this task.'
+  if(/LOT_REQUIRED/.test(error.message)) return 'Record the ingredient lot(s) used before finishing this task.'
   if(/WASTE_REQUIRED/.test(error.message)) return 'Please enter the waste (kg) for this task before finishing.'
   return error.message
 }
@@ -128,3 +155,53 @@ window.lbPrev=function(e){ if(e)e.stopPropagation(); if(!lbUrls.length)return; l
 window.lbNext=function(e){ if(e)e.stopPropagation(); if(!lbUrls.length)return; lbIdx=(lbIdx+1)%lbUrls.length; lbRender() }
 window.lbBackdrop=function(e){ if(e.target&&e.target.id==='lightbox') lbClose() }
 window.addEventListener('keydown',e=>{ const lb=$('lightbox'); if(!lb||lb.classList.contains('hidden'))return; if(e.key==='Escape')lbClose(); else if(e.key==='ArrowLeft')lbPrev(); else if(e.key==='ArrowRight')lbNext() })
+
+// ---- client error reporting ----
+// Captures uncaught JS errors + unhandled promise rejections into public.sim_client_errors
+// so faults on the floor are visible to managers instead of dying silently in a console
+// nobody opens. Deliberately fail-quiet: reporting must never break the app.
+const ERR_MAX_PER_LOAD=10
+let _errCount=0, _errSeen=new Set()
+async function reportClientError(kind,message,detail){
+  try{
+    if(_errCount>=ERR_MAX_PER_LOAD) return
+    const d=detail||{}
+    const msgTxt=String(message||'(no message)').slice(0,500)
+    const key=kind+'|'+msgTxt+'|'+String(d.source||'')+':'+String(d.lineno||'')
+    if(_errSeen.has(key)) return
+    _errSeen.add(key); _errCount++
+    await sb.from('sim_client_errors').insert({
+      kind:String(kind||'error').slice(0,40),
+      message:msgTxt,
+      source:d.source?String(d.source).slice(0,300):null,
+      lineno:(d.lineno!=null&&!isNaN(d.lineno))?Math.trunc(d.lineno):null,
+      colno:(d.colno!=null&&!isNaN(d.colno))?Math.trunc(d.colno):null,
+      stack:d.stack?String(d.stack).slice(0,4000):null,
+      page_url:String(location.href).slice(0,500),
+      user_agent:String(navigator.userAgent||'').slice(0,300),
+      staff_name:(profile&&profile.name)||(kStaff&&kStaff.name)||null,
+      user_role:(profile&&profile.role)||null
+    })
+  }catch(e){/* never let reporting throw */}
+}
+window.reportClientError=reportClientError
+// capture:true so failed <img>/<script> resource loads are caught too (they do not bubble)
+window.addEventListener('error',function(e){
+  try{
+    if(e && e.target && e.target!==window && e.target.tagName){
+      const t=e.target
+      reportClientError('resource','Failed to load '+t.tagName.toLowerCase(),{source:t.src||t.href||''})
+      return
+    }
+    reportClientError('error',(e&&e.message)||'Script error',{
+      source:e&&e.filename, lineno:e&&e.lineno, colno:e&&e.colno,
+      stack:e&&e.error&&e.error.stack
+    })
+  }catch(x){}
+},true)
+window.addEventListener('unhandledrejection',function(e){
+  try{
+    const r=e&&e.reason
+    reportClientError('unhandledrejection',(r&&(r.message||r.error_description))||String(r||'(no reason)'),{stack:r&&r.stack})
+  }catch(x){}
+})
