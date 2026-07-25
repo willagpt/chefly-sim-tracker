@@ -13,6 +13,23 @@ function trIngName(id){const i=trIngredients.find(x=>x.id===id);return i?i.name:
 function lotLabel(g){return trIngName(g.ingredient_id)+' · '+giCode(g)+(g.supplier?' · '+g.supplier:'')}
 function _trIsoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 
+/* Turns the database's sentinel errors into plain English for the floor.
+   The sim_guard_batch_input / sim_guard_goods_in triggers raise messages of the
+   form 'CODE: human sentence', so for those we simply strip the code and show
+   the sentence the trigger already wrote. Anything unrecognised passes through
+   unchanged. Mirrors finishErr() in core.js, which covers the finish-task path. */
+function traceErr(error){
+  const m=(error&&error.message)||String(error||'')
+  const strip=/^[\s\S]*?(?:LOT_INACTIVE|LOT_NOT_YET_RECEIVED|LOT_OVER_CONSUMED|SUPPLIER_REQUIRED|DATE_IN_FUTURE|QTY_INVALID):\s*/
+  if(strip.test(m)) return m.replace(strip,'')
+  if(/LOT_NOT_FOUND/.test(m)) return 'That delivery is no longer in the register. Refresh the page and pick it again.'
+  if(/LOT_REQUIRED/.test(m))  return 'Record the ingredient lot(s) used before finishing this task.'
+  if(/row-level security|permission denied/i.test(m)) return 'You do not have permission to change this — ask a manager.'
+  if(/duplicate key|unique constraint/i.test(m)) return 'That record is already logged.'
+  if(/Failed to fetch|NetworkError|network/i.test(m)) return 'No connection. Check the wifi and try again — nothing was saved.'
+  return m
+}
+
 async function trEnsureIngredients(force){
   if(trIngredients.length&&!force) return
   const {data}=await sb.from('sim_ingredients').select('*').eq('active',true).order('sort_order').order('name')
@@ -81,7 +98,7 @@ window.saveSupplier=async function(){
   let error
   if(_spEditId){ ({error}=await sb.from('sim_suppliers').update(rec).eq('id',_spEditId)) }
   else { const order=(trSuppliers.length?Math.max(...trSuppliers.map(s=>s.sort_order||0)):0)+1; ({error}=await sb.from('sim_suppliers').insert(Object.assign({},rec,{sort_order:order,active:true}))) }
-  if(error){msg($('spMsg'),error.message,false);return}
+  if(error){msg($('spMsg'),traceErr(error),false);return}
   msg($('spMsg'),_spEditId?'Supplier updated.':'Supplier added.',true)
   supplierFormReset()
   await trEnsureSuppliers(true); renderSupplierList(); populateSupplierSelect('giSupplier',true); populateSupplierSelect('inSupplier',true)
@@ -125,7 +142,7 @@ window.saveCertReminders=async function(){
   if(!isAdmin()){msg($('crMsg'),'Admins only.',false);return}
   const rec={enabled:$('crEnabled').checked, from_email:$('crFromEmail').value.trim()||'kaja@eatchefly.com'}
   const {error}=await sb.from('sim_cert_reminder_settings').update(rec).eq('id',true)
-  if(error){msg($('crMsg'),error.message,false);return}
+  if(error){msg($('crMsg'),traceErr(error),false);return}
   msg($('crMsg'),'Saved.',true)
 }
 async function trEnsureLots(force){
@@ -170,7 +187,7 @@ window.loadTraceGaps=async function(){
   let q=sb.from('sim_task_logs').select('*').eq('status','completed').order('log_date',{ascending:false})
   if(from)q=q.gte('log_date',from); if(to)q=q.lte('log_date',to)
   const {data:logs,error}=await q
-  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  if(error){box.innerHTML='<p class="muted">'+esc(traceErr(error))+'</p>';return}
   const list=logs||[]
   const needLotIds=list.filter(l=>{const c=catById[l.catalog_id];return c&&c.requires_lot}).map(l=>l.id)
   const haveLot=new Set()
@@ -184,14 +201,33 @@ window.loadTraceGaps=async function(){
     if((c.records_temp||c.temp_target!=null) && (l.start_temp==null||l.finish_temp==null)) miss.push('missing temperature')
     if(miss.length) gaps.push({l,miss})
   })
-  const badge=$('gapsBadge'); if(badge){badge.textContent=gaps.length;badge.style.background=gaps.length?'#dc2626':'#16a34a';badge.style.color='#fff'}
-  if(!gaps.length){box.innerHTML='<p style="color:#16a34a;font-weight:600">✓ No record gaps in this range.</p>';return}
+  // Delivery-record issues come from the sim_goods_in_issues view, which flags
+  // rather than blocks: suppliers that are not on the approved register, missing
+  // quantities, and probable duplicate receives. These are records an inspector
+  // can pull, so they belong in the same panel as the missing run records.
+  let issues=[]
+  {
+    const r=await sb.from('sim_goods_in_issues').select('*').order('severity').order('received_date',{ascending:false})
+    if(!r.error) issues=r.data||[]
+  }
+  const total=gaps.length+issues.length
+  const badge=$('gapsBadge'); if(badge){badge.textContent=total;badge.style.background=total?'#dc2626':'#16a34a';badge.style.color='#fff'}
+  const issuesHtml = issues.length ? ('<h4 style="margin:14px 0 6px;font-size:14px">Delivery records to check ('+issues.length+')</h4>'+issues.map(x=>{
+    const tone = x.severity===1?'#dc2626':(x.severity===2?'#d97706':'#64748b')
+    return `<div class="task-item"><div><b>${esc(x.ingredient)||'(ingredient)'}</b> <span class="pill done">${esc(giCode(x))}</span>`
+      + `<div class="meta">${x.supplier?esc(x.supplier)+' · ':''}${x.invoice_ref?'inv '+esc(x.invoice_ref)+' · ':''}${x.qty!=null?x.qty+' '+esc(x.uom||'kg'):'no qty'}`
+      + `<br/><span style="color:${tone};font-weight:700">${esc(x.issue)}</span></div></div></div>`
+  }).join('')) : ''
+  if(!gaps.length){
+    box.innerHTML='<p style="color:#16a34a;font-weight:600">✓ No missing run records in this range.</p>'+issuesHtml
+    return
+  }
   box.innerHTML=gaps.map(g=>{
     const l=g.l
     const needLot=g.miss.indexOf('missing lot')>=0
     const fix=needLot?`<div style="margin-top:6px"><button class="ghost sm" onclick="gapAddLot('${l.id}')">Add lot</button> <span id="gaplotmsg_${l.id}"></span><div id="gaplotbox_${l.id}" style="display:none;margin-top:6px"><select id="gaplot_${l.id}"></select> <input id="gapqty_${l.id}" type="number" inputmode="decimal" placeholder="qty (optional)" style="width:120px;padding:10px" /> <button class="ghost sm" onclick="gapSaveLot('${l.id}')">Save</button></div></div>`:''
     return `<div class="task-item"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''}<div class="meta">${esc(l.log_date)} · ${esc(trWho(l))} · <span style="color:#dc2626;font-weight:700">${g.miss.map(esc).join(' · ')}</span></div>${fix}</div></div>`
-  }).join('')
+  }).join('')+issuesHtml
 }
 // ---- Fix a gap: attach a lot to a past completed run (manager/admin) ----
 window.gapAddLot=async function(logId){
@@ -207,7 +243,7 @@ window.gapSaveLot=async function(logId){
   const q=$('gapqty_'+logId); const qty=(q&&q.value!=='')?Number(q.value):null
   const {error}=await sb.from('sim_batch_inputs').insert({log_id:logId,goods_in_id:sel.value,qty})
   const m=$('gaplotmsg_'+logId)
-  if(error){if(m)msg(m,error.message,false);else alert(error.message);return}
+  if(error){const t=traceErr(error); if(m)msg(m,t,false); else alert(t); return}
   if(m)msg(m,'Lot added.',true)
   loadTraceGaps()
 }
@@ -222,7 +258,7 @@ window.addIngredient=async function(){
   if(supSel&&supSel!=='__other__'){ supplier_id=supSel; const s=trSuppliers.find(x=>x.id===supSel); supplier=s?s.name:null }
   const order=(trIngredients.length?Math.max(...trIngredients.map(i=>i.sort_order||0)):0)+1
   const {error}=await sb.from('sim_ingredients').insert({name,uom,category,supplier,supplier_id,sort_order:order})
-  if(error){msg($('inMsg'),error.message,false);return}
+  if(error){msg($('inMsg'),traceErr(error),false);return}
   $('inName').value='';if($('inSupplier'))$('inSupplier').value='';if($('inCategory'))$('inCategory').value='food';msg($('inMsg'),'Ingredient added.',true)
   await trEnsureIngredients(true); renderIngredientList(); populateGiIngSelect()
 }
@@ -231,7 +267,7 @@ window.addIngredientInline=async function(){
   const n=nm.trim(); if(!n)return
   const order=(trIngredients.length?Math.max(...trIngredients.map(i=>i.sort_order||0)):0)+1
   const {data,error}=await sb.from('sim_ingredients').insert({name:n,sort_order:order}).select().single()
-  if(error){alert(error.message);return}
+  if(error){alert(traceErr(error));return}
   await trEnsureIngredients(true); renderIngredientList(); populateGiIngSelect()
   const sel=$('giIng'); if(sel&&data)sel.value=data.id
 }
@@ -243,7 +279,7 @@ function renderIngredientList(){
     const cat=i.category&&i.category!=='food'?' · '+esc(i.category):(i.category?' · food':'')
     d.innerHTML=`<div><b>${esc(i.name)}</b><div class="meta">${esc(i.uom)||'kg'}${cat}${supName?' · '+esc(supName):''}</div></div>`
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'
-    b.onclick=async()=>{if(!confirm('Remove '+i.name+'? Past deliveries keep their records.'))return;await sb.from('sim_ingredients').update({active:false}).eq('id',i.id);await trEnsureIngredients(true);renderIngredientList();populateGiIngSelect()}
+    b.onclick=async()=>{if(!confirm('Remove '+i.name+'? Past deliveries keep their records.'))return;const {error}=await sb.from('sim_ingredients').update({active:false}).eq('id',i.id);if(error){alert(traceErr(error));return}await trEnsureIngredients(true);renderIngredientList();populateGiIngSelect()}
     d.appendChild(b); box.appendChild(d)
   })
   if(!trIngredients.length) box.innerHTML='<p class="muted">No ingredients yet. Add one above.</p>'
@@ -267,7 +303,7 @@ window.addGoodsIn=async function(){
   const invoice=$('giInvoice').value.trim()||null
   const notes=$('giNotes').value.trim()||null
   const {data,error}=await sb.from('sim_goods_in').insert({ingredient_id:ing,received_date:date,qty,uom,supplier,supplier_id,invoice_ref:invoice,notes}).select().single()
-  if(error){msg($('giMsg'),error.message,false);return}
+  if(error){msg($('giMsg'),traceErr(error),false);return}
   $('giQty').value='';$('giInvoice').value='';$('giNotes').value=''
   const expired=chosen&&chosen.cert_expiry&&(new Date(chosen.cert_expiry)<new Date(_trIsoToday()))
   if(expired) msg($('giMsg'),'⚠ '+chosen.name+"'s certificate is expired — logged, but chase renewal",false)
@@ -280,7 +316,7 @@ function renderGoodsInList(){
     const d=document.createElement('div'); d.className='task-item'
     d.innerHTML=`<div><b>${esc(trIngName(g.ingredient_id))}</b> <span class="pill done">${esc(giCode(g))}</span><div class="meta">${g.qty!=null?g.qty+' '+esc(g.uom||'kg')+' · ':''}${g.supplier?esc(g.supplier)+' · ':''}${g.invoice_ref?'inv '+esc(g.invoice_ref)+' · ':''}${esc(g.notes)||''}</div></div>`
     const b=document.createElement('button'); b.className='ghost sm'; b.textContent='Remove'
-    b.onclick=async()=>{if(!confirm('Remove this delivery? Only do this for mistakes — batches that used it keep their trace records.'))return;await sb.from('sim_goods_in').update({active:false}).eq('id',g.id);await trEnsureLots(true);renderGoodsInList();populateTraceLotSelect()}
+    b.onclick=async()=>{if(!confirm('Remove this delivery? Only do this for mistakes — batches that used it keep their trace records.'))return;const {error}=await sb.from('sim_goods_in').update({active:false}).eq('id',g.id);if(error){alert(traceErr(error));return}await trEnsureLots(true);renderGoodsInList();populateTraceLotSelect()}
     d.appendChild(b); box.appendChild(d)
   })
   if(!trGoods.length) box.innerHTML='<p class="muted">No deliveries in the last 60 days. Log one above.</p>'
@@ -296,7 +332,7 @@ window.traceForward=async function(){
   if(!gid){box.innerHTML='<p class="muted">Pick a delivery first.</p>';return}
   box.innerHTML='<p class="muted">Loading…</p>'
   const {data:bi,error}=await sb.from('sim_batch_inputs').select('*').eq('goods_in_id',gid)
-  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  if(error){box.innerHTML='<p class="muted">'+esc(traceErr(error))+'</p>';return}
   if(!bi||!bi.length){box.innerHTML='<p class="muted">This delivery has not been used in any logged task yet.</p>';return}
   const ids=[...new Set(bi.map(x=>x.log_id))]
   const {data:logs}=await sb.from('sim_task_logs').select('*').in('id',ids).order('start_time',{ascending:false})
@@ -319,7 +355,7 @@ window.traceBack=async function(){
   let q=sb.from('sim_task_logs').select('*').order('start_time',{ascending:false})
   if(from)q=q.gte('log_date',from); if(to)q=q.lte('log_date',to)
   const {data:logs,error}=await q
-  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  if(error){box.innerHTML='<p class="muted">'+esc(traceErr(error))+'</p>';return}
   let list=(logs||[]).filter(l=>!f||String(l.product||'').toLowerCase().includes(f)||String(l.task_name||'').toLowerCase().includes(f))
   const ids=list.map(l=>l.id)
   if(!ids.length){box.innerHTML='<p class="muted">No tasks in this range.</p>';return}
@@ -373,7 +409,7 @@ window.saveTraceAudit=async function(type){
     result:($(pre+'_res')&&$(pre+'_res').value)||null, status:'open',
     created_by:(me&&me.id)||null}
   const {error}=await sb.from('sim_trace_audits').insert(rec)
-  if(error){msg($(pre+'_msg'),error.message,false);return}
+  if(error){msg($(pre+'_msg'),traceErr(error),false);return}
   msg($(pre+'_msg'),'Saved to audit history.',true); loadAuditHistory()
 }
 
@@ -450,7 +486,7 @@ window.rcSave=async function(){
   const form=_rcGather()
   const rec={audit_type:'recall', title:'Recall / traceability form (3.4)', subject_code:_rcData.subjectCode||null, product:_rcData.product||null, form_data:form, result:'open', status:'open', created_by:(me&&me.id)||null}
   const {error}=await sb.from('sim_trace_audits').insert(rec)
-  if(error){msg($('rcMsg'),error.message,false);return}
+  if(error){msg($('rcMsg'),traceErr(error),false);return}
   msg($('rcMsg'),'Recall record saved to audit history.',true); loadAuditHistory()
 }
 function rcRenderPrint(form,meta){
@@ -474,7 +510,7 @@ window.loadAuditHistory=async function(){
   const box=$('auditHistBody'); if(!box)return
   box.innerHTML='<p class="muted">Loading…</p>'
   const {data,error}=await sb.from('sim_trace_audits').select('*').order('created_at',{ascending:false}).limit(50)
-  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  if(error){box.innerHTML='<p class="muted">'+esc(traceErr(error))+'</p>';return}
   await trEnsureNames()
   if(!data||!data.length){box.innerHTML='<p class="muted">No saved audits or recall records yet.</p>';return}
   _auditCache={}; data.forEach(a=>_auditCache[a.id]=a)
@@ -541,14 +577,14 @@ window.addBatchInput=async function(logId,mode){
   const sel=$('lot_'+p); if(!sel||!sel.value){alert('Pick the delivery / goods-in code first. If the delivery is not in the list, a manager logs it on the Trace tab.');return}
   const q=$('lotq_'+p); const qty=(q&&q.value!=='')?Number(q.value):null
   const {error}=await sb.from('sim_batch_inputs').insert({log_id:logId,goods_in_id:sel.value,qty})
-  if(error){alert(error.message);return}
+  if(error){alert(traceErr(error));return}
   if(q)q.value=''; sel.value=''
   await refreshCardLots()
 }
 window.removeBatchInput=async function(id){
   if(!confirm('Remove this lot from the task?'))return
   const {error}=await sb.from('sim_batch_inputs').delete().eq('id',id)
-  if(error){alert(error.message);return}
+  if(error){alert(traceErr(error));return}
   await refreshCardLots()
 }
 
