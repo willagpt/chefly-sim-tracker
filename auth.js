@@ -97,10 +97,12 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','picking','kitchen','dash','history','perf','plan','trace','manage']
+const TAB_KEYS=['log','equip','ccp','pack','picking','kitchen','dash','history','perf','plan','trace','manage']
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
-  const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
+  // 'Checks' is the CCP register — visible to everyone, because anyone on the
+  // floor may be the one taking the reading.
+  const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'},{k:'ccp',label:'Checks'}]
   if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'pack',label:'Packing'})
   if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'picking',label:'Picking'})
   tabs.push({k:'kitchen',label:'Kitchen'})
@@ -117,6 +119,7 @@ window.showTab=function(which){
   document.querySelectorAll('#tabBar .tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which))
   TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='equip') loadEquip()
+  if(which==='ccp') initCcp()
   if(which==='pack') loadPacking()
   if(which==='picking') loadPicking()
   if(which==='kitchen') loadKitchen()
