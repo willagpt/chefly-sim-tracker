@@ -188,8 +188,28 @@ window.loadTraceGaps=async function(){
   if(!gaps.length){box.innerHTML='<p style="color:#16a34a;font-weight:600">✓ No record gaps in this range.</p>';return}
   box.innerHTML=gaps.map(g=>{
     const l=g.l
-    return `<div class="task-item"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''}<div class="meta">${esc(l.log_date)} · ${esc(trWho(l))} · <span style="color:#dc2626;font-weight:700">${g.miss.map(esc).join(' · ')}</span></div></div></div>`
+    const needLot=g.miss.indexOf('missing lot')>=0
+    const fix=needLot?`<div style="margin-top:6px"><button class="ghost sm" onclick="gapAddLot('${l.id}')">Add lot</button> <span id="gaplotmsg_${l.id}"></span><div id="gaplotbox_${l.id}" style="display:none;margin-top:6px"><select id="gaplot_${l.id}"></select> <input id="gapqty_${l.id}" type="number" inputmode="decimal" placeholder="qty (optional)" style="width:120px;padding:10px" /> <button class="ghost sm" onclick="gapSaveLot('${l.id}')">Save</button></div></div>`:''
+    return `<div class="task-item"><div><b>${esc(l.task_name)}</b>${l.product?' · '+esc(l.product):''}<div class="meta">${esc(l.log_date)} · ${esc(trWho(l))} · <span style="color:#dc2626;font-weight:700">${g.miss.map(esc).join(' · ')}</span></div>${fix}</div></div>`
   }).join('')
+}
+// ---- Fix a gap: attach a lot to a past completed run (manager/admin) ----
+window.gapAddLot=async function(logId){
+  if(!isManagerUp())return
+  const box=$('gaplotbox_'+logId); if(!box)return
+  await trEnsureLots()
+  populateLotSelect('gaplot_'+logId)
+  box.style.display=''
+}
+window.gapSaveLot=async function(logId){
+  if(!isManagerUp())return
+  const sel=$('gaplot_'+logId); if(!sel||!sel.value){alert('Pick the delivery / goods-in code first. If the delivery is not in the list, log it above on the Trace tab.');return}
+  const q=$('gapqty_'+logId); const qty=(q&&q.value!=='')?Number(q.value):null
+  const {error}=await sb.from('sim_batch_inputs').insert({log_id:logId,goods_in_id:sel.value,qty})
+  const m=$('gaplotmsg_'+logId)
+  if(error){if(m)msg(m,error.message,false);else alert(error.message);return}
+  if(m)msg(m,'Lot added.',true)
+  loadTraceGaps()
 }
 
 // ---- ingredients master ----
