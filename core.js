@@ -155,3 +155,53 @@ window.lbPrev=function(e){ if(e)e.stopPropagation(); if(!lbUrls.length)return; l
 window.lbNext=function(e){ if(e)e.stopPropagation(); if(!lbUrls.length)return; lbIdx=(lbIdx+1)%lbUrls.length; lbRender() }
 window.lbBackdrop=function(e){ if(e.target&&e.target.id==='lightbox') lbClose() }
 window.addEventListener('keydown',e=>{ const lb=$('lightbox'); if(!lb||lb.classList.contains('hidden'))return; if(e.key==='Escape')lbClose(); else if(e.key==='ArrowLeft')lbPrev(); else if(e.key==='ArrowRight')lbNext() })
+
+// ---- client error reporting ----
+// Captures uncaught JS errors + unhandled promise rejections into public.sim_client_errors
+// so faults on the floor are visible to managers instead of dying silently in a console
+// nobody opens. Deliberately fail-quiet: reporting must never break the app.
+const ERR_MAX_PER_LOAD=10
+let _errCount=0, _errSeen=new Set()
+async function reportClientError(kind,message,detail){
+  try{
+    if(_errCount>=ERR_MAX_PER_LOAD) return
+    const d=detail||{}
+    const msgTxt=String(message||'(no message)').slice(0,500)
+    const key=kind+'|'+msgTxt+'|'+String(d.source||'')+':'+String(d.lineno||'')
+    if(_errSeen.has(key)) return
+    _errSeen.add(key); _errCount++
+    await sb.from('sim_client_errors').insert({
+      kind:String(kind||'error').slice(0,40),
+      message:msgTxt,
+      source:d.source?String(d.source).slice(0,300):null,
+      lineno:(d.lineno!=null&&!isNaN(d.lineno))?Math.trunc(d.lineno):null,
+      colno:(d.colno!=null&&!isNaN(d.colno))?Math.trunc(d.colno):null,
+      stack:d.stack?String(d.stack).slice(0,4000):null,
+      page_url:String(location.href).slice(0,500),
+      user_agent:String(navigator.userAgent||'').slice(0,300),
+      staff_name:(profile&&profile.name)||(kStaff&&kStaff.name)||null,
+      user_role:(profile&&profile.role)||null
+    })
+  }catch(e){/* never let reporting throw */}
+}
+window.reportClientError=reportClientError
+// capture:true so failed <img>/<script> resource loads are caught too (they do not bubble)
+window.addEventListener('error',function(e){
+  try{
+    if(e && e.target && e.target!==window && e.target.tagName){
+      const t=e.target
+      reportClientError('resource','Failed to load '+t.tagName.toLowerCase(),{source:t.src||t.href||''})
+      return
+    }
+    reportClientError('error',(e&&e.message)||'Script error',{
+      source:e&&e.filename, lineno:e&&e.lineno, colno:e&&e.colno,
+      stack:e&&e.error&&e.error.stack
+    })
+  }catch(x){}
+},true)
+window.addEventListener('unhandledrejection',function(e){
+  try{
+    const r=e&&e.reason
+    reportClientError('unhandledrejection',(r&&(r.message||r.error_description))||String(r||'(no reason)'),{stack:r&&r.stack})
+  }catch(x){}
+})
