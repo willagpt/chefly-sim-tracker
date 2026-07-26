@@ -339,3 +339,4 @@ window.packPlanReport=async function(){
     doc.text('Chefly SIM Tracker · page '+p+' of '+n,W-M,H-18,{align:'right'})}
   doc.save('Chefly-Packing-Plan-'+packShift.shift_date+'.pdf')
 }
+
