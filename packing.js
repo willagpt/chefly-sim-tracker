@@ -146,7 +146,7 @@ function renderPacking(){
     if(viewing&&!packPrep){
       if(pending.length){ html+=`<p class="muted" style="margin:16px 0 4px">Never started</p>`; pending.forEach(r=>{ html+=packHistRow(r) }) }
     } else {
-      html+=`<p class="muted" style="margin:16px 0 4px">${packPrep?'Planned order — drag ⠿ to set the sequence for the day.':'Still to pack — drag ⠿ to reorder.'}</p><div id="packDishList">`
+      html+=`<p class="muted" style="margin:16px 0 4px">${packPrep?'Planned order — drag ⠠ to set the sequence for the day.':'Still to pack — drag ⠠ to reorder.'}</p><div id="packDishList">`
       if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
       else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
       html+='</div>'
@@ -268,7 +268,7 @@ function packRunRow(r){
   const photos=r.notes_photos||[]
   const photoLink=`<a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'Photo ('+photos.length+')':'Photo'}</a>`
   const photoStrip=photoThumbs(photos,48)
-  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠿</span>`:''
+  const handle=r.status==='pending'?`<span class="drag-h" style="cursor:grab;touch-action:none;user-select:none;padding:2px 4px;font-size:18px;color:var(--muted)">⠠</span>`:''
   const skuBlock=`<div style="flex:0 0 auto;text-align:center;min-width:38px"><div style="font-size:10px;color:var(--muted)">SKU</div><div style="font-size:20px;font-weight:900;color:var(--accent);line-height:1">${r.sku||'–'}</div></div>`
   const planBlock=`<div style="flex:0 0 auto;text-align:center;min-width:42px"><div style="font-size:20px;font-weight:900;line-height:1">${r.planned_qty??'–'}</div><div style="font-size:10px;color:var(--muted)">PLAN</div></div>`
   const notesLine=r.notes?`<div style="color:#fcd34d;font-size:12px;margin-top:2px">📝 ${esc(r.notes)}</div>`:''
@@ -835,7 +835,12 @@ window.packEodReport=async function(){
 
 /* ---------- PACKING HISTORY (view a previous day, read-only) ---------- */
 function packHistoryPicker(){
-  if(!(typeof isManagerUp==='function'&&isManagerUp())) return ''
+  // Managers and the packing team can both browse/prep a future staged day —
+  // matches the Packing tab's own visibility (auth.js buildTabs). Previously
+  // this picker was manager-only, so a loaded future day was invisible to the
+  // packing team until it literally became today.
+  const canView=(typeof isManagerUp==='function'&&isManagerUp())||(typeof profile!=='undefined'&&profile&&profile.packing_team)
+  if(!canView) return ''
   const today=new Date().toISOString().slice(0,10)
   const v=packViewDate||today
   return `<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="muted" style="font-size:13px">📅 View / prep day:</span><input type="date" value="${v}" onchange="packViewHistory(this.value)" style="max-width:180px" />${packViewDate?`<a class="link" style="font-size:13px" onclick="packViewHistory('')">← Back to today</a>`:''}</div>`
