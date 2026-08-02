@@ -97,13 +97,14 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','picking','kitchen','dash','history','perf','plan','trace','manage']
+const TAB_KEYS=['log','equip','pack','picking','kitchen','units','dash','history','perf','plan','trace','manage']
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
   const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
   if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'pack',label:'Packing'})
   if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'picking',label:'Picking'})
   tabs.push({k:'kitchen',label:'Kitchen'})
+  tabs.push({k:'units',label:'Batches & Units'})
   if(isManagerUp()) tabs.push({k:'dash',label:'Live Dashboard'})
   if(isManagerUp()) tabs.push({k:'history',label:'History'})
   if(isManagerUp()) tabs.push({k:'perf',label:'Performance'})
@@ -120,6 +121,7 @@ window.showTab=function(which){
   if(which==='pack') loadPacking()
   if(which==='picking') loadPicking()
   if(which==='kitchen') loadKitchen()
+  if(which==='units') loadUnits()
   if(which==='dash') refreshDashboard()
   if(which==='history') initHistory()
   if(which==='perf') initPerf()

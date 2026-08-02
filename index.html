@@ -194,6 +194,97 @@
       <div id="planBoard"></div>
     </div>
 
+    <div id="unitsTab" class="hidden">
+      <div class="card">
+        <h2>Scan</h2>
+        <p class="muted" style="margin-top:-8px">Shared camera scanner used by the actions below. Every code field can also be typed by hand — a mounted device with the camera pointed at the bench works well; a barcode scanner that types like a keyboard works too.</p>
+        <div id="unScanBox" class="hidden">
+          <video id="unScanVideo" style="width:100%;max-width:360px;border-radius:12px" muted></video>
+          <canvas id="unScanCanvas" class="hidden"></canvas>
+          <div id="unScanMsg" class="msg"></div>
+          <button class="ghost sm" onclick="unCloseScanner()">Close scanner</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Create a unit</h2>
+        <p class="muted" style="margin-top:-8px">The very first label in a chain — e.g. a tumbler load. Downstream units are made with Split, below.</p>
+        <div class="row">
+          <div><label for="unCreateKind">What is it</label><input id="unCreateKind" type="text" list="unKindList" placeholder="e.g. tumbler_load" /></div>
+          <div><label for="unCreateProduct">Product (optional)</label><select id="unCreateProduct"></select></div>
+        </div>
+        <div class="row">
+          <div><label for="unCreateQty">Quantity (optional, informational)</label><input id="unCreateQty" type="number" inputmode="decimal" placeholder="e.g. 150" /></div>
+          <div><label for="unCreateUom">Unit</label><input id="unCreateUom" list="uomList" value="kg" /></div>
+        </div>
+        <label for="unCreateStation">Station (optional)</label>
+        <input id="unCreateStation" type="text" placeholder="optional" />
+        <button class="green" onclick="unCreateUnit()">Create &amp; print label</button>
+        <div id="unCreateMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Split into new units</h2>
+        <p class="muted" style="margin-top:-8px">One or more parents become several new labelled units (e.g. a tumbler load onto trays, or a tray into vacuum-packed bags). No weights needed — every unit is its own code.</p>
+        <label>Parent unit(s)</label>
+        <div class="row">
+          <input id="unParentInput" type="text" placeholder="scan or type a code" onkeydown="if(event.key==='Enter')unAddParentManual()" />
+          <button class="ghost sm" onclick="unOpenScanner('unSplitParents')">📷 Scan</button>
+          <button class="ghost sm" onclick="unAddParentManual()">Add</button>
+        </div>
+        <div id="unSplitParentsChips" style="margin:6px 0"></div>
+        <div class="row">
+          <div><label for="unSplitCount">How many new units</label><input id="unSplitCount" type="number" inputmode="numeric" placeholder="e.g. 4" /></div>
+          <div><label for="unSplitKind">What are they</label><input id="unSplitKind" type="text" list="unKindList" placeholder="e.g. tray" /></div>
+        </div>
+        <div class="row">
+          <div><label for="unSplitProduct">Product (optional)</label><select id="unSplitProduct"></select></div>
+          <div><label for="unSplitQty">Quantity each (optional)</label><input id="unSplitQty" type="number" inputmode="decimal" placeholder="e.g. 40" /></div>
+          <div><label for="unSplitUom">Unit</label><input id="unSplitUom" list="uomList" value="kg" /></div>
+        </div>
+        <button class="green" onclick="unDoSplit()">Create &amp; print labels</button>
+        <div id="unSplitMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>Attach units to a run</h2>
+        <p class="muted" style="margin-top:-8px">For shared processing that doesn't create new units — an oven cycle, a chiller stay. Pick the run (an in-progress batch task) and scan every unit going into it.</p>
+        <label for="unRunSelect">Run</label>
+        <select id="unRunSelect"></select>
+        <label style="margin-top:8px">Unit(s)</label>
+        <div class="row">
+          <input id="unAttachInput" type="text" placeholder="scan or type a code" onkeydown="if(event.key==='Enter')unAddAttachManual()" />
+          <button class="ghost sm" onclick="unOpenScanner('unAttachCodes')">📷 Scan</button>
+          <button class="ghost sm" onclick="unAddAttachManual()">Add</button>
+        </div>
+        <div id="unAttachCodesChips" style="margin:6px 0"></div>
+        <button class="green" onclick="unDoAttach()">Add to run</button>
+        <div id="unAttachMsg" class="msg"></div>
+      </div>
+
+      <div class="card">
+        <h2>New labels</h2>
+        <div id="unLabelBox" class="hidden"></div>
+      </div>
+
+      <div class="card">
+        <h2>Trace a unit</h2>
+        <p class="muted" style="margin-top:-8px">Scan or type any unit's code to see everything it was made from, what it became, and every run (with CCP readings) it passed through.</p>
+        <div class="row">
+          <input id="unTraceInput" type="text" placeholder="scan or type a code" onkeydown="if(event.key==='Enter')unTraceCode()" />
+          <button class="ghost sm" onclick="unOpenScanner('unTraceInput')">📷 Scan</button>
+          <button class="green" onclick="unTraceCode()">Trace</button>
+        </div>
+        <div id="unTraceBody" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <h2>Recently created</h2>
+        <div id="unRecentList"></div>
+      </div>
+      <datalist id="unKindList"><option value="tumbler_load"/><option value="tray"/><option value="bag"/></datalist>
+    </div>
+
     <div id="traceTab" class="hidden">
       <div class="card">
         <h2>Expected deliveries (MarketMan)</h2>
@@ -496,6 +587,8 @@
      Order matters: core first, ui next, boot last. Supabase is the UMD global. -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="core.js"></script>
 <script src="ui.js"></script>
 <script src="equipstate.js"></script>
@@ -513,6 +606,7 @@
 <script src="routes.js"></script>
 <script src="plan.js"></script>
 <script src="myday.js"></script>
+<script src="units.js"></script>
 <script src="boot.js"></script>
 </body>
 </html>
