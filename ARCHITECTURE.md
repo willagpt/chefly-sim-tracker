@@ -54,8 +54,21 @@ local `esc()`.
 - Public screens read through token-gated RPCs (`sim_public_dashboard`,
   `sim_public_equipment`, `sim_public_packing`) validated against `sim_settings.wall_token`.
 - Realtime: modules subscribe to `postgres_changes` and re-render.
-- Scheduled jobs (Cowork): daily packing dish-import (~06:36) and the weekly
-  performance digest (Fri 17:00).
+- Scheduled jobs (`pg_cron`, in-database — see `cron.job`):
+  - `chefly-d2c-orders-sync` (04:45 UTC) — pulls the Chefly website's own
+    orders/products into `d2c_orders`/`d2c_order_items`/`d2c_products`
+    (read-only against the website DB; edge function `chefly-orders-sync`).
+  - `sim-pack-dish-sync` (05:00 UTC) — the next hop: turns that morning's
+    paid D2C orders into Sim Tracker's packing dish list for every upcoming
+    delivery date (`sim_sync_pack_dishes_from_chefly()`, added 2 Aug 2026).
+    Only ever creates dishes on an untouched shift — never rewrites a shift
+    a manager has already loaded or started packing.
+  - This replaces the previously-documented "daily packing dish-import
+    (~06:36) and weekly performance digest (Fri 17:00)" line, which as of
+    2 Aug 2026 did not actually exist as a running job anywhere (checked
+    both `pg_cron` and the Cowork scheduled-task list) — this section had
+    drifted from what was actually built. The performance digest is still
+    unbuilt.
 
 ## CI
 
