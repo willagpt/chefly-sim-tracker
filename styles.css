@@ -71,3 +71,40 @@ a.link{color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-de
 #logEdit .le-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;max-width:560px;width:100%;margin:auto}
 #printArea{display:none}
 @media print{ body{background:#fff} body>*{display:none !important} #printArea{display:block !important} }
+
+/* ---- Menu R&D Hub ---- */
+.dev-recipe-grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.dev-recipe-grid{grid-template-columns:1fr 1fr}}
+.dev-recipe-card{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;transition:border-color .15s,transform .1s}
+.dev-recipe-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.dev-recipe-card .name{font-weight:800;font-size:16px;margin-bottom:2px}
+.dev-recipe-card .client{color:var(--accent);font-size:13px;font-weight:700}
+.dev-recipe-card .row2{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.dev-recipe-card .cost{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+.dev-empty{border:1px dashed var(--line);border-radius:14px;padding:32px 20px;text-align:center;color:var(--muted)}
+.dev-empty .emoji{font-size:32px;margin-bottom:8px}
+
+.dev-stepper{display:flex;gap:4px;margin:4px 0 18px}
+.dev-stepper .step{flex:1;text-align:center;padding:9px 4px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--muted);position:relative}
+.dev-stepper .step.active{background:var(--accent);color:#1a1206;border-color:var(--accent)}
+.dev-stepper .step.past{background:rgba(34,197,94,.16);color:#86efac;border-color:rgba(34,197,94,.35)}
+.dev-stepper .step.locked{background:rgba(59,130,246,.18);color:#93c5fd;border-color:rgba(59,130,246,.35)}
+
+.dev-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.dev-kpi{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+.dev-kpi .v{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.dev-kpi .l{font-size:11px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+
+.dev-version-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.dev-vtab{padding:6px 13px;border-radius:999px;font-size:13px;font-weight:800;background:var(--panel2);border:1px solid var(--line);color:var(--muted);cursor:pointer}
+.dev-vtab.active{background:var(--accent);color:#1a1206;border-color:var(--accent)}
+.dev-vtab.locked-v{background:rgba(59,130,246,.18);color:#93c5fd;border-color:rgba(59,130,246,.35)}
+
+.dev-ing-line{padding:11px 0;border-bottom:1px solid var(--line)}
+.dev-ing-line:last-child{border-bottom:none}
+.dev-ing-line .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:14px}
+.dev-ing-line .top b{font-weight:700}
+.dev-ing-line .amt{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+.dev-ing-bar{height:6px;border-radius:999px;background:var(--line);margin-top:6px;overflow:hidden}
+.dev-ing-bar span{display:block;height:100%;background:var(--accent);border-radius:999px}
+.dev-locked-banner{background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.35);color:#93c5fd;border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:14px}
