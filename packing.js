@@ -130,7 +130,7 @@ function renderPacking(){
   const avgCo=cos.length?(cos.reduce((s,r)=>s+Number(r.changeover_mins),0)/cos.length):null
   let html=''
   html+=`<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>${viewing?(packPrep?'<span class="pill" style="background:rgba(249,115,22,.18);color:#fdba74">🛠 prep — packing opens on the day</span>':'<span class="pill off">📅 history</span>'):`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">Packing — ${new Date(packShift.shift_date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</h2>${viewing?(packPrep?`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'🛠 packing ahead — future day'}</span>`:'<span class="pill off">📅 history</span>'):`<span class="pill ${packing?'live':'off'}">${packing?'● PACKING':'idle'}</span>`}</div>
     <div class="stat-grid" style="margin-top:10px">
       <div class="stat"><div class="n">${done.length}/${packRuns.length}</div><div class="l">Dishes</div></div>
       <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
@@ -164,7 +164,7 @@ function renderPacking(){
   } else if(packShowPlan){
     html+=packPlanList()
   } else {
-    if(!viewing)html+=packActionPanel(packing,next)
+    if(!viewing||packPrep)html+=packActionPanel(packing,next)
     const _plannedSorted=[...packRuns].sort((a,b)=>((a.planned_seq!=null?a.planned_seq:a.sort_order)-(b.planned_seq!=null?b.planned_seq:b.sort_order)))
     const _plannedRank={}; _plannedSorted.forEach((r,i)=>{_plannedRank[r.id]=i+1})
     const started=packRuns.filter(r=>r.pack_seq!=null).sort((a,b)=>a.pack_seq-b.pack_seq)
@@ -181,7 +181,7 @@ function renderPacking(){
     if(viewing&&!packPrep){
       if(pending.length){ html+=`<p class="muted" style="margin:16px 0 4px">Never started</p>`; pending.forEach(r=>{ html+=packHistRow(r) }) }
     } else {
-      html+=`<p class="muted" style="margin:16px 0 4px">${packPrep?'Planned order — drag ⠿ to set the sequence for the day.':'Still to pack — drag ⠿ to reorder.'}</p><div id="packDishList">`
+      html+=`<p class="muted" style="margin:16px 0 4px">Still to pack — drag ⠿ to reorder.</p><div id="packDishList">`
       if(pending.length){ pending.forEach(r=>{ html+=packRunRow(r) }) }
       else { html+=`<p class="muted">Nothing left in the queue — every dish has been started. 🎉</p>` }
       html+='</div>'
@@ -216,7 +216,7 @@ function renderPacking(){
   }
   const onBreak=packBreaks.filter(b=>b.started_at&&!b.ended_at)
   const loggedBreaks=packBreaks.filter(b=>!(b.started_at&&!b.ended_at))
-  if(!packPrep){
+  {
   html+=`<div class="card"><h2>Breaks <span class="pill ${onBreak.length?'live':'off'}">${onBreak.length} on break now</span></h2>`
   if(onBreak.length){
     html+='<div style="margin-bottom:10px">'+onBreak.map(b=>`<div class="task-item" style="background:rgba(245,158,11,.12);border-color:var(--amber)"><div><b>${esc(packMemberName(b.member_id))}</b><div class="meta">⏸ on break · <span class="brk-elapsed" data-start="${b.started_at}">0:00</span>${b.approved_by?' · '+esc(b.approved_by):''}</div></div><button class="green sm" onclick="packEndBreak('${b.id}')">◀ Back</button></div>`).join('')+'</div>'
@@ -297,7 +297,7 @@ function packRunRow(r){
   else if(r.status==='skipped')pill='<span class="pill" style="background:rgba(245,158,11,.18);color:#fcd34d">skipped</span>'
   else pill='<span class="pill off">pending</span>'
   let act=''
-  if(r.status==='pending'){ act=packPrep?'<span class="muted" style="font-size:12px">starts on the day</span>':`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
+  if(r.status==='pending'){ act=`<button class="green sm" onclick="packStartDish('${r.id}')" ${anyPacking?'disabled':''}>Start</button> <a class="link" style="font-size:12px" onclick="packSkip('${r.id}')">Skip</a>` }
   else if(r.status==='skipped'){ act=`<button class="ghost sm" onclick="packUnskip('${r.id}')">Un-skip</button>` }
   else if(r.status==='done'){ const rt=packRate(r); const rtTxt=rt!=null?` · <span class="${rt>=packTarget?'vs-good':'vs-bad'}">${Math.round(rt)}/hr</span>`:''; act=`<span class="muted" style="font-size:12px">${r.total_minutes!=null?r.total_minutes+' min':''}${r.line_count?' · '+r.line_count+'p':''}${r.qty_packed!=null?' · '+r.qty_packed+' packed':''}${rtTxt}</span>` }
   const noteLink=`<a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit note':'Note'}</a>`
@@ -547,7 +547,7 @@ window.packImportDishes=async function(){
   await loadPacking()
 }
 window.packStartDish=async function(id){
-  if(packViewDate){alert('This is a prep/history view — packing can only start on the day itself.');return}
+  if(packViewDate&&packViewDate<new Date().toISOString().slice(0,10)){alert('This is a history view — a past day cannot be packed.');return}
   if(packRuns.some(r=>r.status==='packing')){alert('Finish the current dish first.');return}
   const r=packRuns.find(x=>x.id===id); if(!r)return
   const pendings=packRuns.filter(x=>x.status==='pending').sort((a,b)=>a.sort_order-b.sort_order)
