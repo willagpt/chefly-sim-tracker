@@ -11,6 +11,41 @@ let packNextStaged=null // next future staged dish list {date,dishes,meals} for 
 let packPrep=false      // true when viewing a FUTURE day (prep mode: order + print, no packing)
 let packShowPlan=false  // dish list toggle: live/packed view vs planned order
 const PACK_CO_TARGET=3   // minutes — SKU change target
+const PACK_CCP_LIMIT=5   // °C — chilled food critical limit for CCP temperature checks
+
+/* CCP temperature gate — required before a dish can be started or stopped.
+   Returns {temp,action} (action null when in range) or null if cancelled. */
+function packAskTemp(stage,dishName){
+  const verb=stage==='START'?'start':'finish'
+  for(;;){
+    const v=prompt('🌡 CCP CHECK — '+stage+'\n\n"'+dishName+'"\n\nProbe the food and record the temperature in °C.\nA reading is required before you can '+verb+' this dish.')
+    if(v===null)return null
+    const t=String(v).trim().replace(',','.')
+    const n=Number(t)
+    if(t===''||isNaN(n)){alert('Enter the temperature as a number — e.g. 3.5');continue}
+    if(n<-30||n>120){alert('That reads '+n+'°C — outside a believable range. Re-probe and enter it again.');continue}
+    if(n>PACK_CCP_LIMIT){
+      const act=prompt('⚠️ OUT OF RANGE — '+n+'°C is above the '+PACK_CCP_LIMIT+'°C chilled limit.\n\nA CORRECTIVE ACTION is required to continue — e.g. "returned to chiller, re-probe in 20 min", "moved to blast chiller", "supervisor informed".')
+      if(act===null)return null
+      if(!String(act).trim()){alert('A corrective action is required when the temperature is above '+PACK_CCP_LIMIT+'°C.');continue}
+      return {temp:n,action:String(act).trim()}
+    }
+    return {temp:n,action:null}
+  }
+}
+function packTempChip(v){
+  if(v==null)return null
+  const bad=Number(v)>PACK_CCP_LIMIT
+  return '<span class="'+(bad?'vs-bad':'vs-good')+'">'+Number(v).toFixed(1)+'°C'+(bad?' ⚠':'')+'</span>'
+}
+function packTempLine(r){
+  const s=packTempChip(r.start_temp_c), f=packTempChip(r.finish_temp_c)
+  if(!s&&!f)return ''
+  let h='<div class="muted" style="font-size:12px;margin-top:2px">🌡 CCP: start '+(s||'—')+' → finish '+(f||(r.status==='packing'?'pending':'—'))+'</div>'
+  if(r.start_temp_action)h+='<div style="color:#fca5a5;font-size:12px;margin-top:2px">⚠ Start corrective action: '+esc(r.start_temp_action)+'</div>'
+  if(r.finish_temp_action)h+='<div style="color:#fca5a5;font-size:12px;margin-top:2px">⚠ Finish corrective action: '+esc(r.finish_temp_action)+'</div>'
+  return h
+}
 
 window.loadPacking=async function(){
   const today=new Date().toISOString().slice(0,10)
@@ -227,6 +262,7 @@ function packActionPanel(packing,next){
       <div style="font-size:19px;font-weight:800;margin:2px 0">${esc(packing.dish_name)}</div>
       <div class="timer" id="packCurElapsed">00:00:00</div>
       <div class="muted" style="font-size:12px">Target ${packTarget}/hr${tmin?' · '+tmin.toFixed(1)+' min for '+packing.planned_qty:''}</div>
+      ${packing.start_temp_c!=null?`<div class="muted" style="font-size:12px;margin-top:2px">🌡 CCP start ${packTempChip(packing.start_temp_c)} · temp check required again at STOP</div>`:''}
       <div id="packPaceInfo" style="font-weight:800;font-size:15px;margin:6px 0 2px">&nbsp;</div>
       <div style="max-width:240px;margin:4px auto 0"><input id="qty_${packing.id}" type="number" inputmode="numeric" placeholder="qty packed" value="${packing.planned_qty??''}" style="text-align:center" /></div>
       <button class="red" onclick="packStopDish('${packing.id}')">■ STOP — finish dish</button>
@@ -305,6 +341,7 @@ function packedRunRow(r,actualPos,plannedPos){
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:13px">${status}${movedBadge}${coTxt}${rtTxt}</span><span style="flex-shrink:0;display:flex;gap:12px;align-items:center"><a class="link" style="font-size:12px" onclick="packAddPhoto('${r.id}')">📷 ${photos.length?'('+photos.length+')':'Photo'}</a><a class="link" style="font-size:12px" onclick="packNote('${r.id}')">📝 ${r.notes?'Edit':'Note'}</a></span></div>
     ${clockLine}
+    ${packTempLine(r)}
     ${reason}
     ${notesLine}
     ${photoStrip}
@@ -535,10 +572,12 @@ window.packStartDish=async function(id){
   if(v===null)return
   const n=Math.round(Number(v))
   if(!n||isNaN(n)||n<1){alert('Enter the number of people on the line (1 or more) to start.');return}
+  const ccp=packAskTemp('START',r.dish_name)
+  if(!ccp)return
   const done=packRuns.filter(x=>x.status==='done'&&x.finish_time).sort((a,b)=>new Date(b.finish_time)-new Date(a.finish_time))
   const co=done.length?Math.round(((Date.now()-new Date(done[0].finish_time))/60000)*10)/10:null
   const maxSeq=packRuns.reduce((m,x)=>Math.max(m,x.pack_seq||0),0)
-  const upd={start_time:new Date().toISOString(),status:'packing',changeover_mins:co,line_count:n,pack_seq:maxSeq+1}
+  const upd={start_time:new Date().toISOString(),status:'packing',changeover_mins:co,line_count:n,pack_seq:maxSeq+1,start_temp_c:ccp.temp,start_temp_action:ccp.action}
   if(reason!==null) upd.out_of_sequence_reason=reason.trim()
   const {error}=await sb.from('sim_pack_runs').update(upd).eq('id',id)
   if(error){alert(error.message);return}
@@ -557,7 +596,9 @@ window.packStopDish=async function(id){
   } else if(rate!=null && rate>5000){
     if(!confirm('That works out at '+Math.round(rate)+' meals/hr — that is not possible.\n\nCheck qty packed ('+usedQty+') and minutes ('+mins+').\n\nFinish anyway?')) return
   }
-  const {error}=await sb.from('sim_pack_runs').update({finish_time:fin,total_minutes:mins,qty_packed:qty,status:'done'}).eq('id',id)
+  const ccp=packAskTemp('STOP',r.dish_name)
+  if(!ccp)return
+  const {error}=await sb.from('sim_pack_runs').update({finish_time:fin,total_minutes:mins,qty_packed:qty,status:'done',finish_temp_c:ccp.temp,finish_temp_action:ccp.action}).eq('id',id)
   if(error){alert(error.message);return}
   if(rate!=null){
     alert(r.dish_name+'\n\n'+Math.round(rate)+' meals/hr  (target '+packTarget+'/hr)\n\n'+(rate>=packTarget?'Great — above target! 🎉':'Below target — room to improve.'))
@@ -567,7 +608,7 @@ window.packStopDish=async function(id){
 window.packDiscard=async function(id){
   const r=packRuns.find(x=>x.id===id); if(!r)return
   if(!confirm('Cancel the start of "'+r.dish_name+'"? It returns to the dish list with no timing recorded.'))return
-  const {error}=await sb.from('sim_pack_runs').update({status:'pending',start_time:null,finish_time:null,total_minutes:null,qty_packed:null,changeover_mins:null,pack_seq:null,line_count:null,out_of_sequence_reason:null}).eq('id',id)
+  const {error}=await sb.from('sim_pack_runs').update({status:'pending',start_time:null,finish_time:null,total_minutes:null,qty_packed:null,changeover_mins:null,pack_seq:null,line_count:null,out_of_sequence_reason:null,start_temp_c:null,finish_temp_c:null,start_temp_action:null,finish_temp_action:null}).eq('id',id)
   if(error){alert(error.message);return}
   await loadPacking()
 }
