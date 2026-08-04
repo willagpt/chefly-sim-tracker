@@ -89,6 +89,15 @@ async function showApp(){
   $('whoName').textContent=profile.full_name||me.email
   const r=profile.role||'staff'; const badge=$('whoRole'); badge.textContent=r; badge.className='badge '+r
   $('kioskLink').classList.toggle('hidden',!isManagerUp())
+  if(wsStation()){
+    // Dedicated pack-line tablet: one screen only — Wholesale pack day for this team.
+    badge.textContent='Team '+profile.ws_team
+    $('tabBar').classList.add('hidden')
+    const sub=$('subTabBar'); if(sub) sub.classList.add('hidden')
+    TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='ws')})
+    await loadWholesale()
+    return
+  }
   buildTabs()
   await loadCatalog(); await loadProducts(); await loadActive(); await refreshMyRecent()
   if(isManagerUp()) await refreshDashboard()

@@ -22,6 +22,10 @@ function workedSeconds(l){let s=(Date.now()-new Date(l.start_time))/1000-(l.paus
 function updatePauseUI(l,pillId,btnId){const paused=l.status==='paused';const pill=$(pillId);if(pill){pill.textContent=paused?'❚❚ PAUSED':'● RUNNING';pill.className='pill '+(paused?'off':'live')}const btn=$(btnId);if(btn){btn.textContent=paused?'▶ Resume':'⏸ Pause';btn.className=paused?'green':'ghost'}}
 const isManagerUp=()=> profile && (profile.role==='manager'||profile.role==='admin')
 const isAdmin=()=> profile && profile.role==='admin'
+/* Wholesale team station: a non-manager profile pinned to packing Team A or B.
+   These logins (one per pack-line tablet) see ONLY the Wholesale pack-day
+   screen for their team — no tabs, no other screens. */
+const wsStation=()=> !!(profile && !isManagerUp() && (profile.ws_team==='A'||profile.ws_team==='B'))
 function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}}}
 
 // ---- task helpers ----
