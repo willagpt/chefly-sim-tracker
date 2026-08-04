@@ -62,9 +62,21 @@ window.loadWholesale=async function(){
 }
 function subscribeWs(){
   if(wsChannel) return
-  wsChannel=db.onChanges('ws-live',['sim_ws_week_lines','sim_ws_stock_moves','sim_ws_pack_lots','sim_ws_lot_usage'],()=>{
-    const t=$('wsTab'); if(t&&!t.classList.contains('hidden')) loadWholesale()
-  })
+  // Never let a realtime-subscription failure break the screen (or, on team
+  // station logins, abort the login itself) — live refresh is a bonus, not core.
+  // NOTE: db.js is not included by index.html, so the `db` helper may not
+  // exist; subscribe through the Supabase client directly when it doesn't.
+  try{
+    const tables=['sim_ws_week_lines','sim_ws_stock_moves','sim_ws_pack_lots','sim_ws_lot_usage']
+    const onChange=()=>{ const t=$('wsTab'); if(t&&!t.classList.contains('hidden')) loadWholesale() }
+    if(typeof db!=='undefined' && db && db.onChanges){
+      wsChannel=db.onChanges('ws-live',tables,onChange)
+    } else {
+      let ch=sb.channel('ws-live')
+      tables.forEach(t=>{ ch=ch.on('postgres_changes',{event:'*',schema:'public',table:t},onChange) })
+      wsChannel=ch.subscribe()
+    }
+  }catch(e){ console.error('Wholesale live-sync unavailable:',e) }
 }
 window.wsPrevWeek=function(){$('wsWeek').value=wsAddDays(wsWeekStart,-7);loadWholesale()}
 window.wsNextWeek=function(){$('wsWeek').value=wsAddDays(wsWeekStart,7);loadWholesale()}
