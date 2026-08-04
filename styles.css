@@ -49,8 +49,13 @@ a.link{color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-de
 .task-item,.dash-row,.member{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel2)}
 .task-item .meta,.dash-row .sub,.member .sub{font-size:13px;color:var(--muted)}
 .dash-row .name,.member .name{font-weight:800}
-.member .ctl{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
-.member select{width:auto;padding:8px 10px;font-size:14px}
+.member{flex-wrap:wrap}
+.member>div:first-child{min-width:0;flex:1 1 220px}
+.member .ctl{display:flex;gap:8px;align-items:center;flex:0 1 auto;min-width:0;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+.member select{width:auto;padding:8px 10px;font-size:14px;max-width:100%}
+#memberList .member .sub{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:3px}
+#memberList .member .sub .email{word-break:break-all}
+#memberList .member .sub .pill{white-space:nowrap}
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
 .stat .n{font-size:26px;font-weight:800}.stat .l{font-size:12px;color:var(--muted);margin-top:2px}
