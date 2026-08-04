@@ -97,7 +97,7 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','picking','kitchen','units','dash','history','perf','plan','trace','devhub','manage']
+const TAB_KEYS=['log','equip','pack','picking','kitchen','units','dash','history','perf','plan','ws','trace','devhub','manage']
 function buildTabs(){
   const bar=$('tabBar'); bar.innerHTML=''
   const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
@@ -109,6 +109,7 @@ function buildTabs(){
   if(isManagerUp()) tabs.push({k:'history',label:'History'})
   if(isManagerUp()) tabs.push({k:'perf',label:'Performance'})
   if(isManagerUp()) tabs.push({k:'plan',label:'Plan'})
+  if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'ws',label:'Wholesale'})
   if(isManagerUp()) tabs.push({k:'trace',label:'Trace'})
   if(isManagerUp()) tabs.push({k:'devhub',label:'R&D Hub'})
   if(isAdmin()) tabs.push({k:'manage',label:'Manage'})
@@ -127,6 +128,7 @@ window.showTab=function(which){
   if(which==='history') initHistory()
   if(which==='perf') initPerf()
   if(which==='plan') loadPlan()
+  if(which==='ws') loadWholesale()
   if(which==='trace') initTrace()
   if(which==='devhub') loadDevHub()
   if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); loadPackRoster(); renderTaskList(); loadRoutes() }
