@@ -9,7 +9,7 @@
    sim_ws_lot_usage. */
 
 let wsMeals=[], wsVariants=[], wsComps=[], wsBom=[], wsWeekStart=null, wsWeek=null, wsLines=[]
-let wsOnHand={}, wsMoves=[], wsLots=[], wsUsage=[], wsView='plan', wsChannel=null, wsOpenLot=null, wsPackVar=null
+let wsOnHand={}, wsMoves=[], wsLots=[], wsUsage=[], wsView='plan', wsChannel=null, wsOpenLot=null, wsPackVar=null, wsTickInt=null
 
 const WS_STAGES=[
   ['build_ahead_frozen','Build ahead — freeze','Cook, pack & freeze to build stock (salsa, beans)'],
@@ -59,6 +59,8 @@ window.loadWholesale=async function(){
   } else {wsLots=[]; wsUsage=[]}
   renderWs()
   subscribeWs()
+  // station screens re-render every 30s so elapsed-time and pace numbers tick
+  if(wsMyTeam() && !wsTickInt) wsTickInt=setInterval(()=>{const t=$('wsTab'); if(t&&!t.classList.contains('hidden')) renderWs()},30000)
 }
 function subscribeWs(){
   if(wsChannel) return
@@ -268,9 +270,15 @@ function wsStockView(){
 
 /* ================= PACK DAY VIEW ================= */
 window.wsGenLots=async function(variantId){
-  if(wsMyTeam())return // team stations never generate/regenerate lots
   const ln=wsLines.find(l=>l.variant_id===variantId); if(!ln||!ln.target_qty){alert('Set this variant’s target on the Plan view first.');return}
-  const existing=wsLots.filter(l=>l.variant_id===variantId)
+  // Fresh server read so two tablets tapping at once can't double-generate.
+  const {data:cur,error:ce}=await sb.from('sim_ws_pack_lots').select('*').eq('week_id',wsWeek.id).eq('variant_id',variantId)
+  if(ce){alert(ce.message);return}
+  const existing=cur||[]
+  // Team stations may only do the initial one-tap setup — if lots appeared in
+  // the meantime (other tablet won the race), just refresh. Regenerating an
+  // existing set stays manager-only.
+  if(wsMyTeam() && existing.length){await loadWholesale();return}
   if(existing.length && !confirm('Lots already exist for this size. Regenerate from the target? Untouched lots are replaced; started/done lots are kept.'))return
   const keep=existing.filter(l=>l.status!=='pending')
   const del=existing.filter(l=>l.status==='pending')
@@ -300,7 +308,26 @@ window.wsLotFinish=async function(id){
   const n=Math.round(Number(q)); if(!n||n<0){alert('Enter the portions packed.');return}
   const {error}=await sb.from('sim_ws_pack_lots').update({status:'done',finished_at:new Date().toISOString(),packed_qty:n}).eq('id',id)
   if(error){alert(error.message);return}
+  wsConfetti()
   await loadWholesale()
+}
+// lightweight confetti burst — no libraries, cleans itself up
+function wsConfetti(){
+  try{
+    const colors=['#f97316','#22c55e','#3b82f6','#f59e0b','#ef4444','#a855f7']
+    const w=document.createElement('div'); w.className='ws-confetti-wrap'
+    for(let i=0;i<90;i++){
+      const d=document.createElement('div'); d.className='ws-confetti'
+      d.style.left=(Math.random()*100)+'vw'
+      d.style.background=colors[i%colors.length]
+      d.style.animationDelay=(Math.random()*0.5)+'s'
+      d.style.animationDuration=(1.3+Math.random()*1.2)+'s'
+      d.style.transform='rotate('+(Math.random()*360)+'deg)'
+      w.appendChild(d)
+    }
+    document.body.appendChild(w)
+    setTimeout(()=>w.remove(),3200)
+  }catch(e){/* decorative only */}
 }
 window.wsLotReopen=async function(id){
   const l0=wsLots.find(x=>x.id===id); if(l0&&!wsLotMine(l0))return
@@ -324,29 +351,29 @@ function wsLotMins(l){
   if(l.started_at&&l.status==='in_progress')return (Date.now()-new Date(l.started_at))/60000
   return null
 }
+function wsLotUsagePanel(l,v){
+  const bomRows=wsBom.filter(b=>b.variant_id===v.id).map(b=>({b,c:wsCompOf(b.component_id)})).filter(x=>x.c)
+  let detail='<div style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px;text-align:left"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Per-lot quantities ('+wsInt(l.lot_size)+' portions) — enter kg issued to the line to track usage:</div>'
+  bomRows.forEach(({b,c})=>{
+    const exp=Number(b.grams)*l.lot_size/1000
+    const u=wsUsage.find(x=>x.lot_id===l.id&&x.component_id===c.id)
+    const used=u&&u.issued_kg!=null?Number(u.issued_kg):null
+    const diff=used!=null?used-exp:null
+    const dCol=diff==null?'var(--muted)':(Math.abs(diff)<=exp*0.03?'var(--green)':(diff>0?'var(--red)':'var(--amber)'))
+    detail+=`<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line);font-size:12px">
+      <span>${esc(c.name)}</span>
+      <span style="color:var(--muted);white-space:nowrap">need ${wsKg(exp)} kg</span>
+      <input type="number" inputmode="decimal" step="0.1" value="${used!=null?used:''}" placeholder="issued kg" style="max-width:95px;font-size:12px;padding:3px 6px" onchange="wsSaveUsage('${l.id}','${c.id}',this.value)" />
+      <span style="white-space:nowrap;color:${dCol};font-weight:700">${diff==null?'':((diff>0?'+':'')+wsKg(diff)+' kg')}</span>
+    </div>`
+  })
+  return detail+'</div>'
+}
 function wsLotCard(l,v){
   const stCol=l.status==='done'?'var(--green)':(l.status==='in_progress'?'var(--amber)':'var(--line)')
   const mins=wsLotMins(l)
   const open=wsOpenLot===l.id
-  const bomRows=wsBom.filter(b=>b.variant_id===v.id).map(b=>({b,c:wsCompOf(b.component_id)})).filter(x=>x.c)
-  let detail=''
-  if(open){
-    detail='<div style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Per-lot quantities ('+wsInt(l.lot_size)+' portions) — enter kg issued to the line to track usage:</div>'
-    bomRows.forEach(({b,c})=>{
-      const exp=Number(b.grams)*l.lot_size/1000
-      const u=wsUsage.find(x=>x.lot_id===l.id&&x.component_id===c.id)
-      const used=u&&u.issued_kg!=null?Number(u.issued_kg):null
-      const diff=used!=null?used-exp:null
-      const dCol=diff==null?'var(--muted)':(Math.abs(diff)<=exp*0.03?'var(--green)':(diff>0?'var(--red)':'var(--amber)'))
-      detail+=`<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line);font-size:12px">
-        <span>${esc(c.name)}</span>
-        <span style="color:var(--muted);white-space:nowrap">need ${wsKg(exp)} kg</span>
-        <input type="number" inputmode="decimal" step="0.1" value="${used!=null?used:''}" placeholder="issued kg" style="max-width:95px;font-size:12px;padding:3px 6px" onchange="wsSaveUsage('${l.id}','${c.id}',this.value)" />
-        <span style="white-space:nowrap;color:${dCol};font-weight:700">${diff==null?'':((diff>0?'+':'')+wsKg(diff)+' kg')}</span>
-      </div>`
-    })
-    detail+='</div>'
-  }
+  const detail=open?wsLotUsagePanel(l,v):''
   return `<div style="background:var(--panel2);border:1px solid ${stCol};border-radius:10px;padding:8px 10px;margin-bottom:8px">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
       <div style="cursor:pointer" onclick="wsToggleLot('${l.id}')"><b>Lot ${l.lot_no}</b> · ${wsInt(l.status==='done'&&l.packed_qty!=null?l.packed_qty:l.lot_size)} portions
@@ -390,19 +417,31 @@ function wsUsageSummary(v,lots){
   h+='</table></div><p class="muted" style="font-size:12px;margin:8px 0 0">Over 3% above recipe = overportioning on the line.</p></div>'
   return h
 }
+function wsTeamStats(lots,t){
+  const tl=lots.filter(l=>(l.team||'A')===t)
+  const doneLots=tl.filter(l=>l.status==='done')
+  const packed=doneLots.reduce((s,l)=>s+(l.packed_qty!=null?l.packed_qty:l.lot_size),0)
+  const target=tl.reduce((s,l)=>s+l.lot_size,0)
+  const mins=doneLots.reduce((s,l)=>s+(wsLotMins(l)||0),0)
+  const live=tl.filter(l=>l.status==='in_progress').length
+  const pct=target?Math.min(100,Math.round(packed/target*100)):0
+  const pph=mins>1?Math.round(packed/(mins/60)):null
+  return {tl,done:doneLots.length,packed,target,live,pct,pph,mins}
+}
 function wsPackView(){
   const lines=wsLines.filter(l=>{const v=wsVariantOf(l.variant_id);const m=v&&wsMealOf(v.meal_id);return v&&v.active&&m&&m.active&&Number(l.target_qty)>0})
   if(!lines.length) return '<div class="card"><p class="muted">No targets set for this week yet'+(wsCanPlan()?' — enter them on the Plan view.':' — ask a manager to set the week’s plan.')+'</p></div>'
   if(wsPackVar && !lines.some(l=>l.variant_id===wsPackVar)) wsPackVar=null
   const sel=wsPackVar||lines[0].variant_id
-  const tabs=lines.map(l=>{
-    const v=wsVariantOf(l.variant_id)
-    const on=l.variant_id===sel
-    return `<span onclick="wsSetPackVar('${l.variant_id}')" style="padding:6px 12px;font-size:13px;cursor:pointer;border-radius:8px;${on?'background:var(--accent);color:#0b1220;font-weight:700':'border:1px solid var(--line);color:var(--muted)'}">${esc(v.name)} · ${wsInt(l.target_qty)}</span>`
-  }).join(' ')
   const ln=lines.find(l=>l.variant_id===sel)
   const v=wsVariantOf(sel)
   const lots=wsLots.filter(l=>l.variant_id===sel)
+  if(wsMyTeam()) return wsStationView(v,ln,lots,lines,sel)
+  const tabs=lines.map(l=>{
+    const vv=wsVariantOf(l.variant_id)
+    const on=l.variant_id===sel
+    return `<span onclick="wsSetPackVar('${l.variant_id}')" style="padding:6px 12px;font-size:13px;cursor:pointer;border-radius:8px;${on?'background:var(--accent);color:#0b1220;font-weight:700':'border:1px solid var(--line);color:var(--muted)'}">${esc(vv.name)} · ${wsInt(l.target_qty)}</span>`
+  }).join(' ')
   const packed=lots.filter(l=>l.status==='done').reduce((s,l)=>s+(l.packed_qty!=null?l.packed_qty:l.lot_size),0)
   const inProg=lots.filter(l=>l.status==='in_progress').reduce((s,l)=>s+l.lot_size,0)
   const target=Number(ln.target_qty)||0
@@ -414,30 +453,120 @@ function wsPackView(){
       <span style="font-weight:800;color:${pct>=100?'var(--green)':'var(--accent)'}">${pct}%</span>
     </div>
     <div style="height:10px;background:var(--panel2);border-radius:5px;margin-top:6px"><div style="height:10px;width:${pct}%;background:${pct>=100?'var(--green)':'var(--accent)'};border-radius:5px"></div></div>
-    ${!lots.length?(wsMyTeam()?'<p class="muted" style="margin-top:10px;font-size:13px">No lots yet for this size — a manager generates them from the week’s target.</p>':`<div style="margin-top:10px"><button class="green" onclick="wsGenLots('${sel}')">Generate lots of 750</button><span class="muted" style="font-size:12px;margin-left:8px">${Math.ceil(target/750)} lots — trays come in boxes of 750, so one box = one lot.</span></div>`):(wsCanPlan()?`<div style="margin-top:8px"><a class="link" style="font-size:12px" onclick="wsGenLots('${sel}')">Regenerate pending lots from target</a></div>`:'')}
+    ${!lots.length?`<div style="margin-top:10px"><button class="green" onclick="wsGenLots('${sel}')">Generate lots of 750</button><span class="muted" style="font-size:12px;margin-left:8px">${Math.ceil(target/750)} lots — trays come in boxes of 750, so one box = one lot.</span></div>`:(wsCanPlan()?`<div style="margin-top:8px"><a class="link" style="font-size:12px" onclick="wsGenLots('${sel}')">Regenerate pending lots from target</a></div>`:'')}
   </div>`
   if(lots.length){
-    const my=wsMyTeam()
-    const teams=my?[my,(my==='A'?'B':'A')]:['A','B']
-    h+=my?'':'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">'
-    teams.forEach(t=>{
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">'
+    ;['A','B'].forEach(t=>{
       const tl=lots.filter(l=>(l.team||'A')===t)
       const tPacked=tl.filter(l=>l.status==='done').reduce((s,l)=>s+(l.packed_qty!=null?l.packed_qty:l.lot_size),0)
-      if(my&&t!==my){
-        // other team: compact read-only summary so the station stays focused
-        const tDone=tl.filter(l=>l.status==='done').length
-        const tLive=tl.filter(l=>l.status==='in_progress').length
-        h+=`<div class="card" style="opacity:.75"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><h2 style="margin:0;font-size:15px">Team ${t}</h2><span style="font-size:12px;color:var(--muted)">${wsInt(tPacked)} packed · ${tDone}/${tl.length} lots done${tLive?' · '+tLive+' on the line':''}</span></div></div>`
-        return
-      }
-      h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0">${my?'Your lots — ':''}Team ${t}</h2><span style="font-size:12px;color:var(--muted)">${wsInt(tPacked)} packed · ${tl.length} lot${tl.length===1?'':'s'}</span></div>`
+      h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0">Team ${t}</h2><span style="font-size:12px;color:var(--muted)">${wsInt(tPacked)} packed · ${tl.length} lot${tl.length===1?'':'s'}</span></div>`
       if(!tl.length) h+='<p class="muted" style="font-size:13px">No lots assigned.</p>'
       tl.forEach(l=>{h+=wsLotCard(l,v)})
       h+='</div>'
     })
-    h+=my?'':'</div>'
+    h+='</div>'
     h+=wsUsageSummary(v,lots)
   }
+  return h
+}
+
+/* ---- team station: full-screen gamified race view (11" tablets) ---- */
+function wsStationView(v,ln,lots,lines,sel){
+  const my=wsMyTeam(), other=my==='A'?'B':'A'
+  const meal=wsMealOf(v.meal_id)
+  const target=Number(ln.target_qty)||0
+  const chips=lines.map(l=>{
+    const vv=wsVariantOf(l.variant_id); const on=l.variant_id===sel
+    return `<span onclick="wsSetPackVar('${l.variant_id}')" style="padding:10px 20px;font-size:16px;font-weight:800;cursor:pointer;border-radius:999px;${on?'background:var(--accent);color:#0b1220':'border:1px solid var(--line);color:var(--muted)'}">${esc(vv.name)}</span>`
+  }).join(' ')
+  // ---- no lots yet: the big one-tap day starter ----
+  if(!lots.length){
+    return `<div class="card center" style="padding:36px 20px">
+      <div style="font-size:52px">📦</div>
+      <h2 style="font-size:24px;margin:10px 0 4px">${esc(meal.name)} — ${esc(v.name)}</h2>
+      <p class="muted" style="font-size:16px;margin:0">This week's target: <b style="color:var(--txt)">${wsInt(target)}</b> portions · ${Math.ceil(target/750)} lots of 750</p>
+      <button class="green" style="font-size:22px;padding:22px;max-width:460px;margin:18px auto 0;display:block" onclick="wsGenLots('${sel}')">▶ SET UP TODAY'S LOTS</button>
+      <p class="muted" style="font-size:13px;margin-top:12px">One box of trays = one lot. Lots alternate Team A / Team B — one tap and both stations are ready.</p>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${chips}</div>
+    </div>`
+  }
+  const M=wsTeamStats(lots,my), O=wsTeamStats(lots,other)
+  const diff=M.packed-O.packed
+  const started=(M.packed+O.packed)>0||M.live>0||O.live>0
+  const banner=!started?'🏁 READY TO RACE — first lot sets the pace!'
+    :(diff>0?`🔥 TEAM ${my} AHEAD BY ${wsInt(diff)}`
+    :(diff<0?`⚡ TEAM ${other} LEADS BY ${wsInt(-diff)} — CHASE THEM DOWN!`
+    :'🤜🤛 DEAD LEVEL — EVERYTHING TO PLAY FOR!'))
+  const bannerCol=diff>0?'var(--green)':(diff<0?'var(--amber)':'var(--accent)')
+  const remaining=Math.max(0,M.target-M.packed)
+  const etaMin=(M.pph&&remaining>0)?Math.round(remaining/M.pph*60):null
+  const eta=etaMin!=null?(etaMin>=60?Math.floor(etaMin/60)+'h '+(etaMin%60)+'m':etaMin+'m'):null
+  const cur=M.tl.find(l=>l.status==='in_progress')||M.tl.find(l=>l.status==='pending')
+  let h=`<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px">${chips}</div>`
+  // ---- lead banner ----
+  h+=`<div class="card center" style="padding:14px;border:2px solid ${bannerCol}">
+    <div style="font-size:22px;font-weight:900;letter-spacing:.5px;color:${bannerCol}">${banner}</div>
+    <div class="muted" style="font-size:13px;margin-top:2px">${esc(meal.name)} — ${esc(v.name)} · ${wsInt(M.packed+O.packed)} / ${wsInt(target)} packed today</div>
+  </div>`
+  // ---- current lot hero ----
+  if(cur){
+    const mins=wsLotMins(cur)
+    const running=cur.status==='in_progress'
+    h+=`<div class="card center" style="padding:22px;border:2px solid ${running?'var(--amber)':'var(--green)'}">
+      <div style="font-size:13px;letter-spacing:2px;text-transform:uppercase;color:${running?'var(--amber)':'var(--muted)'}">${running?'● PACKING NOW':'UP NEXT'}</div>
+      <div style="font-size:44px;font-weight:900;line-height:1.1;margin:4px 0">LOT ${cur.lot_no}</div>
+      <div class="muted" style="font-size:17px">${wsInt(cur.lot_size)} portions${mins!=null?` · <b style="color:var(--amber)">${Math.round(mins)} min on the clock</b>`:''}</div>
+      ${running
+        ?`<button style="font-size:24px;padding:22px;max-width:460px;margin:16px auto 0;display:block" onclick="wsLotFinish('${cur.id}')">■ FINISH LOT ${cur.lot_no}</button>`
+        :`<button class="green" style="font-size:24px;padding:22px;max-width:460px;margin:16px auto 0;display:block" onclick="wsLotStart('${cur.id}')">▶ START LOT ${cur.lot_no}</button>`}
+      <div style="margin-top:10px"><a class="link" style="font-size:14px" onclick="wsToggleLot('${cur.id}')">component kg for this lot ${wsOpenLot===cur.id?'▴':'▾'}</a></div>
+      ${wsOpenLot===cur.id?wsLotUsagePanel(cur,v):''}
+    </div>`
+  } else {
+    h+=`<div class="card center" style="padding:26px;border:2px solid var(--green)">
+      <div style="font-size:48px">🏆</div>
+      <div style="font-size:26px;font-weight:900;margin-top:4px">ALL LOTS DONE!</div>
+      <div class="muted" style="font-size:16px">Team ${my} packed ${wsInt(M.packed)} portions${M.pph?' at '+wsInt(M.pph)+'/hr':''}. Get the kg entered, then go flex on Team ${other}.</div>
+    </div>`
+  }
+  // ---- the race: both teams, big bars ----
+  const raceBar=(t,S,mine)=>{
+    const lead=(mine?diff>0:diff<0)&&started&&diff!==0
+    return `<div style="margin-bottom:${mine?'16px':'2px'}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <b style="font-size:${mine?'20px':'16px'};${mine?'':'color:var(--muted)'}">${mine?'⭐ ':''}TEAM ${t}${mine?' (YOU)':''}${lead?' 🏆':''}</b>
+        <span style="font-size:${mine?'20px':'15px'};font-weight:900">${wsInt(S.packed)} <span style="font-size:12px;color:var(--muted);font-weight:400">/ ${wsInt(S.target)}</span></span>
+      </div>
+      <div style="height:${mine?'28px':'18px'};background:var(--panel2);border-radius:999px;margin-top:6px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${S.pct}%;background:${mine?'linear-gradient(90deg,#f97316,#fdba74)':'linear-gradient(90deg,#3b82f6,#93c5fd)'};border-radius:999px;transition:width .6s"></div>
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:${mine?'14px':'12px'};font-weight:900">${S.pct}%</span>
+      </div>
+      <div style="display:flex;gap:14px;margin-top:5px;font-size:13px;color:var(--muted);flex-wrap:wrap">
+        <span>${S.done}/${S.tl.length} lots done</span>
+        ${S.live?`<span style="color:var(--amber);font-weight:700">● ${S.live} on the line</span>`:''}
+        ${S.pph?`<span>⚡ ${wsInt(S.pph)}/hr</span>`:''}
+        ${mine&&eta?`<span>🏁 ~${eta} to go</span>`:''}
+      </div>
+    </div>`
+  }
+  h+=`<div class="card" style="padding:18px">${raceBar(my,M,true)}${raceBar(other,O,false)}</div>`
+  // ---- your lot board ----
+  h+=`<div class="card"><h2 style="margin:0 0 10px">Your lots — Team ${my}</h2><div style="display:flex;gap:8px;flex-wrap:wrap">`
+  M.tl.forEach(l=>{
+    const col=l.status==='done'?'var(--green)':(l.status==='in_progress'?'var(--amber)':'var(--line)')
+    const bg=l.status==='done'?'rgba(34,197,94,.14)':(l.status==='in_progress'?'rgba(245,158,11,.14)':'var(--panel2)')
+    h+=`<div onclick="wsToggleLot('${l.id}')" style="cursor:pointer;flex:1;min-width:76px;max-width:120px;padding:10px 6px;border:2px solid ${col};background:${bg};border-radius:14px;text-align:center${l.status==='in_progress'?';animation:wsPulse 1.6s infinite':''}">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px">LOT</div>
+      <div style="font-size:24px;font-weight:900">${l.lot_no}</div>
+      <div style="font-size:12px;font-weight:800;color:${col}">${l.status==='done'?'✓ '+wsInt(l.packed_qty!=null?l.packed_qty:l.lot_size):(l.status==='in_progress'?'PACKING':wsInt(l.lot_size))}</div>
+    </div>`
+  })
+  h+='</div>'
+  const openOther=(wsOpenLot&&(!cur||wsOpenLot!==cur.id))?M.tl.find(l=>l.id===wsOpenLot):null
+  if(openOther) h+='<div style="margin-top:12px">'+wsLotCard(openOther,v)+'</div>'
+  h+='</div>'
+  h+=wsUsageSummary(v,lots)
   return h
 }
 
@@ -525,6 +654,8 @@ function wsSetupView(){
 /* ================= render ================= */
 function renderWs(){
   const box=$('wsBody'); if(!box)return
+  // stations are pinned to the current week — hide the week-picker card for a clean kiosk look
+  try{const wk=$('wsWeek');const wkCard=wk&&wk.closest('.card');if(wkCard&&wkCard.id!=='wsTab')wkCard.classList.toggle('hidden',!!wsMyTeam())}catch(e){}
   const views=wsMyTeam()?[['pack','Pack day']]:(wsCanPlan()?[['plan','Plan'],['stock','Stock'],['pack','Pack day'],['setup','Setup']]:[['pack','Pack day'],['stock','Stock']])
   if(!views.some(x=>x[0]===wsView)) wsView=views[0][0]
   const bar=views.length<2?'':'<div class="card" style="padding:10px 12px"><div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden">'+

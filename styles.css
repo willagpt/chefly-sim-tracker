@@ -56,6 +56,11 @@ a.link{color:var(--accent);cursor:pointer;font-size:14px;font-weight:600;text-de
 #memberList .member .sub{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin-top:3px}
 #memberList .member .sub .email{word-break:break-all}
 #memberList .member .sub .pill{white-space:nowrap}
+/* ---- wholesale team-station (pack line tablets) ---- */
+@keyframes wsPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.45)}50%{box-shadow:0 0 0 8px rgba(245,158,11,0)}}
+.ws-confetti-wrap{position:fixed;inset:0;pointer-events:none;z-index:300;overflow:hidden}
+.ws-confetti{position:absolute;top:-16px;width:10px;height:15px;border-radius:2px;animation:wsFall linear forwards}
+@keyframes wsFall{to{transform:translateY(108vh) rotate(720deg)}}
 .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
 .stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
 .stat .n{font-size:26px;font-weight:800}.stat .l{font-size:12px;color:var(--muted);margin-top:2px}
