@@ -24,6 +24,10 @@ function wsAddDays(iso,n){const dt=new Date(iso+'T00:00:00');dt.setDate(dt.getDa
 function wsKg(n){if(n==null||isNaN(n))return '—';const v=Math.round(Number(n)*10)/10;return v.toLocaleString('en-GB',{maximumFractionDigits:1})}
 function wsInt(n){return n==null?'—':Number(n).toLocaleString('en-GB')}
 function wsCanPlan(){return isManagerUp()}
+/* Team station lock: 'A' or 'B' when this login is a pack-line tablet account
+   (sim_profiles.ws_team, non-managers only) — else null. */
+function wsMyTeam(){return (typeof wsStation==='function'&&wsStation())?profile.ws_team:null}
+function wsLotMine(l){const my=wsMyTeam();return !my||((l.team||'A')===my)}
 function wsVariantOf(id){return wsVariants.find(v=>v.id===id)}
 function wsMealOf(id){return wsMeals.find(m=>m.id===id)}
 function wsCompOf(id){return wsComps.find(c=>c.id===id)}
@@ -252,6 +256,7 @@ function wsStockView(){
 
 /* ================= PACK DAY VIEW ================= */
 window.wsGenLots=async function(variantId){
+  if(wsMyTeam())return // team stations never generate/regenerate lots
   const ln=wsLines.find(l=>l.variant_id===variantId); if(!ln||!ln.target_qty){alert('Set this variant’s target on the Plan view first.');return}
   const existing=wsLots.filter(l=>l.variant_id===variantId)
   if(existing.length && !confirm('Lots already exist for this size. Regenerate from the target? Untouched lots are replaced; started/done lots are kept.'))return
@@ -271,12 +276,13 @@ window.wsGenLots=async function(variantId){
   await loadWholesale()
 }
 window.wsLotStart=async function(id){
+  const l0=wsLots.find(x=>x.id===id); if(l0&&!wsLotMine(l0))return
   const {error}=await sb.from('sim_ws_pack_lots').update({status:'in_progress',started_at:new Date().toISOString()}).eq('id',id)
   if(error){alert(error.message);return}
   await loadWholesale()
 }
 window.wsLotFinish=async function(id){
-  const l=wsLots.find(x=>x.id===id); if(!l)return
+  const l=wsLots.find(x=>x.id===id); if(!l||!wsLotMine(l))return
   const q=prompt('Portions packed in this lot:', String(l.lot_size))
   if(q===null)return
   const n=Math.round(Number(q)); if(!n||n<0){alert('Enter the portions packed.');return}
@@ -285,14 +291,16 @@ window.wsLotFinish=async function(id){
   await loadWholesale()
 }
 window.wsLotReopen=async function(id){
+  const l0=wsLots.find(x=>x.id===id); if(l0&&!wsLotMine(l0))return
   if(!confirm('Reopen this lot?'))return
   await sb.from('sim_ws_pack_lots').update({status:'in_progress',finished_at:null,packed_qty:null}).eq('id',id)
   await loadWholesale()
 }
-window.wsLotTeam=async function(id,team){ await sb.from('sim_ws_pack_lots').update({team}).eq('id',id); await loadWholesale() }
+window.wsLotTeam=async function(id,team){ if(wsMyTeam())return; await sb.from('sim_ws_pack_lots').update({team}).eq('id',id); await loadWholesale() }
 window.wsToggleLot=function(id){ wsOpenLot=(wsOpenLot===id)?null:id; renderWs() }
 window.wsSetPackVar=function(v){ wsPackVar=v||null; wsOpenLot=null; renderWs() }
 window.wsSaveUsage=async function(lotId,compId,val){
+  const l0=wsLots.find(x=>x.id===lotId); if(l0&&!wsLotMine(l0))return
   const kg=val===''?null:Number(val)
   const ex=wsUsage.find(u=>u.lot_id===lotId&&u.component_id===compId)
   if(ex) await sb.from('sim_ws_lot_usage').update({issued_kg:kg,updated_at:new Date().toISOString()}).eq('id',ex.id)
@@ -334,9 +342,9 @@ function wsLotCard(l,v){
         ${mins!=null?`<span style="font-size:11px;color:var(--muted)"> ${Math.round(mins)} min</span>`:''}
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <select style="font-size:12px;padding:3px 6px;max-width:90px" onchange="wsLotTeam('${l.id}',this.value)">
+        ${wsMyTeam()?`<span style="font-size:12px;color:var(--muted)">Team ${esc(l.team||'A')}</span>`:`<select style="font-size:12px;padding:3px 6px;max-width:90px" onchange="wsLotTeam('${l.id}',this.value)">
           <option value="A"${l.team==='A'?' selected':''}>Team A</option><option value="B"${l.team==='B'?' selected':''}>Team B</option>
-        </select>
+        </select>`}
         ${l.status==='pending'?`<button class="green sm" onclick="wsLotStart('${l.id}')">▶ Start</button>`:''}
         ${l.status==='in_progress'?`<button class="sm" onclick="wsLotFinish('${l.id}')">■ Finish</button>`:''}
         ${l.status==='done'?`<a class="link" style="font-size:12px" onclick="wsLotReopen('${l.id}')">reopen</a>`:''}
@@ -394,20 +402,28 @@ function wsPackView(){
       <span style="font-weight:800;color:${pct>=100?'var(--green)':'var(--accent)'}">${pct}%</span>
     </div>
     <div style="height:10px;background:var(--panel2);border-radius:5px;margin-top:6px"><div style="height:10px;width:${pct}%;background:${pct>=100?'var(--green)':'var(--accent)'};border-radius:5px"></div></div>
-    ${!lots.length?`<div style="margin-top:10px"><button class="green" onclick="wsGenLots('${sel}')">Generate lots of 750</button><span class="muted" style="font-size:12px;margin-left:8px">${Math.ceil(target/750)} lots — trays come in boxes of 750, so one box = one lot.</span></div>`:(wsCanPlan()?`<div style="margin-top:8px"><a class="link" style="font-size:12px" onclick="wsGenLots('${sel}')">Regenerate pending lots from target</a></div>`:'')}
+    ${!lots.length?(wsMyTeam()?'<p class="muted" style="margin-top:10px;font-size:13px">No lots yet for this size — a manager generates them from the week’s target.</p>':`<div style="margin-top:10px"><button class="green" onclick="wsGenLots('${sel}')">Generate lots of 750</button><span class="muted" style="font-size:12px;margin-left:8px">${Math.ceil(target/750)} lots — trays come in boxes of 750, so one box = one lot.</span></div>`):(wsCanPlan()?`<div style="margin-top:8px"><a class="link" style="font-size:12px" onclick="wsGenLots('${sel}')">Regenerate pending lots from target</a></div>`:'')}
   </div>`
   if(lots.length){
-    const teams=['A','B']
-    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">'
+    const my=wsMyTeam()
+    const teams=my?[my,(my==='A'?'B':'A')]:['A','B']
+    h+=my?'':'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">'
     teams.forEach(t=>{
       const tl=lots.filter(l=>(l.team||'A')===t)
       const tPacked=tl.filter(l=>l.status==='done').reduce((s,l)=>s+(l.packed_qty!=null?l.packed_qty:l.lot_size),0)
-      h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0">Team ${t}</h2><span style="font-size:12px;color:var(--muted)">${wsInt(tPacked)} packed · ${tl.length} lot${tl.length===1?'':'s'}</span></div>`
+      if(my&&t!==my){
+        // other team: compact read-only summary so the station stays focused
+        const tDone=tl.filter(l=>l.status==='done').length
+        const tLive=tl.filter(l=>l.status==='in_progress').length
+        h+=`<div class="card" style="opacity:.75"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px"><h2 style="margin:0;font-size:15px">Team ${t}</h2><span style="font-size:12px;color:var(--muted)">${wsInt(tPacked)} packed · ${tDone}/${tl.length} lots done${tLive?' · '+tLive+' on the line':''}</span></div></div>`
+        return
+      }
+      h+=`<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0">${my?'Your lots — ':''}Team ${t}</h2><span style="font-size:12px;color:var(--muted)">${wsInt(tPacked)} packed · ${tl.length} lot${tl.length===1?'':'s'}</span></div>`
       if(!tl.length) h+='<p class="muted" style="font-size:13px">No lots assigned.</p>'
       tl.forEach(l=>{h+=wsLotCard(l,v)})
       h+='</div>'
     })
-    h+='</div>'
+    h+=my?'':'</div>'
     h+=wsUsageSummary(v,lots)
   }
   return h
@@ -497,9 +513,9 @@ function wsSetupView(){
 /* ================= render ================= */
 function renderWs(){
   const box=$('wsBody'); if(!box)return
-  const views=wsCanPlan()?[['plan','Plan'],['stock','Stock'],['pack','Pack day'],['setup','Setup']]:[['pack','Pack day'],['stock','Stock']]
+  const views=wsMyTeam()?[['pack','Pack day']]:(wsCanPlan()?[['plan','Plan'],['stock','Stock'],['pack','Pack day'],['setup','Setup']]:[['pack','Pack day'],['stock','Stock']])
   if(!views.some(x=>x[0]===wsView)) wsView=views[0][0]
-  const bar='<div class="card" style="padding:10px 12px"><div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden">'+
+  const bar=views.length<2?'':'<div class="card" style="padding:10px 12px"><div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden">'+
     views.map(([k,l],i)=>`<span onclick="setWsView('${k}')" style="padding:6px 14px;font-size:13px;cursor:pointer;${wsView===k?'background:var(--accent);color:#0b1220;font-weight:700':'color:var(--muted)'}${i?';border-left:1px solid var(--line)':''}">${l}</span>`).join('')+
     '</div></div>'
   let body=''
