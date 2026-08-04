@@ -194,6 +194,17 @@
       <div id="planBoard"></div>
     </div>
 
+    <div id="wsTab" class="hidden">
+      <div class="card">
+        <h2>Wholesale — Simmer</h2>
+        <div class="row">
+          <div><label for="wsWeek">Week of (Mon)</label><input id="wsWeek" type="date" onchange="loadWholesale()" /></div>
+          <div style="display:flex;align-items:flex-end;gap:8px"><button class="ghost" onclick="wsPrevWeek()">‹ Prev</button><button class="ghost" onclick="wsNextWeek()">Next ›</button></div>
+        </div>
+      </div>
+      <div id="wsBody"></div>
+    </div>
+
     <div id="unitsTab" class="hidden">
       <div class="card">
         <h2>Scan</h2>
@@ -627,6 +638,7 @@
 <script src="devhub.js"></script>
 <script src="routes.js"></script>
 <script src="plan.js"></script>
+<script src="wholesale.js"></script>
 <script src="myday.js"></script>
 <script src="units.js"></script>
 <script src="boot.js"></script>
