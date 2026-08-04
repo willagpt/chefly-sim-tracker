@@ -98,26 +98,77 @@ async function showApp(){
 }
 
 const TAB_KEYS=['log','equip','pack','picking','kitchen','units','dash','history','perf','plan','ws','trace','devhub','manage']
+/* Two-level navigation: a few big primary groups (organised by job, not by
+   feature), each with a lighter secondary row of screens beneath. Groups with
+   no visible screens for this role disappear entirely; a group with a single
+   screen shows no secondary row. Last-used screen per group is remembered. */
+const NAV_GROUPS=[
+  {k:'work',label:'Work',screens:[
+    {k:'log',label:'My Task',show:()=>true},
+    {k:'equip',label:'Equipment',show:()=>true},
+    {k:'kitchen',label:'Kitchen',show:()=>true},
+  ]},
+  {k:'packing',label:'Packing',screens:[
+    {k:'pack',label:'Pack line',show:()=>isManagerUp()||(profile&&profile.packing_team)},
+    {k:'picking',label:'Picking',show:()=>isManagerUp()||(profile&&profile.packing_team)},
+  ]},
+  {k:'wholesale',label:'Wholesale',screens:[
+    {k:'ws',label:'Wholesale',show:()=>isManagerUp()||(profile&&profile.packing_team)},
+  ]},
+  {k:'tracegrp',label:'Trace',screens:[
+    {k:'units',label:'Batches & Units',show:()=>true},
+    {k:'trace',label:'Goods in & trace',show:()=>isManagerUp()},
+  ]},
+  {k:'office',label:'Office',screens:[
+    {k:'dash',label:'Live Dashboard',show:()=>isManagerUp()},
+    {k:'plan',label:'Plan',show:()=>isManagerUp()},
+    {k:'history',label:'History',show:()=>isManagerUp()},
+    {k:'perf',label:'Performance',show:()=>isManagerUp()},
+    {k:'devhub',label:'R&D Hub',show:()=>isManagerUp()},
+    {k:'manage',label:'Manage',show:()=>isAdmin()},
+  ]},
+]
+let navGroup='work'
+const navLast={}
+function navVisScreens(g){return g.screens.filter(s=>{try{return s.show()}catch(e){return false}})}
+function navVisGroups(){return NAV_GROUPS.filter(g=>navVisScreens(g).length)}
+function navGroupOf(k){return NAV_GROUPS.find(g=>g.screens.some(s=>s.k===k))}
+function renderNav(active){
+  const bar=$('tabBar'); if(!bar)return
+  bar.classList.add('nav-primary')
+  let sub=$('subTabBar')
+  if(!sub){sub=document.createElement('div');sub.id='subTabBar';sub.className='tabs nav-sub';bar.insertAdjacentElement('afterend',sub)}
+  bar.innerHTML=''
+  navVisGroups().forEach(g=>{
+    const d=document.createElement('div')
+    d.className='tab'+(g.k===navGroup?' active':''); d.id='tab_'+g.k; d.textContent=g.label
+    d.onclick=()=>setNavGroup(g.k); bar.appendChild(d)
+  })
+  const g=NAV_GROUPS.find(x=>x.k===navGroup)
+  const screens=g?navVisScreens(g):[]
+  sub.classList.toggle('hidden',screens.length<2)
+  sub.innerHTML=''
+  screens.forEach(s=>{
+    const d=document.createElement('div')
+    d.className='tab'+(s.k===active?' active':''); d.id='tab_'+s.k; d.textContent=s.label
+    d.onclick=()=>showTab(s.k); sub.appendChild(d)
+  })
+}
+window.setNavGroup=function(gk){
+  const g=NAV_GROUPS.find(x=>x.k===gk); if(!g)return
+  navGroup=gk
+  const screens=navVisScreens(g); if(!screens.length)return
+  const last=navLast[gk]
+  showTab(screens.some(s=>s.k===last)?last:screens[0].k)
+}
 function buildTabs(){
-  const bar=$('tabBar'); bar.innerHTML=''
-  const tabs=[{k:'log',label:'My Task'},{k:'equip',label:'Equipment'}]
-  if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'pack',label:'Packing'})
-  if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'picking',label:'Picking'})
-  tabs.push({k:'kitchen',label:'Kitchen'})
-  tabs.push({k:'units',label:'Batches & Units'})
-  if(isManagerUp()) tabs.push({k:'dash',label:'Live Dashboard'})
-  if(isManagerUp()) tabs.push({k:'history',label:'History'})
-  if(isManagerUp()) tabs.push({k:'perf',label:'Performance'})
-  if(isManagerUp()) tabs.push({k:'plan',label:'Plan'})
-  if(isManagerUp()||(profile&&profile.packing_team)) tabs.push({k:'ws',label:'Wholesale'})
-  if(isManagerUp()) tabs.push({k:'trace',label:'Trace'})
-  if(isManagerUp()) tabs.push({k:'devhub',label:'R&D Hub'})
-  if(isAdmin()) tabs.push({k:'manage',label:'Manage'})
-  tabs.forEach((t,i)=>{const d=document.createElement('div');d.className='tab'+(i===0?' active':'');d.id='tab_'+t.k;d.textContent=t.label;d.onclick=()=>showTab(t.k);bar.appendChild(d)})
+  navGroup='work'
+  renderNav('log')
   TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!=='log')})
 }
 window.showTab=function(which){
-  document.querySelectorAll('#tabBar .tab').forEach(t=>t.classList.toggle('active',t.id==='tab_'+which))
+  const g=navGroupOf(which); if(g){navGroup=g.k; navLast[g.k]=which}
+  renderNav(which)
   TAB_KEYS.forEach(k=>{const el=$(k+'Tab');if(el)el.classList.toggle('hidden',k!==which)})
   if(which==='equip') loadEquip()
   if(which==='pack') loadPacking()
