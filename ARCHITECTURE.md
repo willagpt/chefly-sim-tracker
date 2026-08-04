@@ -23,6 +23,9 @@ equipment.js        -> cooking equipment / vessel board
 packing.js          -> packing team-leader screen (run sheet, positions, breaks)
 performance.js      -> performance views (team / person / task / daily / time)
 manage.js           -> admin: users, wall links, history/reports, log editor
+wholesale.js        -> wholesale (Simmer) lane: weekly per-variant targets,
+                       pre-prep build plan, component stock ledger, pack-day
+                       board in 750-portion lots (sim_ws_* tables)
 boot.js             -> startup wiring (runs last)
 ```
 
