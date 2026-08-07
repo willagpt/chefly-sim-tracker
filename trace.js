@@ -288,15 +288,17 @@ async function mmGetPrinter(){
   return p
 }
 // Standardised GOODS IN label, 148x99mm landscape (203dpi: 792 dots across the
-// web, 1184 long). Just the GOODS IN band and a giant date — nothing else.
+// web, 1184 long). Just the GOODS IN band and a giant centred date.
 // All fields are R-rotated so the label reads landscape.
 function zplBigLabel(o){
   const clean=s=>String(s||'').replace(/[\^~\\]/g,' ')
+  const dateOnly=clean(String(o.code||'').replace(/^GI\s*/,''))
   return '^XA^CI28^PW792^LL1184'
-    +'^FO680,0^GB112,1184,112^FS'
-    +'^FO694,30^A0R,84,84^FR^FDGOODS IN^FS'
-    +'^FO704,770^A0R,64,64^FR^FDCHEFLY^FS'
-    +'^FO170,40^A0R,340,100^FD'+clean(o.code)+'^FS'
+    +'^FO660,0^GB132,1184,132^FS'
+    +'^FO680,36^A0R,88,88^FR^FDGOODS IN^FS'
+    +'^FO692,0^A0R,68,68^FB1148,1,0,R^FR^FDCHEFLY^FS'
+    +'^FO540,0^A0R,44,44^FB1184,1,0,C^FDDATE RECEIVED  -  GI CODE^FS'
+    +'^FO82,0^A0R,420,230^FB1184,1,0,C^FD'+dateOnly+'^FS'
     +'^PQ'+Math.max(1,o.count||1)+'^XZ'
 }
 function zplGiLabel(code,l,o,count){
