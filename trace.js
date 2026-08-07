@@ -41,7 +41,6 @@ window.initTrace=async function(){
   if($('lpDate')&&!$('lpDate').value)$('lpDate').value=_trIsoToday()
   await trEnsureIngredients(true); await trEnsureLots(true)
   renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
-  const dl=$('lpIngList'); if(dl)dl.innerHTML=trIngredients.map(i=>`<option value="${esc(i.name)}"></option>`).join('')
 }
 
 // ---- ingredients master ----
@@ -288,56 +287,43 @@ async function mmGetPrinter(){
   }
   return p
 }
-// Big 148x99mm landscape label (203dpi: 792 dots across the web, 1184 long).
-// All fields are R-rotated so the label reads landscape, with a giant GI code.
+// Standardised GOODS IN label, 148x99mm landscape (203dpi: 792 dots across the
+// web, 1184 long). Just the GOODS IN band and a giant date — nothing else.
+// All fields are R-rotated so the label reads landscape.
 function zplBigLabel(o){
   const clean=s=>String(s||'').replace(/[\^~\\]/g,' ')
-  let z='^XA^CI28^PW792^LL1184'
+  return '^XA^CI28^PW792^LL1184'
     +'^FO680,0^GB112,1184,112^FS'
     +'^FO694,30^A0R,84,84^FR^FDGOODS IN^FS'
     +'^FO704,770^A0R,64,64^FR^FDCHEFLY^FS'
-    +'^FO392,40^A0R,250,95^FD'+clean(o.code)+'^FS'
-    +'^FO252,40^A0R,100,100^FB1104,2,0,L^FD'+clean(o.name)+'^FS'
-  if(o.info) z+='^FO46,40^A0R,56,56^FD'+clean(o.info)+'^FS'
-  z+='^PQ'+Math.max(1,o.count||1)+'^XZ'
-  return z
+    +'^FO170,40^A0R,340,100^FD'+clean(o.code)+'^FS'
+    +'^PQ'+Math.max(1,o.count||1)+'^XZ'
 }
 function zplGiLabel(code,l,o,count){
-  const pack=(l.pack_size&&l.pack_size!==1)?(l.pack_size+' '+(l.uom||'kg')+' per pack'):((l.uom||'kg'))
-  const info=[(o.supplier||'')+(o.number?' - MM '+o.number:''),pack].filter(Boolean).join('   -   ')
-  return zplBigLabel({code,name:l.name,info,count})
+  return zplBigLabel({code,count})
 }
-// ---- ad-hoc label printer (Trace tab): any item, any date, no order needed ----
+// ---- ad-hoc label printer (Trace tab): standardised date labels on demand ----
 // Card is injected here so index.html stays untouched.
 function ensureLabelPrinterCard(){
-  if($('lpName'))return
+  if($('lpDate'))return
   const tab=$('traceTab'); if(!tab)return
   const card=document.createElement('div'); card.className='card'
   card.innerHTML=`<h2>🏷 Label printer</h2>
-    <p class="muted" style="margin-top:-8px">Print big goods-in labels on demand — any item, any date, no order needed. Prints on the Zebra from wherever you are.</p>
+    <p class="muted" style="margin-top:-8px">Print standardised GOODS IN date labels on demand — no order needed. Prints on the Zebra from wherever you are.</p>
     <div class="row">
-      <div style="flex:2"><label for="lpName">Item name</label><input id="lpName" type="text" list="lpIngList" placeholder="e.g. Chicken thighs" /></div>
       <div><label for="lpDate">Goods-in date (the code)</label><input id="lpDate" type="date" /></div>
-    </div>
-    <div class="row">
-      <div><label for="lpSupplier">Supplier (optional)</label><input id="lpSupplier" type="text" /></div>
-      <div><label for="lpInfo">Extra info (optional)</label><input id="lpInfo" type="text" placeholder="e.g. 5 kg per box" /></div>
       <div><label for="lpCount">How many</label><input id="lpCount" type="number" inputmode="numeric" value="1" /></div>
     </div>
     <button class="green" onclick="adhocPrintLabels()">🖨 Print labels</button>
-    <div id="lpMsg" class="msg"></div>
-    <datalist id="lpIngList"></datalist>`
+    <div id="lpMsg" class="msg"></div>`
   const cards=tab.querySelectorAll(':scope > .card')
   if(cards.length>1) tab.insertBefore(card, cards[1]); else tab.appendChild(card)
 }
 window.adhocPrintLabels=async function(){
-  const name=$('lpName').value.trim()
-  if(!name){msg($('lpMsg'),'Enter the item name first.',false);return}
   const date=$('lpDate').value||_trIsoToday()
   const code=giCode({received_date:date})
   const n=Math.max(1,Math.round(Number($('lpCount').value)||1))
-  const info=[$('lpSupplier').value.trim(),$('lpInfo').value.trim()].filter(Boolean).join('   -   ')
-  const zpl=zplBigLabel({code,name,info,count:n})
+  const zpl=zplBigLabel({code,count:n})
   msg($('lpMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
   const cloud=await zebraCloudPrint(zpl)
   if(cloud.ok){msg($('lpMsg'),'✓ Sent '+n+' label'+(n===1?'':'s')+' ('+code+') to the printer.',true);return}
