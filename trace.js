@@ -37,8 +37,6 @@ window.initTrace=async function(){
   if($('giDate')&&!$('giDate').value)$('giDate').value=_trIsoToday()
   if($('tbTo')&&!$('tbTo').value)$('tbTo').value=_trIsoToday()
   if($('tbFrom')&&!$('tbFrom').value){const d=new Date(Date.now()-6*864e5);$('tbFrom').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-  ensureLabelPrinterCard()
-  if($('lpDate')&&!$('lpDate').value)$('lpDate').value=_trIsoToday()
   await trEnsureIngredients(true); await trEnsureLots(true)
   renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
 }
@@ -304,22 +302,32 @@ function zplBigLabel(o){
 function zplGiLabel(code,l,o,count){
   return zplBigLabel({code,count})
 }
-// ---- ad-hoc label printer (Trace tab): standardised date labels on demand ----
-// Card is injected here so index.html stays untouched.
+// ---- Labels screen (all users): standardised GOODS IN date labels on demand ----
+// Panel + card are injected here so index.html stays untouched.
+window.initLabels=function(){
+  let tab=$('labelsTab')
+  if(!tab){
+    tab=document.createElement('div'); tab.id='labelsTab'
+    const anchor=$('traceTab')||$('unitsTab')||$('logTab')
+    anchor.parentNode.insertBefore(tab,anchor)
+  }
+  tab.classList.remove('hidden')
+  ensureLabelPrinterCard()
+  if($('lpDate')&&!$('lpDate').value)$('lpDate').value=_trIsoToday()
+}
 function ensureLabelPrinterCard(){
   if($('lpDate'))return
-  const tab=$('traceTab'); if(!tab)return
+  const tab=$('labelsTab'); if(!tab)return
   const card=document.createElement('div'); card.className='card'
   card.innerHTML=`<h2>🏷 Label printer</h2>
-    <p class="muted" style="margin-top:-8px">Print standardised GOODS IN date labels on demand — no order needed. Prints on the Zebra from wherever you are.</p>
+    <p class="muted" style="margin-top:-8px">Print standardised GOODS IN date labels on demand. Labels come out of the Zebra printer in the kitchen — from any device, wherever you are.</p>
     <div class="row">
       <div><label for="lpDate">Goods-in date (the code)</label><input id="lpDate" type="date" /></div>
       <div><label for="lpCount">How many</label><input id="lpCount" type="number" inputmode="numeric" value="1" /></div>
     </div>
     <button class="green" onclick="adhocPrintLabels()">🖨 Print labels</button>
     <div id="lpMsg" class="msg"></div>`
-  const cards=tab.querySelectorAll(':scope > .card')
-  if(cards.length>1) tab.insertBefore(card, cards[1]); else tab.appendChild(card)
+  tab.appendChild(card)
 }
 window.adhocPrintLabels=async function(){
   const date=$('lpDate').value||_trIsoToday()

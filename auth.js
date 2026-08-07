@@ -106,7 +106,7 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','picking','kitchen','units','dash','history','perf','plan','ws','trace','devhub','manage']
+const TAB_KEYS=['log','equip','pack','picking','kitchen','units','labels','dash','history','perf','plan','ws','trace','devhub','manage']
 /* Two-level navigation: a few big primary groups (organised by job, not by
    feature), each with a lighter secondary row of screens beneath. Groups with
    no visible screens for this role disappear entirely; a group with a single
@@ -126,6 +126,7 @@ const NAV_GROUPS=[
   ]},
   {k:'tracegrp',label:'Trace',screens:[
     {k:'units',label:'Batches & Units',show:()=>true},
+    {k:'labels',label:'Labels',show:()=>true},
     {k:'trace',label:'Goods in & trace',show:()=>isManagerUp()},
   ]},
   {k:'office',label:'Office',screens:[
@@ -184,6 +185,7 @@ window.showTab=function(which){
   if(which==='picking') loadPicking()
   if(which==='kitchen') loadKitchen()
   if(which==='units') loadUnits()
+  if(which==='labels') initLabels()
   if(which==='dash') refreshDashboard()
   if(which==='history') initHistory()
   if(which==='perf') initPerf()
