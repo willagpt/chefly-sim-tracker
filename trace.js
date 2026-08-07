@@ -244,7 +244,18 @@ function mmRenderDetail(){
       <button class="green" onclick="mmReceiveChecked()">✓ Receive ticked lines → GoodsIn</button>
     </div>`
 }
-// ---- Zebra GI label printing (via Zebra Browser Print app on the tablet) ----
+// ---- Zebra GI label printing ----
+// Route 1 (any device, incl. iPhone): cloud print via the sim-zebra-print edge
+// function -> Zebra SendFileToPrinter API -> the Wi-Fi ZD421.
+// Route 2 (fallback, Android tablet): Zebra Browser Print app on the device.
+async function zebraCloudPrint(zpl){
+  try{
+    const {data,error}=await sb.functions.invoke('sim-zebra-print',{body:{zpl}})
+    if(error) return {ok:false,message:error.message||'print service unreachable'}
+    if(data&&data.ok) return {ok:true}
+    return {ok:false,notConfigured:!!(data&&data.not_configured),message:(data&&data.error)||'unknown error'}
+  }catch(e){ return {ok:false,message:String(e&&e.message||e)} }
+}
 async function bpAvailable(){
   const r=await fetch('http://127.0.0.1:9100/available')
   return r.json()
@@ -301,6 +312,12 @@ window.mmPrintLabels=async function(){
   const total=items.reduce((s,r)=>s+r.count,0)
   const code=giCode({received_date:_trIsoToday()})
   if(!confirm('Print '+total+' GI labels ('+code+') for '+items.length+' line'+(items.length===1?'':'s')+'?'))return
+  // Route 1: cloud print (works from iPhone/any device; printer just needs Wi-Fi + internet)
+  const combined=items.map(r=>zplGiLabel(code,r.l,o,r.count)).join('')
+  const cloud=await zebraCloudPrint(combined)
+  if(cloud.ok){ alert('✓ Sent '+total+' labels to the Zebra printer.'); return }
+  if(!cloud.notConfigured && !confirm('Cloud printing failed: '+cloud.message+'\n\nTry Browser Print on this device instead?'))return
+  // Route 2: Zebra Browser Print app (Android tablet)
   const p=await mmGetPrinter(); if(!p)return
   try{
     for(const r of items){ await bpWrite(p, zplGiLabel(code,r.l,o,r.count)) }
@@ -309,6 +326,12 @@ window.mmPrintLabels=async function(){
     localStorage.removeItem('mm_printer_uid')
     alert('Printing failed: '+e.message+'\n\nCheck the printer is on and Browser Print can see it, then try again.')
   }
+}
+// Console helper for a one-off test: window.zebraTestPrint()
+window.zebraTestPrint=async function(){
+  const {data,error}=await sb.functions.invoke('sim-zebra-print',{body:{action:'test'}})
+  if(error){ alert('Test failed: '+error.message); return }
+  alert(data&&data.ok ? '✓ Test label sent — check the printer.' : 'Test failed: '+((data&&data.error)||'unknown'))
 }
 window.mmTickAll=function(){const o=_mmOrders[_mmSel];if(!o)return;(o.lines||[]).forEach((l,li)=>{const c=$('mmck_'+li);if(c)c.checked=true})}
 window.mmReceiveChecked=async function(){
