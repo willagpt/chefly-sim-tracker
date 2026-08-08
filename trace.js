@@ -395,40 +395,66 @@ function plPreview(){
   const p=plSelected()
   if(!p){el.textContent='';return}
   const d=plDates(p)
-  el.innerHTML='Use by <b>'+d.use+'</b> ('+p.shelf_days+' days) · '+(p.storage?esc(p.storage)+' · ':'')+'Allergens: <b>'+esc(p.allergens||'None')+'</b>'
+  el.innerHTML='Use by <b>'+d.use+'</b> ('+p.shelf_days+' days) · '+(p.storage?esc(p.storage)+' · ':'')+'Allergens: <b>'+esc(p.allergens||'None')+'</b>'+(p.ingredients?'<br>Ingredients: '+esc(p.ingredients):'')
 }
 window.plPrint=async function(){
   const p=plSelected()
   if(!p){msg($('plMsg'),'Pick a product first.',false);return}
   const n=Math.max(1,Math.round(Number($('plCount').value)||1))
   const d=plDates(p)
-  const zpl=zplProductLabel({cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:p.pack_kg,storage:p.storage,count:n})
+  const zpl=zplProductLabel({cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:p.pack_kg,storage:p.storage,ingredients:p.ingredients,count:n})
   msg($('plMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
   const cloud=await zebraCloudPrint(zpl)
   if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+' (use by '+d.use+').',true);return}
   msg($('plMsg'),'Could not print: '+cloud.message,false)
 }
-// Production label, 148x99mm landscape: category band, product name, PRODUCED
-// and USE BY date panels (use-by reversed for emphasis), allergens + pack line.
+// Production label, 148x99mm landscape: category band (with Chefly + approval
+// mark), big single-line auto-sized product name, ingredients, PRODUCED and
+// USE BY date panels (use-by reversed for emphasis), allergens, pack + storage.
+// NOTE: every text field is a single-line ^FB — multi-line ^FB blocks on
+// rotated fields shift up into the header band and vanish (black on black).
+function _split2(text,perLine){
+  const t=String(text||'').trim()
+  if(t.length<=perLine) return [t]
+  let cut=t.lastIndexOf(' ',perLine); if(cut<10)cut=perLine
+  return [t.slice(0,cut).trim(), t.slice(cut).trim()]
+}
 function zplProductLabel(o){
   const clean=s=>String(s||'').replace(/[\^~\\]/g,' ')
+  const name=clean(o.name)
+  const nh=name.length<=14?130:(name.length<=22?110:(name.length<=30?92:76))
+  const nw=Math.min(Math.floor(nh*0.82), Math.floor(1104/(Math.max(1,name.length)*0.6)))
+  const nameY=140+Math.floor((140-nh)/2)
   const all='ALLERGENS: '+clean(String(o.allergens||'None').toUpperCase())
-  const pk=[o.pack?clean(o.pack)+' KG':'',clean(String(o.storage||'').toUpperCase())].filter(Boolean).join('  -  ')
-  return '^XA^CI28^PW792^LL1184'
-    +'^FO682,0^GB110,1184,110^FS'
-    +'^FO696,36^A0R,80,80^FR^FD'+clean(o.cat)+'^FS'
-    +'^FO704,0^A0R,64,64^FB1148,1,0,R^FR^FDCHEFLY^FS'
-    +'^FO537,20^A0R,120,90^FB1144,2,0,C^FD'+clean(o.name)+'^FS'
-    +'^FO182,30^GB230,554,3,B,2^FS'
-    +'^FO350,30^A0R,40,40^FB554,1,0,C^FDPRODUCED^FS'
-    +'^FO215,30^A0R,122,78^FB554,1,0,C^FD'+clean(o.prod)+'^FS'
-    +'^FO182,600^GB230,554,230,B,2^FS'
-    +'^FO350,600^A0R,40,40^FB554,1,0,C^FR^FDUSE BY^FS'
-    +'^FO215,600^A0R,122,78^FB554,1,0,C^FR^FD'+clean(o.use)+'^FS'
-    +'^FO104,36^A0R,48,48^FB800,1,0,L^FD'+all+'^FS'
-    +'^FO104,850^A0R,48,48^FB298,1,0,R^FD'+pk+'^FS'
-    +'^FO43,0^A0R,34,34^FB1184,1,0,C^FDChefly  -  UK LH018^FS'
-    +'^PQ'+Math.max(1,o.count||1)+'^XZ'
+  const aw=Math.min(52,Math.floor(1104/(Math.max(1,all.length)*0.6)))
+  const pk=[o.pack?clean(o.pack)+' KG':'',clean(String(o.storage||'').toUpperCase())].filter(Boolean).join('   -   ')
+  let z='^XA^CI28^PW792^LL1184'
+    +'^FO688,0^GB104,1184,104^FS'
+    +'^FO704,36^A0R,72,72^FR^FD'+clean(o.cat)+'^FS'
+    +'^FO718,0^A0R,44,44^FB1148,1,0,R^FR^FDCHEFLY - UK LH018^FS'
+    +'^FO'+(792-nameY-nh)+',40^A0R,'+nh+','+nw+'^FB1104,1,0,C^FD'+name+'^FS'
+  if(o.ingredients){
+    const txt='INGREDIENTS: '+clean(o.ingredients)
+    const one=txt.length<=58
+    const ih=one?36:30
+    const lines=one?[txt]:_split2(txt,74)
+    let y=one?300:292
+    lines.slice(0,2).forEach(l=>{
+      if(l.length>78)l=l.slice(0,75)+'...'
+      z+='^FO'+(792-y-ih)+',40^A0R,'+ih+','+ih+'^FB1104,1,0,C^FD'+l+'^FS'
+      y+=ih+6
+    })
+  }
+  z+='^FO197,30^GB230,554,3,B,2^FS'
+    +'^FO364,30^A0R,40,40^FB554,1,0,C^FDPRODUCED^FS'
+    +'^FO230,30^A0R,122,78^FB554,1,0,C^FD'+clean(o.prod)+'^FS'
+    +'^FO197,600^GB230,554,230,B,2^FS'
+    +'^FO364,600^A0R,40,40^FB554,1,0,C^FR^FDUSE BY^FS'
+    +'^FO230,600^A0R,122,78^FB554,1,0,C^FR^FD'+clean(o.use)+'^FS'
+    +'^FO118,40^A0R,52,'+aw+'^FB1104,1,0,C^FD'+all+'^FS'
+  if(pk) z+='^FO66,40^A0R,36,36^FB1104,1,0,C^FD'+pk+'^FS'
+  z+='^PQ'+Math.max(1,o.count||1)+'^XZ'
+  return z
 }
 window.adhocPrintLabels=async function(){
   const date=$('lpDate').value||_trIsoToday()
