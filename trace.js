@@ -302,8 +302,10 @@ function zplBigLabel(o){
 function zplGiLabel(code,l,o,count){
   return zplBigLabel({code,count})
 }
-// ---- Labels screen (all users): standardised GOODS IN date labels on demand ----
-// Panel + card are injected here so index.html stays untouched.
+// ---- Labels screen (all users) ----
+// Injected panel: meat & sauce production labels (catalogue read live from the
+// label database Google Sheet via sim-zebra-print) + GOODS IN date labels.
+let _lblCat=null, _plKind='meats'
 window.initLabels=function(){
   let tab=$('labelsTab')
   if(!tab){
@@ -313,14 +315,33 @@ window.initLabels=function(){
   }
   tab.classList.remove('hidden')
   ensureLabelPrinterCard()
+  if($('plDate')&&!$('plDate').value)$('plDate').value=_trIsoToday()
   if($('lpDate')&&!$('lpDate').value)$('lpDate').value=_trIsoToday()
+  loadLabelCatalog()
 }
 function ensureLabelPrinterCard(){
   if($('lpDate'))return
   const tab=$('labelsTab'); if(!tab)return
+  const prod=document.createElement('div'); prod.className='card'
+  prod.innerHTML=`<h2>🥩 Meat & sauce labels</h2>
+    <p class="muted" style="margin-top:-8px">Production labels with the use-by date worked out automatically from the label database. Today = production date.</p>
+    <div class="tabs" style="margin-bottom:10px">
+      <div class="tab active" id="plKindMeats">Meat</div>
+      <div class="tab" id="plKindSauces">Sauces</div>
+    </div>
+    <label for="plProd">Product</label>
+    <select id="plProd"><option value="">Loading label database…</option></select>
+    <div class="row" style="margin-top:8px">
+      <div><label for="plDate">Production date</label><input id="plDate" type="date" /></div>
+      <div><label for="plCount">How many</label><input id="plCount" type="number" inputmode="numeric" value="1" /></div>
+    </div>
+    <p class="muted" id="plPreview" style="margin:8px 0 10px"></p>
+    <button class="green" onclick="plPrint()">🖨 Print labels</button>
+    <div id="plMsg" class="msg"></div>`
+  tab.appendChild(prod)
   const card=document.createElement('div'); card.className='card'
-  card.innerHTML=`<h2>🏷 Label printer</h2>
-    <p class="muted" style="margin-top:-8px">Print standardised GOODS IN date labels on demand. Labels come out of the Zebra printer in the kitchen — from any device, wherever you are.</p>
+  card.innerHTML=`<h2>🏷 Goods in labels</h2>
+    <p class="muted" style="margin-top:-8px">Standardised GOODS IN date labels for deliveries.</p>
     <div class="row">
       <div><label for="lpDate">Goods-in date (the code)</label><input id="lpDate" type="date" /></div>
       <div><label for="lpCount">How many</label><input id="lpCount" type="number" inputmode="numeric" value="1" /></div>
@@ -328,6 +349,86 @@ function ensureLabelPrinterCard(){
     <button class="green" onclick="adhocPrintLabels()">🖨 Print labels</button>
     <div id="lpMsg" class="msg"></div>`
   tab.appendChild(card)
+  $('plKindMeats').onclick=()=>plSetKind('meats')
+  $('plKindSauces').onclick=()=>plSetKind('sauces')
+  $('plProd').onchange=plPreview
+  $('plDate').onchange=plPreview
+}
+async function loadLabelCatalog(force){
+  if(_lblCat&&!force){plFillProducts();return}
+  const sel=$('plProd'); if(sel&&!_lblCat)sel.innerHTML='<option value="">Loading label database…</option>'
+  const {data,error}=await sb.functions.invoke('sim-zebra-print',{body:{action:'catalog'}})
+  if(error||!data||!data.ok){
+    if(sel)sel.innerHTML='<option value="">Could not load label database</option>'
+    msg($('plMsg'),(data&&data.error)||(error&&error.message)||'Could not load the label database.',false)
+    return
+  }
+  _lblCat={meats:data.meats||[],sauces:data.sauces||[]}
+  plFillProducts()
+}
+function plSetKind(k){
+  _plKind=k
+  $('plKindMeats').classList.toggle('active',k==='meats')
+  $('plKindSauces').classList.toggle('active',k==='sauces')
+  plFillProducts()
+}
+function plFillProducts(){
+  const sel=$('plProd'); if(!sel||!_lblCat)return
+  const list=_lblCat[_plKind]||[]
+  sel.innerHTML='<option value="">— pick a product —</option>'+list.map((p,i)=>`<option value="${i}">${esc(p.name)}${p.sub?' — '+esc(p.sub):''}</option>`).join('')
+  plPreview()
+}
+function plSelected(){
+  if(!_lblCat)return null
+  const v=$('plProd')&&$('plProd').value
+  if(v===''||v==null)return null
+  return (_lblCat[_plKind]||[])[Number(v)]||null
+}
+function _plFmt(d){return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2)}
+function plDates(p){
+  const v=($('plDate')&&$('plDate').value)||_trIsoToday()
+  const parts=v.split('-').map(Number)
+  return {prod:_plFmt(new Date(parts[0],parts[1]-1,parts[2])), use:_plFmt(new Date(parts[0],parts[1]-1,parts[2]+p.shelf_days))}
+}
+function plPreview(){
+  const el=$('plPreview'); if(!el)return
+  const p=plSelected()
+  if(!p){el.textContent='';return}
+  const d=plDates(p)
+  el.innerHTML='Use by <b>'+d.use+'</b> ('+p.shelf_days+' days) · '+(p.storage?esc(p.storage)+' · ':'')+'Allergens: <b>'+esc(p.allergens||'None')+'</b>'
+}
+window.plPrint=async function(){
+  const p=plSelected()
+  if(!p){msg($('plMsg'),'Pick a product first.',false);return}
+  const n=Math.max(1,Math.round(Number($('plCount').value)||1))
+  const d=plDates(p)
+  const zpl=zplProductLabel({cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:p.pack_kg,storage:p.storage,count:n})
+  msg($('plMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
+  const cloud=await zebraCloudPrint(zpl)
+  if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+' (use by '+d.use+').',true);return}
+  msg($('plMsg'),'Could not print: '+cloud.message,false)
+}
+// Production label, 148x99mm landscape: category band, product name, PRODUCED
+// and USE BY date panels (use-by reversed for emphasis), allergens + pack line.
+function zplProductLabel(o){
+  const clean=s=>String(s||'').replace(/[\^~\\]/g,' ')
+  const all='ALLERGENS: '+clean(String(o.allergens||'None').toUpperCase())
+  const pk=[o.pack?clean(o.pack)+' KG':'',clean(String(o.storage||'').toUpperCase())].filter(Boolean).join('  -  ')
+  return '^XA^CI28^PW792^LL1184'
+    +'^FO682,0^GB110,1184,110^FS'
+    +'^FO696,36^A0R,80,80^FR^FD'+clean(o.cat)+'^FS'
+    +'^FO704,0^A0R,64,64^FB1148,1,0,R^FR^FDCHEFLY^FS'
+    +'^FO537,20^A0R,120,90^FB1144,2,0,C^FD'+clean(o.name)+'^FS'
+    +'^FO182,30^GB230,554,3,B,2^FS'
+    +'^FO350,30^A0R,40,40^FB554,1,0,C^FDPRODUCED^FS'
+    +'^FO215,30^A0R,122,78^FB554,1,0,C^FD'+clean(o.prod)+'^FS'
+    +'^FO182,600^GB230,554,230,B,2^FS'
+    +'^FO350,600^A0R,40,40^FB554,1,0,C^FR^FDUSE BY^FS'
+    +'^FO215,600^A0R,122,78^FB554,1,0,C^FR^FD'+clean(o.use)+'^FS'
+    +'^FO104,36^A0R,48,48^FB800,1,0,L^FD'+all+'^FS'
+    +'^FO104,850^A0R,48,48^FB298,1,0,R^FD'+pk+'^FS'
+    +'^FO43,0^A0R,34,34^FB1184,1,0,C^FDChefly  -  UK LH018^FS'
+    +'^PQ'+Math.max(1,o.count||1)+'^XZ'
 }
 window.adhocPrintLabels=async function(){
   const date=$('lpDate').value||_trIsoToday()
