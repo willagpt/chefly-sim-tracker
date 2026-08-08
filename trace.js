@@ -248,9 +248,9 @@ function mmRenderDetail(){
 // Route 1 (any device, incl. iPhone): cloud print via the sim-zebra-print edge
 // function -> Zebra SendFileToPrinter API -> the Wi-Fi ZD421.
 // Route 2 (fallback, Android tablet): Zebra Browser Print app on the device.
-async function zebraCloudPrint(zpl){
+async function zebraCloudPrint(zpl,meta){
   try{
-    const {data,error}=await sb.functions.invoke('sim-zebra-print',{body:{zpl}})
+    const {data,error}=await sb.functions.invoke('sim-zebra-print',{body:{zpl,meta}})
     if(error) return {ok:false,message:error.message||'print service unreachable'}
     if(data&&data.ok) return {ok:true}
     return {ok:false,notConfigured:!!(data&&data.not_configured),message:(data&&data.error)||'unknown error'}
@@ -318,6 +318,7 @@ window.initLabels=function(){
   if($('plDate')&&!$('plDate').value)$('plDate').value=_trIsoToday()
   if($('lpDate')&&!$('lpDate').value)$('lpDate').value=_trIsoToday()
   loadLabelCatalog()
+  loadPrintLog()
 }
 function ensureLabelPrinterCard(){
   if($('lpDate'))return
@@ -336,6 +337,9 @@ function ensureLabelPrinterCard(){
       <div><label for="plWeight">Weight (kg)</label><input id="plWeight" type="number" inputmode="decimal" step="0.1" placeholder="from sheet" /></div>
       <div><label for="plCount">How many</label><input id="plCount" type="number" inputmode="numeric" value="1" /></div>
     </div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:10px;cursor:pointer;font-size:14px">
+      <input type="checkbox" id="plNumber" style="width:24px;height:24px" /> Number each label (1 of N, 2 of N…) so you can see how many you're up to
+    </label>
     <p class="muted" id="plPreview" style="margin:8px 0 10px"></p>
     <button class="green" onclick="plPrint()">🖨 Print labels</button>
     <div id="plMsg" class="msg"></div>`
@@ -350,6 +354,10 @@ function ensureLabelPrinterCard(){
     <button class="green" onclick="adhocPrintLabels()">🖨 Print labels</button>
     <div id="lpMsg" class="msg"></div>`
   tab.appendChild(card)
+  const log=document.createElement('div'); log.className='card'
+  log.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">📋 Today's print log</h2><button class="ghost sm" onclick="loadPrintLog()">↻ Refresh</button></div>
+    <div id="printLogBody" style="margin-top:10px"><p class="muted">Loading…</p></div>`
+  tab.appendChild(log)
   $('plKindMeats').onclick=()=>plSetKind('meats')
   $('plKindSauces').onclick=()=>plSetKind('sauces')
   $('plProd').onchange=function(){ const p=plSelected(); if($('plWeight'))$('plWeight').value=(p&&p.pack_kg)?p.pack_kg:''; plPreview() }
@@ -402,13 +410,38 @@ window.plPrint=async function(){
   const p=plSelected()
   if(!p){msg($('plMsg'),'Pick a product first.',false);return}
   const n=Math.max(1,Math.round(Number($('plCount').value)||1))
+  const numbered=!!($('plNumber')&&$('plNumber').checked)
+  if(numbered&&n>400){msg($('plMsg'),'Numbered runs are capped at 400 per job — print in two batches.',false);return}
+  if(n>=50&&!confirm('Print '+n+' labels of '+p.name+'?'))return
   const d=plDates(p)
   const w=($('plWeight')&&$('plWeight').value!=='')?$('plWeight').value:p.pack_kg
-  const zpl=zplProductLabel({cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients,count:n})
+  const base={cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients}
+  let zpl
+  if(numbered){
+    const parts=[]
+    for(let i=1;i<=n;i++){const o={}; for(const k in base)o[k]=base[k]; o.count=1; o.counter=i+' OF '+n; parts.push(zplProductLabel(o))}
+    zpl=parts.join('')
+  }else{
+    const o={}; for(const k in base)o[k]=base[k]; o.count=n
+    zpl=zplProductLabel(o)
+  }
   msg($('plMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
-  const cloud=await zebraCloudPrint(zpl)
-  if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+' (use by '+d.use+').',true);return}
+  const meta={kind:_plKind==='meats'?'meat':'sauce',sku:p.sku,product:p.name+(p.sub?' - '+p.sub:''),count:n,prod:d.prod,use:d.use,numbered}
+  const cloud=await zebraCloudPrint(zpl,meta)
+  if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+(numbered?' (numbered 1-'+n+')':'')+' (use by '+d.use+').',true);loadPrintLog();return}
   msg($('plMsg'),'Could not print: '+cloud.message,false)
+}
+window.loadPrintLog=async function(){
+  const box=$('printLogBody'); if(!box)return
+  const d=new Date(); d.setHours(0,0,0,0)
+  const {data,error}=await sb.from('sim_print_log').select('*').gte('created_at',d.toISOString()).order('created_at',{ascending:false}).limit(200)
+  if(error){box.innerHTML='<p class="muted">'+esc(error.message)+'</p>';return}
+  if(!data||!data.length){box.innerHTML='<p class="muted">Nothing printed yet today.</p>';return}
+  const total=data.reduce((s,r)=>s+(Number(r.count)||0),0)
+  box.innerHTML='<p class="muted"><b>'+data.length+'</b> job'+(data.length===1?'':'s')+' · <b>'+total+'</b> labels today</p>'+data.map(r=>{
+    const t=new Date(r.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
+    return `<div class="task-item"><div><b>${esc(r.product||r.kind)}</b> × ${Number(r.count)||1}${r.numbered?' <span class="pill done">numbered</span>':''}<div class="meta">${t} · ${esc(r.user_name||'')}${r.use_by?' · use by '+esc(r.use_by):''}</div></div></div>`
+  }).join('')
 }
 // Production label, 148x99mm landscape: category band (with Chefly + approval
 // mark), big single-line auto-sized product name, ingredients, PRODUCED and
@@ -455,6 +488,7 @@ function zplProductLabel(o){
     +'^FO230,600^A0R,122,78^FB554,1,0,C^FR^FD'+clean(o.use)+'^FS'
     +'^FO118,40^A0R,52,'+aw+'^FB1104,1,0,C^FD'+all+'^FS'
   if(pk) z+='^FO66,40^A0R,36,36^FB1104,1,0,C^FD'+pk+'^FS'
+  if(o.counter) z+='^FO66,0^A0R,36,36^FB1144,1,0,R^FDLABEL '+clean(o.counter)+'^FS'
   z+='^PQ'+Math.max(1,o.count||1)+'^XZ'
   return z
 }
@@ -464,8 +498,8 @@ window.adhocPrintLabels=async function(){
   const n=Math.max(1,Math.round(Number($('lpCount').value)||1))
   const zpl=zplBigLabel({code,count:n})
   msg($('lpMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
-  const cloud=await zebraCloudPrint(zpl)
-  if(cloud.ok){msg($('lpMsg'),'✓ Sent '+n+' label'+(n===1?'':'s')+' ('+code+') to the printer.',true);return}
+  const cloud=await zebraCloudPrint(zpl,{kind:'goods_in',product:'GOODS IN '+code,count:n})
+  if(cloud.ok){msg($('lpMsg'),'✓ Sent '+n+' label'+(n===1?'':'s')+' ('+code+') to the printer.',true);loadPrintLog();return}
   msg($('lpMsg'),'Could not print: '+cloud.message,false)
 }
 window.mmPrintLabels=async function(){
@@ -486,7 +520,7 @@ window.mmPrintLabels=async function(){
   if(!confirm('Print '+total+' GI labels ('+code+') for '+items.length+' line'+(items.length===1?'':'s')+'?'))return
   // Route 1: cloud print (works from iPhone/any device; printer just needs Wi-Fi + internet)
   const combined=items.map(r=>zplGiLabel(code,r.l,o,r.count)).join('')
-  const cloud=await zebraCloudPrint(combined)
+  const cloud=await zebraCloudPrint(combined,{kind:'goods_in',product:'GOODS IN '+code+' (delivery)',count:total})
   if(cloud.ok){ alert('✓ Sent '+total+' labels to the Zebra printer.'); return }
   if(!cloud.notConfigured && !confirm('Cloud printing failed: '+cloud.message+'\n\nTry Browser Print on this device instead?'))return
   // Route 2: Zebra Browser Print app (Android tablet)
