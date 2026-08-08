@@ -333,6 +333,7 @@ function ensureLabelPrinterCard(){
     <select id="plProd"><option value="">Loading label database…</option></select>
     <div class="row" style="margin-top:8px">
       <div><label for="plDate">Production date</label><input id="plDate" type="date" /></div>
+      <div><label for="plWeight">Weight (kg)</label><input id="plWeight" type="number" inputmode="decimal" step="0.1" placeholder="from sheet" /></div>
       <div><label for="plCount">How many</label><input id="plCount" type="number" inputmode="numeric" value="1" /></div>
     </div>
     <p class="muted" id="plPreview" style="margin:8px 0 10px"></p>
@@ -351,7 +352,7 @@ function ensureLabelPrinterCard(){
   tab.appendChild(card)
   $('plKindMeats').onclick=()=>plSetKind('meats')
   $('plKindSauces').onclick=()=>plSetKind('sauces')
-  $('plProd').onchange=plPreview
+  $('plProd').onchange=function(){ const p=plSelected(); if($('plWeight'))$('plWeight').value=(p&&p.pack_kg)?p.pack_kg:''; plPreview() }
   $('plDate').onchange=plPreview
 }
 async function loadLabelCatalog(force){
@@ -402,7 +403,8 @@ window.plPrint=async function(){
   if(!p){msg($('plMsg'),'Pick a product first.',false);return}
   const n=Math.max(1,Math.round(Number($('plCount').value)||1))
   const d=plDates(p)
-  const zpl=zplProductLabel({cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:p.pack_kg,storage:p.storage,ingredients:p.ingredients,count:n})
+  const w=($('plWeight')&&$('plWeight').value!=='')?$('plWeight').value:p.pack_kg
+  const zpl=zplProductLabel({cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients,count:n})
   msg($('plMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
   const cloud=await zebraCloudPrint(zpl)
   if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+' (use by '+d.use+').',true);return}
