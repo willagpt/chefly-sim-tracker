@@ -448,7 +448,7 @@ window.loadPrintLog=async function(){
 // Production label, 148x99mm landscape: category band (with Chefly + approval
 // mark), big single-line auto-sized product name, ingredients, PRODUCED and
 // USE BY date panels (use-by reversed for emphasis), allergens, pack + storage
-// + batch ref, and a batch QR code bottom-right.
+// + batch ref, LABEL n OF N counter, and a batch QR code bottom-right.
 // NOTE: every text field is a single-line ^FB — multi-line ^FB blocks on
 // rotated fields shift up into the header band and vanish (black on black).
 function _split2(text,perLine){
@@ -464,7 +464,6 @@ function zplProductLabel(o){
   const nw=Math.min(Math.floor(nh*0.82), Math.floor(1104/(Math.max(1,name.length)*0.6)))
   const nameY=140+Math.floor((140-nh)/2)
   const all='ALLERGENS: '+clean(String(o.allergens||'None').toUpperCase())
-  const aw=Math.min(52,Math.floor(1104/(Math.max(1,all.length)*0.6)))
   const pk=[o.pack?clean(o.pack)+' KG':'',clean(String(o.storage||'').toUpperCase())].filter(Boolean).join('   -   ')
   let z='^XA^CI28^PW792^LL1184'
     +'^FO688,0^GB104,1184,104^FS'
@@ -489,10 +488,15 @@ function zplProductLabel(o){
     +'^FO197,600^GB230,554,230,B,2^FS'
     +'^FO364,600^A0R,40,40^FB554,1,0,C^FR^FDUSE BY^FS'
     +'^FO230,600^A0R,122,78^FB554,1,0,C^FR^FD'+clean(o.use)+'^FS'
-    +'^FO118,40^A0R,52,'+Math.min(aw,Math.floor(900/(Math.max(1,all.length)*0.6))||aw)+'^FB'+(o.batch?900:1104)+',1,0,C^FD'+all+'^FS'
+    +'^FO132,40^A0R,48,'+Math.min(48,Math.floor(900/(Math.max(1,all.length)*0.6)))+'^FB900,1,0,C^FD'+all+'^FS'
+  // three separate bottom lines (allergens / pack+batch / label counter) so
+  // nothing can ever print over anything else, all clear of the QR zone
   const pkline=[pk,(o.batch?'BATCH '+clean(o.batch):'')].filter(Boolean).join('   -   ')
-  if(pkline) z+='^FO66,40^A0R,'+(o.batch?32:36)+','+(o.batch?32:36)+'^FB'+(o.batch?900:1104)+',1,0,C^FD'+pkline+'^FS'
-  if(o.counter) z+='^FO66,40^A0R,36,36^FB'+(o.batch?900:1104)+',1,0,R^FDLABEL '+clean(o.counter)+'^FS'
+  if(pkline){
+    const pw=Math.min(36,Math.floor(900/(Math.max(1,pkline.length)*0.62)))
+    z+='^FO88,40^A0R,36,'+pw+'^FB900,1,0,C^FD'+pkline+'^FS'
+  }
+  if(o.counter) z+='^FO44,40^A0R,36,36^FB900,1,0,C^FDLABEL '+clean(o.counter)+'^FS'
   if(o.batch){
     // batch QR bottom-right: scan any pouch to identify the batch
     const qr='CHEFLY|'+clean(o.batch)+'|'+clean(String(o.name||'').slice(0,28))+'|PROD '+clean(o.prod)+'|USE BY '+clean(o.use)
