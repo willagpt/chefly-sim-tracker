@@ -399,22 +399,16 @@ function plDates(p){
   const parts=v.split('-').map(Number)
   return {prod:_plFmt(new Date(parts[0],parts[1]-1,parts[2])), use:_plFmt(new Date(parts[0],parts[1]-1,parts[2]+p.shelf_days))}
 }
-// EHO rule: the oval UK LH018 identification mark only goes on products of
-// animal origin. Meats always qualify; sauces qualify if their ingredients
-// include meat, dairy, egg, gelatine or fish. Plant-milk/butter-bean/butternut
-// style false-positives are stripped before matching.
-function hasAnimalProtein(p){
-  if(_plKind==='meats')return true
-  const txt=((p.name||'')+' '+(p.sub||'')+' '+(p.ingredients||'')).toLowerCase()
-    .replace(/coconut milk|coconut cream|oat milk|almond milk|soy milk|soya milk|cocoa butter|peanut butter|butter beans|butterbean|butternut/g,'')
-  return /(beef|brisket|chicken|turkey|lamb|pork|bacon|chorizo|mince|steak|bavette|duck|veal|gelatine|gelatin|milk|cream|butter|cheese|cheddar|yoghurt|yogurt|egg|fish|salmon|cod|prawn|shrimp|anchov)/.test(txt)
-}
+// The oval UK LH018 identification mark goes on every meat product and
+// nothing else. Fixed rule — not user-selectable, no ingredient guessing:
+// Meats tab -> oval, Sauces tab -> no oval.
+function hasIdMark(){return _plKind==='meats'}
 function plPreview(){
   const el=$('plPreview'); if(!el)return
   const p=plSelected()
   if(!p){el.textContent='';return}
   const d=plDates(p)
-  el.innerHTML='Use by <b>'+d.use+'</b> ('+p.shelf_days+' days) · '+(p.storage?esc(p.storage)+' · ':'')+'Allergens: <b>'+esc(p.allergens||'None')+'</b> · ID mark (oval): <b>'+(hasAnimalProtein(p)?'yes':'no')+'</b>'+(p.ingredients?'<br>Ingredients: '+esc(p.ingredients):'')
+  el.innerHTML='Use by <b>'+d.use+'</b> ('+p.shelf_days+' days) · '+(p.storage?esc(p.storage)+' · ':'')+'Allergens: <b>'+esc(p.allergens||'None')+'</b> · ID mark (oval): <b>'+(hasIdMark()?'yes':'no')+'</b>'+(p.ingredients?'<br>Ingredients: '+esc(p.ingredients):'')
 }
 window.plPrint=async function(){
   const p=plSelected()
@@ -427,7 +421,7 @@ window.plPrint=async function(){
   const w=($('plWeight')&&$('plWeight').value!=='')?$('plWeight').value:p.pack_kg
   const now=new Date()
   const batch=String(p.sku).toUpperCase()+'-'+d.prod.replace(/\//g,'')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')
-  const base={cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients,batch,idmark:hasAnimalProtein(p)}
+  const base={cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients,batch,idmark:hasIdMark()}
   let zpl
   if(numbered){
     const parts=[]
@@ -456,10 +450,10 @@ window.loadPrintLog=async function(){
   }).join('')
 }
 // Production label, 148x99mm landscape: category band (with Chefly and — for
-// products of animal origin only — the official oval UK LH018 identification
-// mark), big single-line auto-sized product name, ingredients, PRODUCED and
-// USE BY date panels (use-by reversed for emphasis), allergens, pack + batch
-// ref, LABEL n OF N counter, and a batch QR code bottom-right.
+// meat products only — the official oval UK LH018 identification mark), big
+// single-line auto-sized product name, ingredients, PRODUCED and USE BY date
+// panels (use-by reversed for emphasis), allergens, pack + batch ref,
+// LABEL n OF N counter, and a batch QR code bottom-right.
 // NOTE: every text field is a single-line ^FB — multi-line ^FB blocks on
 // rotated fields shift up into the header band and vanish (black on black).
 function _split2(text,perLine){
@@ -481,7 +475,7 @@ function zplProductLabel(o){
     +'^FO704,36^A0R,72,72^FR^FD'+clean(o.cat)+'^FS'
     +'^FO718,0^A0R,44,44^FB'+(o.idmark?930:1148)+',1,0,R^FR^FDCHEFLY^FS'
   if(o.idmark){
-    // official oval identification mark (products of animal origin only):
+    // official oval identification mark (all meat products):
     // UK over LH018, in the band top-right
     z+='^FO694,984^GE92,176,3,W^FS'
       +'^FO744,984^A0R,30,30^FB176,1,0,C^FR^FDUK^FS'
