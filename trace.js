@@ -445,10 +445,10 @@ window.loadPrintLog=async function(){
     return `<div class="task-item"><div><b>${esc(r.product||r.kind)}</b> × ${Number(r.count)||1}${r.numbered?' <span class="pill done">numbered</span>':''}<div class="meta">${t} · ${esc(r.user_name||'')}${r.batch?' · batch '+esc(r.batch):''}${r.use_by?' · use by '+esc(r.use_by):''}</div></div></div>`
   }).join('')
 }
-// Production label, 148x99mm landscape: category band (with Chefly + approval
-// mark), big single-line auto-sized product name, ingredients, PRODUCED and
-// USE BY date panels (use-by reversed for emphasis), allergens, pack + storage
-// + batch ref, LABEL n OF N counter, and a batch QR code bottom-right.
+// Production label, 148x99mm landscape: category band (with Chefly + official
+// oval UK LH018 identification mark), big single-line auto-sized product name,
+// ingredients, PRODUCED and USE BY date panels (use-by reversed for emphasis),
+// allergens, pack + batch ref, LABEL n OF N counter, and a batch QR bottom-right.
 // NOTE: every text field is a single-line ^FB — multi-line ^FB blocks on
 // rotated fields shift up into the header band and vanish (black on black).
 function _split2(text,perLine){
@@ -468,7 +468,11 @@ function zplProductLabel(o){
   let z='^XA^CI28^PW792^LL1184'
     +'^FO688,0^GB104,1184,104^FS'
     +'^FO704,36^A0R,72,72^FR^FD'+clean(o.cat)+'^FS'
-    +'^FO718,0^A0R,44,44^FB1148,1,0,R^FR^FDCHEFLY - UK LH018^FS'
+    +'^FO718,0^A0R,44,44^FB930,1,0,R^FR^FDCHEFLY^FS'
+    // official oval identification mark: UK over LH018, in the band top-right
+    +'^FO694,984^GE92,176,3,W^FS'
+    +'^FO744,984^A0R,30,30^FB176,1,0,C^FR^FDUK^FS'
+    +'^FO706,984^A0R,34,34^FB176,1,0,C^FR^FDLH018^FS'
     +'^FO'+(792-nameY-nh)+',40^A0R,'+nh+','+nw+'^FB1104,1,0,C^FD'+name+'^FS'
   if(o.ingredients){
     const txt='INGREDIENTS: '+clean(o.ingredients)
