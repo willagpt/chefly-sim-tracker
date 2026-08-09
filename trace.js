@@ -415,7 +415,9 @@ window.plPrint=async function(){
   if(n>=50&&!confirm('Print '+n+' labels of '+p.name+'?'))return
   const d=plDates(p)
   const w=($('plWeight')&&$('plWeight').value!=='')?$('plWeight').value:p.pack_kg
-  const base={cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients}
+  const now=new Date()
+  const batch=String(p.sku).toUpperCase()+'-'+d.prod.replace(/\//g,'')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0')
+  const base={cat:_plKind==='meats'?'MEAT':'SAUCE',name:p.name+(p.sub?' - '+p.sub:''),prod:d.prod,use:d.use,allergens:p.allergens,pack:w,storage:p.storage,ingredients:p.ingredients,batch}
   let zpl
   if(numbered){
     const parts=[]
@@ -426,9 +428,9 @@ window.plPrint=async function(){
     zpl=zplProductLabel(o)
   }
   msg($('plMsg'),'Sending '+n+' label'+(n===1?'':'s')+'…',true)
-  const meta={kind:_plKind==='meats'?'meat':'sauce',sku:p.sku,product:p.name+(p.sub?' - '+p.sub:''),count:n,prod:d.prod,use:d.use,numbered}
+  const meta={kind:_plKind==='meats'?'meat':'sauce',sku:p.sku,product:p.name+(p.sub?' - '+p.sub:''),count:n,prod:d.prod,use:d.use,numbered,batch}
   const cloud=await zebraCloudPrint(zpl,meta)
-  if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+(numbered?' (numbered 1-'+n+')':'')+' (use by '+d.use+').',true);loadPrintLog();return}
+  if(cloud.ok){msg($('plMsg'),'✓ Sent '+n+' × '+p.name+(numbered?' (numbered 1-'+n+')':'')+' · batch '+batch+' (use by '+d.use+').',true);loadPrintLog();return}
   msg($('plMsg'),'Could not print: '+cloud.message,false)
 }
 window.loadPrintLog=async function(){
@@ -440,12 +442,13 @@ window.loadPrintLog=async function(){
   const total=data.reduce((s,r)=>s+(Number(r.count)||0),0)
   box.innerHTML='<p class="muted"><b>'+data.length+'</b> job'+(data.length===1?'':'s')+' · <b>'+total+'</b> labels today</p>'+data.map(r=>{
     const t=new Date(r.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})
-    return `<div class="task-item"><div><b>${esc(r.product||r.kind)}</b> × ${Number(r.count)||1}${r.numbered?' <span class="pill done">numbered</span>':''}<div class="meta">${t} · ${esc(r.user_name||'')}${r.use_by?' · use by '+esc(r.use_by):''}</div></div></div>`
+    return `<div class="task-item"><div><b>${esc(r.product||r.kind)}</b> × ${Number(r.count)||1}${r.numbered?' <span class="pill done">numbered</span>':''}<div class="meta">${t} · ${esc(r.user_name||'')}${r.batch?' · batch '+esc(r.batch):''}${r.use_by?' · use by '+esc(r.use_by):''}</div></div></div>`
   }).join('')
 }
 // Production label, 148x99mm landscape: category band (with Chefly + approval
 // mark), big single-line auto-sized product name, ingredients, PRODUCED and
-// USE BY date panels (use-by reversed for emphasis), allergens, pack + storage.
+// USE BY date panels (use-by reversed for emphasis), allergens, pack + storage
+// + batch ref, and a batch QR code bottom-right.
 // NOTE: every text field is a single-line ^FB — multi-line ^FB blocks on
 // rotated fields shift up into the header band and vanish (black on black).
 function _split2(text,perLine){
@@ -486,9 +489,15 @@ function zplProductLabel(o){
     +'^FO197,600^GB230,554,230,B,2^FS'
     +'^FO364,600^A0R,40,40^FB554,1,0,C^FR^FDUSE BY^FS'
     +'^FO230,600^A0R,122,78^FB554,1,0,C^FR^FD'+clean(o.use)+'^FS'
-    +'^FO118,40^A0R,52,'+aw+'^FB1104,1,0,C^FD'+all+'^FS'
-  if(pk) z+='^FO66,40^A0R,36,36^FB1104,1,0,C^FD'+pk+'^FS'
-  if(o.counter) z+='^FO66,0^A0R,36,36^FB1144,1,0,R^FDLABEL '+clean(o.counter)+'^FS'
+    +'^FO118,40^A0R,52,'+Math.min(aw,Math.floor(900/(Math.max(1,all.length)*0.6))||aw)+'^FB'+(o.batch?900:1104)+',1,0,C^FD'+all+'^FS'
+  const pkline=[pk,(o.batch?'BATCH '+clean(o.batch):'')].filter(Boolean).join('   -   ')
+  if(pkline) z+='^FO66,40^A0R,'+(o.batch?32:36)+','+(o.batch?32:36)+'^FB'+(o.batch?900:1104)+',1,0,C^FD'+pkline+'^FS'
+  if(o.counter) z+='^FO66,40^A0R,36,36^FB'+(o.batch?900:1104)+',1,0,R^FDLABEL '+clean(o.counter)+'^FS'
+  if(o.batch){
+    // batch QR bottom-right: scan any pouch to identify the batch
+    const qr='CHEFLY|'+clean(o.batch)+'|'+clean(String(o.name||'').slice(0,28))+'|PROD '+clean(o.prod)+'|USE BY '+clean(o.use)
+    z+='^FO14,985^BQN,2,4^FDQA,'+qr+'^FS'
+  }
   z+='^PQ'+Math.max(1,o.count||1)+'^XZ'
   return z
 }
