@@ -2,6 +2,11 @@
 
 let equipList=[], equipCooks={}, equipNames={}, equipRegData=[], equipTimer=null, equipOverdueNotified=new Set()
 const EQUIP_KINDS=['oven','bratt_pan','sous_vide','combi','blast_chiller','freezer','other']  // add new sections here - all dropdowns build from this list
+/* Vessel kinds where a long unattended cook is the norm (our sous-vide tanks:
+   ~24h at ~80C with no one watching) -- a Start with no timer means the wall
+   board's overdue detection (sim_public_equipment) can never fire for it, so
+   for these kinds the timer is REQUIRED, not optional, with a sane default. */
+const EQUIP_REQUIRE_DURATION={sous_vide:1440}  // minutes -- 1440 = 24h
 const equipKindLabel=k=>({oven:'Oven',bratt_pan:'Bratt pan',sous_vide:'Sous-vide',combi:'Combi',blast_chiller:'Blast chiller',freezer:'Freezer',other:'Equipment'}[k]||k)
 function equipKindOptions(sel,withEmpty){if(!sel)return;const cur=sel.value;sel.innerHTML=(withEmpty?'<option value="">—</option>':'')+EQUIP_KINDS.map(k=>'<option value="'+k+'">'+equipKindLabel(k)+'</option>').join('');if(cur)sel.value=cur}
 equipKindOptions(document.getElementById('enKind'));equipKindOptions(document.getElementById('ntKind'),true)
@@ -55,6 +60,9 @@ function equipCardHtml(e,c){
           <div class="pill live">● in use</div>
         </div></div>`
     }
+    const reqMin=EQUIP_REQUIRE_DURATION[e.kind]
+    const minPlaceholder=reqMin?('Timer (mins) — required, e.g. '+reqMin+' = '+(reqMin/60)+'h'):'Timer (mins)'
+    const minValue=reqMin?(' value="'+reqMin+'"'):''
     return `<div class="card" style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><b>${esc(e.name)}</b><div class="muted">${sub} · <span style="color:var(--green)">empty</span></div></div>
@@ -63,9 +71,10 @@ function equipCardHtml(e,c){
       <div id="ef_${e.id}" class="hidden" style="margin-top:10px">
         <input id="ep_${e.id}" placeholder="What's going in? (product / batch)" />
         <div class="row" style="margin-top:8px">
-          <input id="emin_${e.id}" type="number" inputmode="numeric" placeholder="Timer (mins)" />
+          <input id="emin_${e.id}" type="number" inputmode="numeric" placeholder="${minPlaceholder}"${minValue} />
           <input id="etemp_${e.id}" placeholder="Target temp (optional)" />
         </div>
+        ${reqMin?'<div class="muted" style="font-size:12px;margin-top:4px">This vessel runs long, unwatched cooks — a timer is required so it shows as overdue on the wall board if nobody comes back for it.</div>':''}
         <div class="row" style="margin-top:8px">
           <button class="green sm" style="flex:1" onclick="equipStart('${e.id}')">Start</button>
           <button class="ghost sm" style="flex:1" onclick="equipPutIn('${e.id}')">Cancel</button>
@@ -100,6 +109,9 @@ window.equipStart=async function(id){
   const product=$('ep_'+id).value.trim()
   const tmin=$('emin_'+id).value?Number($('emin_'+id).value):null
   const temp=$('etemp_'+id).value.trim()||null
+  const e=equipList.find(x=>x.id===id)
+  const reqMin=e&&EQUIP_REQUIRE_DURATION[e.kind]
+  if(reqMin&&(!tmin||isNaN(tmin)||tmin<=0)){alert('Enter how long this is cooking for (mins) before starting — this vessel is only tracked as overdue if a timer is set.');return}
   const {error}=await sb.from('sim_cook_sessions').insert({equipment_id:id,product:product||null,target_minutes:tmin,target_temp:temp,user_id:me.id,start_time:new Date().toISOString(),status:'cooking'})
   if(error){alert(error.message);return}
   await loadEquip()

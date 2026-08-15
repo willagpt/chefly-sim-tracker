@@ -31,11 +31,14 @@
   .badge.over{background:rgba(239,68,68,.2);color:#fca5a5}
   .empty{color:var(--muted);font-size:20px;padding:18px}
   .err{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4);padding:24px;border-radius:16px;font-size:20px;max-width:760px;margin:60px auto;text-align:center}
+  #overdueBanner{display:none;background:var(--red);color:#fff;font-size:26px;font-weight:900;text-align:center;padding:18px;border-radius:16px;margin-bottom:18px;letter-spacing:.5px;animation:overduePulse 1.6s ease-in-out infinite}
+  @keyframes overduePulse{0%,100%{box-shadow:0 0 0 rgba(239,68,68,.6)}50%{box-shadow:0 0 40px rgba(239,68,68,.9)}}
   @media(max-width:900px){.cols{grid-template-columns:1fr}.stat .n{font-size:48px}}
 </style>
 </head>
 <body>
 <div id="root"><div class="err" id="err" style="display:none"></div><div id="content" style="display:none">
+  <div id="overdueBanner"></div>
   <header>
     <div class="brand"><span class="dot"></span> SIM Live — Chefly</div>
     <div class="clock" id="clock"></div>
@@ -83,17 +86,27 @@ async function refreshEquip(){
   try{
     const {data,error}=await sb.rpc('sim_public_equipment',{p_token:token})
     if(error||!data) return
-    const busy=(data.vessels||[]).filter(v=>v.busy)
+    const busy=(data.vessels||[]).filter(v=>v.busy).map(v=>{
+      let over=false, remMin=null
+      if(v.due_at){ const rem=new Date(v.due_at)-Date.now(); over=rem<0; remMin=Math.floor(Math.abs(rem)/60000) }
+      return {...v, over, remMin}
+    })
+    // Overdue vessels first -- this is the whole point of the board: an
+    // overdue tank must never be scrollable-away below vessels that are fine.
+    busy.sort((a,b)=>(b.over-a.over))
+    const overdue=busy.filter(v=>v.over)
+    const banner=$('overdueBanner')
+    if(overdue.length){
+      banner.style.display='block'
+      banner.textContent='🚨 OVERDUE — '+overdue.map(v=>v.name+' ('+v.remMin+'m over)').join(' · ')
+    } else banner.style.display='none'
     const box=$('vessels')
     if(!busy.length){ box.innerHTML='<div class="empty">Nothing cooking right now.</div>'; return }
     box.innerHTML=busy.map(v=>{
-      let badge='', over=false
-      if(v.due_at){
-        const rem=new Date(v.due_at)-Date.now()
-        if(rem<0){ over=true; badge='<div class="badge over">⏰ OVERDUE '+Math.floor(-rem/60000)+'m</div>' }
-        else badge='<div class="badge good">due in '+Math.ceil(rem/60000)+'m</div>'
-      } else badge='<div class="badge run">'+elapsedMin(v.start_time)+'m</div>'
-      return `<div class="row${over?' over':''}"><div><div class="name">${esc(v.name)}</div><div class="sub">${esc(v.product)||'In use'}${v.who?' · '+esc(v.who):''} · in for ${elapsedMin(v.start_time)} min</div></div>${badge}</div>`
+      let badge=''
+      if(v.due_at) badge=v.over?('<div class="badge over">⏰ OVERDUE '+v.remMin+'m</div>'):('<div class="badge good">due in '+v.remMin+'m</div>')
+      else badge='<div class="badge run">'+elapsedMin(v.start_time)+'m</div>'
+      return `<div class="row${v.over?' over':''}"><div><div class="name">${esc(v.name)}</div><div class="sub">${esc(v.product)||'In use'}${v.who?' · '+esc(v.who):''} · in for ${elapsedMin(v.start_time)} min</div></div>${badge}</div>`
     }).join('')
   }catch(e){}
 }
