@@ -1,0 +1,14 @@
+-- Point the packing dish sync at v_d2c_current_order_items instead of the raw
+-- d2c_order_items table. The raw table keeps superseded copies of edited
+-- orders (see that view's comment), which inflated every pack-day quantity:
+-- 19 Aug 2026 read 1,744 meals against the website's true 1,652, and sku 63
+-- Penne Bolognese read 90 against a true 85. The line packed to the inflated
+-- number.
+--
+-- This migration changed only the two FROM clauses inside
+-- sim_sync_pack_dishes_from_chefly() (d2c_order_items ->
+-- v_d2c_current_order_items). Its full body is superseded three minutes
+-- later by 20260817114730_sim_pack_sync_prune_unordered_dishes.sql, which
+-- re-creates the same function with an added PRUNE step -- see that file for
+-- the authoritative current definition. Retained here so the applied history
+-- is complete and reproducible in order.
