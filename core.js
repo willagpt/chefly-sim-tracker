@@ -4,7 +4,37 @@
 
 const SUPABASE_URL = 'https://fhztszxpgqhunogwcoxw.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve'
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
+/* Retry at the CLIENT level so every request in the app is covered -- reads,
+   writes, auth, storage, edge functions -- rather than each call site having
+   to remember. Staff work on phones on mobile data and a request that dies in
+   flight surfaces as a bare "TypeError: Load failed" (Safari) / "Failed to
+   fetch" (Chrome). Caught live 17 Aug 2026: a staff phone on iCloud Private
+   Relay showed exactly that on START NOW, and the server logs show the
+   request never arrived at all -- so the task did not exist while the person
+   believed they had started it.
+
+   Only transport failures are retried (fetch itself rejecting). Anything the
+   server actually answered -- 400, 403, a permission error -- is returned
+   untouched on the first attempt, so real errors still surface immediately
+   and nothing is double-submitted after a response was received. */
+async function simFetchWithRetry(input, init, tries = 3){
+  let last
+  for(let i = 0; i < tries; i++){
+    try { return await fetch(input, init) }
+    catch(e){
+      last = e
+      // AbortError means we cancelled it on purpose -- never retry those.
+      if(e && (e.name === 'AbortError' || (init && init.signal && init.signal.aborted))) throw e
+      if(i < tries - 1) await new Promise(r => setTimeout(r, 400 * Math.pow(2, i)))
+    }
+  }
+  throw last
+}
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  global: { fetch: (input, init) => simFetchWithRetry(input, init) }
+})
 
 // ---- shared state ----
 let me=null, profile=null, catalog=[], products=[], activeLogs=[], timerInt=null
@@ -27,6 +57,26 @@ const isAdmin=()=> profile && profile.role==='admin'
    screen for their team — no tabs, no other screens. */
 const wsStation=()=> !!(profile && !isManagerUp() && (profile.ws_team==='A'||profile.ws_team==='B'))
 function notify(t,b){if(notifyReady){try{new Notification(t,{body:b})}catch(e){}}}
+
+/* Once simFetchWithRetry has exhausted its attempts the failure is real, and
+   what reaches the screen must be an instruction rather than a stack-trace
+   string. "TypeError: Load failed" tells a packer nothing; it also does not
+   tell them the crucial part -- that their work was NOT saved and the task
+   needs starting again. */
+function isNetworkError(e){
+  if(!e) return false
+  const m=String(e.message||e)
+  return /load failed|failed to fetch|networkerror|network error|timed out|timeout|connection (closed|reset|refused)/i.test(m)
+}
+function netErr(error){
+  if(!error) return ''
+  if(isNetworkError(error)){
+    return (navigator.onLine===false)
+      ? 'No internet connection — nothing was saved. Reconnect, then try again.'
+      : 'Could not reach the server — nothing was saved. Check your signal and try again.'
+  }
+  return error.message
+}
 
 // ---- task helpers ----
 function catFor(log){return catalog.find(c=>c.id===log.catalog_id)}
