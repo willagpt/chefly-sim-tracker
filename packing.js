@@ -10,6 +10,7 @@ let packViewDate=null   // set to a past yyyy-mm-dd to view history read-only
 let packNextStaged=null // next future staged dish list {date,dishes,meals} for the empty-state hint
 let packPrep=false      // true when viewing a FUTURE day (prep mode: order + print, no packing)
 let packShowPlan=false  // dish list toggle: live/packed view vs planned order
+let packRecon=null      // sim_pack_reconcile() result — does this plan match the website?
 const PACK_CO_TARGET=3   // minutes — SKU change target
 const PACK_CCP_LIMIT=5   // °C — chilled food critical limit for CCP temperature checks
 
@@ -110,7 +111,7 @@ window.loadPacking=async function(){
     const ins=await sb.from('sim_pack_shifts').insert({shift_date:qd,created_by:(me&&me.id)||null}).select().single(); if(ins.error){$('packBody').innerHTML='<div class="card"><p class="muted">'+ins.error.message+'</p></div>';return} sh=ins.data
   }
   packShift=sh
-  const [pos,mem,asg,runs,brk,cfg,comp,bomQ,csQ,cnQ,nsQ]=await Promise.all([
+  const [pos,mem,asg,runs,brk,cfg,comp,bomQ,csQ,cnQ,nsQ,recQ]=await Promise.all([
     sb.from('sim_pack_positions').select('*').eq('active',true).order('sort_order'),
     sb.from('sim_pack_members').select('*').eq('active',true).order('sort_order').order('full_name'),
     sb.from('sim_pack_assignments').select('*').eq('shift_id',sh.id),
@@ -121,7 +122,8 @@ window.loadPacking=async function(){
     sb.from('sim_dish_bom').select('sku,component_id'),
     sb.from('sim_component_status').select('*').eq('shift_date',qd),
     sb.from('sim_components').select('id,name').eq('active',true),
-    sb.from('sim_pack_dish_import').select('import_date,qty').gt('import_date',qd).order('import_date')
+    sb.from('sim_pack_dish_import').select('import_date,qty').gt('import_date',qd).order('import_date'),
+    sb.rpc('sim_pack_reconcile',{p_date:qd})
   ])
   packPositions=pos.data||[]; packMembers=mem.data||[]; packRuns=runs.data||[]; packBreaks=brk.data||[]
   packTarget=(cfg&&cfg.data&&Number(cfg.data.target_per_hour))||500
@@ -130,6 +132,7 @@ window.loadPacking=async function(){
   packBom={}; ((bomQ&&bomQ.data)||[]).forEach(b=>{(packBom[b.sku]=packBom[b.sku]||[]).push(b.component_id)})
   packCompStat={}; ((csQ&&csQ.data)||[]).forEach(s=>{packCompStat[s.component_id]=s.status})
   packCompName={}; ((cnQ&&cnQ.data)||[]).forEach(c=>{packCompName[c.id]=c.name})
+  packRecon=(recQ&&!recQ.error&&recQ.data)||null
   packNextStaged=null
   {const nr=(nsQ&&nsQ.data)||[]
    if(nr.length){const d0=nr[0].import_date; const same=nr.filter(r=>r.import_date===d0)
@@ -169,6 +172,34 @@ function packRate(r){ // meals per hour for a finished dish
   return q/(r.total_minutes/60)
 }
 function _daySpan(a,b){if(!a||!b)return '';let m=Math.round((new Date(b)-new Date(a))/60000);if(m<0)m=0;const h=Math.floor(m/60);m=m%60;return (h?h+'h ':'')+m+'m'}
+/* Does this pack plan actually agree with the website's live orders?
+   Until this existed the only way to know was to download a CSV from the
+   backend and compare by hand -- which is how a 90-vs-85 error on Penne
+   Bolognese reached the line on 19 Aug. sim_pack_reconcile() recomputes
+   demand straight from live orders and diffs it per SKU on every load. */
+function packReconBanner(){
+  const r=packRecon
+  if(!r) return ''
+  const when=r.orders_synced_at?new Date(r.orders_synced_at).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'—'
+  if(r.ok){
+    return `<div style="margin-top:10px;padding:8px 12px;border-radius:10px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);font-size:13px">
+      <b style="color:#86efac">✓ Matches the website</b> <span class="muted">— ${Number(r.website_total_meals).toLocaleString()} meals ordered. Orders last pulled ${esc(when)}.</span></div>`
+  }
+  const rows=(r.rows||[]).map(x=>{
+    const w=x.website_qty==null?'not ordered':x.website_qty
+    const label=x.verdict==='locked_mismatch'
+      ? (x.qty_packed!=null?`packed ${x.qty_packed}`:`plan ${x.plan_qty}`)+` · website ${w}`
+      : (x.verdict==='missing_from_plan'?`website ${w} · not on the pack list`:`plan ${x.plan_qty} · ${w}`)
+    return `<div style="margin-top:4px">SKU <b>${esc(String(x.sku))}</b> ${esc(x.dish_name||'')} — ${esc(label)}</div>`
+  }).join('')
+  const diff=Number(r.difference)||0
+  return `<div style="margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.45);font-size:13px">
+    <b style="color:#fca5a5">⚠ ${r.mismatch_count} dish${r.mismatch_count===1?'':'es'} do not match the website</b>
+    <span class="muted">— pack list ${Number(r.plan_total_meals).toLocaleString()} vs ${Number(r.website_total_meals).toLocaleString()} ordered (${diff>0?'+':''}${diff}). Orders last pulled ${esc(when)}.</span>
+    ${rows}
+    <div class="muted" style="margin-top:6px">Dishes already started or finished are never auto-corrected — check these before packing more.</div>
+  </div>`
+}
 function renderPacking(){
   const box=$('packBody'); if(!box)return
   const viewing=!!packViewDate
@@ -189,6 +220,7 @@ function renderPacking(){
       <div class="stat"><div class="n">${packedMeals}</div><div class="l">Packed</div></div>
       <div class="stat"><div class="n">${plannedMeals}</div><div class="l">Planned</div></div>
     </div>
+    ${packReconBanner()}
     <p class="muted" style="margin-top:8px">Changeovers: ${avgCo!=null?avgCo.toFixed(1)+'m avg':'–'} · <span class="${overCount?'vs-bad':'vs-good'}">${overCount} over ${PACK_CO_TARGET}-min</span>${skipped?' · '+skipped+' skipped':''}</p>
     <p class="muted" style="margin-top:2px">Target: <b style="color:var(--txt)">${packTarget}/hr</b> <a class="link" onclick="packSetTarget()">adjust</a></p>
     <button class="ghost sm" style="margin-top:8px" onclick="packEodReport()">\u{1F4C4} End-of-day report (PDF)</button>
