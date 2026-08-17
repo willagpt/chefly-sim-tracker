@@ -45,9 +45,25 @@ window.createAccount=async function(){
 window.forgotPassword=async function(){
   const email=$('email').value.trim().toLowerCase()
   if(!email){msg($('loginMsg'),'Type your email above first, then tap Forgot password.',false);return}
+  /* The reset link lands wherever Supabase's Site URL points, NOT necessarily
+     where redirectTo asks -- GoTrue silently falls back to Site URL when the
+     requested address is not in the project's allow-list. On 17 Aug 2026 that
+     fallback was still http://localhost:3000 from early development, so every
+     reset link logged the person in correctly and then dropped them on a blank
+     page. Two staff read that as "reset is broken", hammered the button, and
+     hit the email rate limit -- a lockout that was never really a lockout.
+     Until Site URL is corrected in the dashboard the message below has to name
+     that failure mode explicitly, so nobody loses another shift to it. */
   const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname})
-  if(error){msg($('loginMsg'),error.message,false);return}
-  msg($('loginMsg'),'If email is set up you\'ll get a reset link. Otherwise ask your admin to reset it.',true)
+  if(error){
+    const m=String(error.message||'')
+    msg($('loginMsg'), isNetworkError(error)?netErr(error)
+      : /rate limit|after \d+ seconds/i.test(m)
+        ? 'Too many reset emails requested — wait a minute before trying again, or ask a manager to reset it for you.'
+        : m, false)
+    return
+  }
+  msg($('loginMsg'),'Reset email sent — open the link ONCE. If it opens a blank page or an error, the link still worked but could not return you here: come back to this page and log in with your new password. If you are stuck, ask a manager to reset it in Manage → User access.',true)
 }
 window.setMyPassword=async function(){
   const a=$('np1').value, b=$('np2').value

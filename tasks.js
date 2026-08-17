@@ -193,7 +193,7 @@ window.startTask=async function(){
   const eqId=($('sEquip')&&$('sEquip').value)||null
   const planMin=($('sPlanMin')&&$('sPlanMin').value)?Number($('sPlanMin').value):null
   const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,equipment_id:eqId,planned_minutes:planMin,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
-  if(error){msg($('logMsg'),equipBusyErr(error),false);await loadEquipState();populateEquipSelect('sEquip');return}
+  if(error){msg($('logMsg'),isNetworkError(error)?netErr(error):equipBusyErr(error),false);await loadEquipState();populateEquipSelect('sEquip');return}
   activeLogs.unshift(data);$('sProduct').value='';if($('sPlanMin'))$('sPlanMin').value='';clearMsg($('logMsg'));await loadEquipState();populateEquipSelect('sEquip');renderRunning()
 }
 window.stopTaskFor=async function(id){
@@ -213,7 +213,7 @@ window.stopTaskFor=async function(id){
   let ps=l.paused_seconds||0; if(l.status==='paused'&&l.pause_started_at) ps+=(Date.now()-new Date(l.pause_started_at))/1000
   const stEl=$('st_'+p), chEl=$('ch_'+p), cmEl=$('cm_'+p)
   const {error}=await sb.from('sim_task_logs').update({finish_time:new Date().toISOString(),units,waste_kg:waste,paused_seconds:ps,pause_started_at:null,staff_count:stEl?Number(stEl.value)||1:(l.staff_count||1),changeover_mins:(chEl&&chEl.value)?Number(chEl.value):null,comments:cmEl?cmEl.value.trim()||null:null,start_temp:startTemp,finish_temp:finishTemp,start_temp_at:_sTAt,finish_temp_at:_fTAt,status:'completed'}).eq('id',id)
-  if(error){alert(finishErr(error));return}
+  if(error){alert(isNetworkError(error)?netErr(error):finishErr(error));return}
   activeLogs=activeLogs.filter(x=>x.id!==id); renderRunning(); await loadEquipState(); populateEquipSelect('sEquip'); await refreshMyRecent(); if(typeof loadMyDay==='function') loadMyDay(); if(isManagerUp())await refreshDashboard()
 }
 async function refreshMyRecent(){
