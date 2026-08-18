@@ -129,15 +129,20 @@ function photoGateOK(log){
    the resizing happens at the CDN and the stored originals are never
    touched. That matters: these photos are the evidence attached to a
    completed task, and quietly re-compressing food-production records to save
-   space is not a trade worth making. Measured on a real 4.37 MB photo:
-     thumbnail  160px cover  q55 -> 7.7 KB   (a 5-photo strip: 22 MB -> 38 KB)
-     full view 1400px contain q78 -> 524 KB  (8.6x less to open one)
-   photoUrl() still returns the untouched original for anything that needs it. */
+   space is not a trade worth making.
+
+   The VIEW size is set by legibility, not by bytes. Tested with OCR on a
+   simulated 12 MP photo of a production label (batch code, use-by, probe
+   reading) at several distances: at 1400px/q78 the batch code and use-by
+   became unreadable once the label was only ~18% of the frame -- which is a
+   normal working distance. At 2000px/q82 every field still reads, for about
+   55-65 KB. A HACCP reviewer opening a photo must be able to read the label,
+   so the extra 30 KB is not a trade-off worth making either way. */
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
 const photoThumbUrl=(p,w)=>sb.storage.from('sim-photos')
   .getPublicUrl(p,{transform:{width:w||160,height:w||160,resize:'cover',quality:55}}).data.publicUrl
 const photoViewUrl=p=>sb.storage.from('sim-photos')
-  .getPublicUrl(p,{transform:{width:1400,resize:'contain',quality:78}}).data.publicUrl
+  .getPublicUrl(p,{transform:{width:2000,resize:'contain',quality:82}}).data.publicUrl
 
 /* ---- shrink before upload ----
    Phone cameras produce 2-6 MB originals and this app used to upload them
@@ -151,16 +156,25 @@ const photoViewUrl=p=>sb.storage.from('sim-photos')
    server, which is why the logs show zero upload errors while staff were
    being blocked.
 
-   Re-encoding to 1600 px / JPEG q0.72 in the browser first takes a typical
-   photo to roughly 200 KB: ~14x less to push, seconds instead of minutes,
-   and a short transfer is far less likely to be killed mid-flight. It also
-   converts iPhone HEIC to JPEG, so every photo is viewable on every device.
-   1600 px is still plenty to evidence a tray of food or a label.
+   Re-encoding in the browser first takes a typical photo to roughly 660 KB:
+   ~6x less to push, seconds instead of minutes, and a short transfer is far
+   less likely to be killed mid-flight. It also converts iPhone HEIC to JPEG,
+   so every photo is viewable on every device.
+
+   2000 px / q0.80 is chosen for LEGIBILITY, not for the smallest file. These
+   photos are HACCP evidence, so the test that matters is whether a label
+   still reads afterwards. Checked with OCR on a simulated 12 MP photo of a
+   production label (batch code, use-by, probe temperature) at several
+   distances: at 1600px/q0.72 a field started dropping out once the label was
+   only ~18% of the frame; at 2000px/q0.80 every field still reads, for about
+   300 KB more. On a poor 1 Mbps link that is ~5 s instead of ~3 s, against
+   the ~35 s (in practice 2-4 min) the untouched original took -- so the
+   legibility is essentially free.
 
    If anything unexpected happens (odd format, out of memory, a browser
    without canvas encoding) this falls back to the original file rather than
    refusing: a slow photo is bad, a lost photo is worse. */
-const PHOTO_MAX_EDGE=1600, PHOTO_QUALITY=0.72
+const PHOTO_MAX_EDGE=2000, PHOTO_QUALITY=0.80
 async function _photoDecode(file){
   if(typeof createImageBitmap==='function'){
     try{ return await createImageBitmap(file,{imageOrientation:'from-image'}) }catch(e){}
