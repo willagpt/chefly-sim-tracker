@@ -21,12 +21,19 @@ function pill(kind, text, style){
 function meta(parts){ return (parts||[]).filter(Boolean).join(' · ') }
 
 // A tappable photo thumbnail strip that opens the shared lightbox.
-// paths: array of storage paths. size: px (default 54). Relies on photoUrl()/openLightboxEl() from core.js.
+// paths: array of storage paths. size: px (default 54).
+// Relies on photoThumbUrl()/photoViewUrl()/openLightboxEl() from core.js.
+//
+// The thumbnail src is the CDN-resized version (a few KB); only the lightbox
+// pulls the larger one. Both used to be the full original, so a five-photo
+// strip downloaded ~22 MB to draw five 54px squares -- the main reason the
+// history and dashboard screens crawled on a phone.
 function photoThumbs(paths, size){
   paths = paths || []
   if(!paths.length) return ''
-  const urls = paths.map(photoUrl); const lb = urls.join('|'); const s = size || 54
+  const s = size || 54
+  const lb = paths.map(photoViewUrl).join('|')
   return '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">' +
-    urls.map((u,i)=>`<img src="${u}" loading="lazy" data-lb="${lb}" data-i="${i}" onclick="openLightboxEl(this)" style="width:${s}px;height:${s}px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line)">`).join('') +
+    paths.map((p,i)=>`<img src="${photoThumbUrl(p, s*3)}" loading="lazy" data-lb="${lb}" data-i="${i}" onclick="openLightboxEl(this)" style="width:${s}px;height:${s}px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line)">`).join('') +
     '</div>'
 }
