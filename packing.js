@@ -554,10 +554,13 @@ window.packAddPhoto=function(id){
   const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.setAttribute('capture','environment')
   inp.onchange=async(ev)=>{
     const f=(ev.target.files||[])[0]; if(!f)return
-    const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
-    const path=`pack/${id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
-    const up=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
-    if(up.error){alert('Photo upload failed: '+up.error.message);return}
+    // Shrink first (shrinkPhoto is in core.js) -- a raw 2-6 MB camera photo
+    // takes minutes to push from the pack line and often dies part-way; the
+    // re-encoded ~200 KB version goes up in seconds. See core.js for detail.
+    const p=await shrinkPhoto(f)
+    const path=`pack/${id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${p.ext}`
+    const up=await sb.storage.from('sim-photos').upload(path,p.blob,{contentType:p.type})
+    if(up.error){alert('Photo upload failed.\n\n'+netErr(up.error));return}
     const r=packRuns.find(x=>x.id===id)
     const photos=[...((r&&r.notes_photos)||[]),path]
     const {error}=await sb.from('sim_pack_runs').update({notes_photos:photos}).eq('id',id)

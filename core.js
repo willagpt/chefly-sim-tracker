@@ -122,6 +122,61 @@ function photoGateOK(log){
 
 // ---- photos ----
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
+
+/* ---- shrink before upload ----
+   Phone cameras produce 2-6 MB originals and this app used to upload them
+   untouched, one after another. Measured 17 Aug 2026: 1,232 photos in the
+   bucket averaging 2.81 MB (435 of them over 3 MB, 3.4 GB in total) -- while
+   the SERVER handled each upload in about 274 ms. So none of the "2 to 4
+   minutes" the floor reported was the server: it was a phone pushing ~22
+   Mbit up a weak mobile link inside a metal-clad building. A transfer that
+   long on a flaky link is exactly what dies part-way and surfaces as
+   "Failed to fetch" -- and because it never completes it never reaches the
+   server, which is why the logs show zero upload errors while staff were
+   being blocked.
+
+   Re-encoding to 1600 px / JPEG q0.72 in the browser first takes a typical
+   photo to roughly 200 KB: ~14x less to push, seconds instead of minutes,
+   and a short transfer is far less likely to be killed mid-flight. It also
+   converts iPhone HEIC to JPEG, so every photo is viewable on every device.
+   1600 px is still plenty to evidence a tray of food or a label.
+
+   If anything unexpected happens (odd format, out of memory, a browser
+   without canvas encoding) this falls back to the original file rather than
+   refusing: a slow photo is bad, a lost photo is worse. */
+const PHOTO_MAX_EDGE=1600, PHOTO_QUALITY=0.72
+async function _photoDecode(file){
+  if(typeof createImageBitmap==='function'){
+    try{ return await createImageBitmap(file,{imageOrientation:'from-image'}) }catch(e){}
+    try{ return await createImageBitmap(file) }catch(e){}
+  }
+  return await new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), img=new Image()
+    img.onload=()=>{ URL.revokeObjectURL(url); res(img) }
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(new Error('decode failed')) }
+    img.src=url
+  })
+}
+async function shrinkPhoto(file){
+  const orig={blob:file, ext:((file.name||'').split('.').pop()||'jpg').toLowerCase(),
+              type:file.type||'image/jpeg', before:file.size, after:file.size, shrunk:false}
+  try{
+    const bmp=await _photoDecode(file)
+    const w=bmp.width||bmp.naturalWidth, h=bmp.height||bmp.naturalHeight
+    if(!w||!h) throw new Error('no dimensions')
+    const scale=Math.min(1, PHOTO_MAX_EDGE/Math.max(w,h))
+    const tw=Math.max(1,Math.round(w*scale)), th=Math.max(1,Math.round(h*scale))
+    const c=document.createElement('canvas'); c.width=tw; c.height=th
+    const ctx=c.getContext('2d'); if(!ctx) throw new Error('no canvas')
+    ctx.drawImage(bmp,0,0,tw,th)
+    if(bmp.close) bmp.close()
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',PHOTO_QUALITY))
+    // Never upload something we made BIGGER (already-small or already-compressed images).
+    if(!blob || blob.size>=file.size) return orig
+    return {blob, ext:'jpg', type:'image/jpeg', before:file.size, after:blob.size, shrunk:true}
+  }catch(e){ return orig }
+}
+const fmtBytes=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB'
 function renderPhotoStrip(id,log){
   const box=$(id); if(!box) return; box.innerHTML=''
   const paths=(log&&log.photos)||[]
@@ -150,16 +205,44 @@ window.uploadPhotosFor=async function(ev,logId,mode){
   const log=arr.find(x=>x.id===logId)
   if(!log){alert('Start the task first.');return}
   const files=[...(ev.target.files||[])]; ev.target.value=''
-  for(const f of files){
-    const ext=(f.name.split('.').pop()||'jpg').toLowerCase()
-    const path=`${log.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${ext}`
-    const up=await sb.storage.from('sim-photos').upload(path,f,{contentType:f.type||'image/jpeg'})
-    if(up.error){alert('Photo upload failed: '+up.error.message+'\n\nIf it keeps failing, ask a manager to finish the task.');continue}
-    log.photos=[...(log.photos||[]),path]
+  if(!files.length) return
+  const stripId=(mode==='kiosk'?'ph_k_':'ph_s_')+log.id
+  /* Say what is happening. Previously the screen sat silent for minutes with
+     no sign of life, so people assumed it had hung and tapped again -- which
+     started a second upload competing for the same weak connection. */
+  const say=t=>{ const el=$(stripId); if(el) el.innerHTML='<div class="muted" style="font-size:13px;padding:6px 0">'+t+'</div>' }
+  const n=files.length, plural=n>1?'s':''
+
+  say('Preparing '+n+' photo'+plural+'…')
+  const prepared=[]
+  for(const f of files) prepared.push(await shrinkPhoto(f))
+  const after=prepared.reduce((s,p)=>s+p.after,0)
+
+  let done=0
+  say('Uploading '+n+' photo'+plural+' ('+fmtBytes(after)+')…')
+  const results=await Promise.all(prepared.map(async p=>{
+    const path=`${log.id}/${Date.now()}-${Math.random().toString(36).slice(2,7)}.${p.ext}`
+    const up=await sb.storage.from('sim-photos').upload(path,p.blob,{contentType:p.type})
+    done++; say('Uploading… '+done+' of '+n)
+    return up.error?{err:up.error}:{path}
+  }))
+  const ok=results.filter(r=>r.path).map(r=>r.path), failed=results.filter(r=>r.err)
+
+  if(ok.length){
+    log.photos=[...(log.photos||[]),...ok]
     const u=await sb.from('sim_task_logs').update({photos:log.photos}).eq('id',log.id)
-    if(u.error){alert('Saved photo but could not attach it: '+u.error.message);continue}
+    if(u.error){
+      log.photos=(log.photos||[]).filter(x=>!ok.includes(x))
+      renderPhotoStrip(stripId,log)
+      alert('The photo uploaded but could not be attached to this task.\n\n'+netErr(u.error))
+      return
+    }
   }
-  renderPhotoStrip((mode==='kiosk'?'ph_k_':'ph_s_')+log.id, log)
+  renderPhotoStrip(stripId,log)
+  if(failed.length){
+    alert(failed.length+' of '+n+' photo'+plural+' did not upload.\n\n'+netErr(failed[0].err)+
+      (ok.length?'\n\nThe '+ok.length+' that did upload are saved — just add the missing one again.':''))
+  }
 }
 
 // ---- photo lightbox ----
