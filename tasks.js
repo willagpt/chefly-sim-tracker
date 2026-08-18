@@ -192,9 +192,22 @@ window.startTask=async function(){
   if(t.requires_product && !($('sProduct').value||'').trim()){msg($('logMsg'),'Choose or + add a product before starting.',false);return}
   const eqId=($('sEquip')&&$('sEquip').value)||null
   const planMin=($('sPlanMin')&&$('sPlanMin').value)?Number($('sPlanMin').value):null
-  const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,equipment_id:eqId,planned_minutes:planMin,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
-  if(error){msg($('logMsg'),isNetworkError(error)?netErr(error):equipBusyErr(error),false);await loadEquipState();populateEquipSelect('sEquip');return}
-  activeLogs.unshift(data);$('sProduct').value='';if($('sPlanMin'))$('sPlanMin').value='';clearMsg($('logMsg'));await loadEquipState();populateEquipSelect('sEquip');renderRunning()
+  /* Lock the button while this is in flight. On a slow connection the insert
+     took seconds with nothing changing on screen, so people tapped START
+     again -- and again. That is how 8 of the 32 stuck tasks were created:
+     four identical Brisket Trims inside four seconds, none of them ever
+     worked on. Without this, every attempt to clear them just refills the
+     list. Restored in finally{} so a failure never leaves it stuck. */
+  const btn=document.querySelector('button[onclick="startTask()"]')
+  const label=btn?btn.textContent:null
+  if(btn){ btn.disabled=true; btn.textContent='Starting…' }
+  try{
+    const {data,error}=await sb.from('sim_task_logs').insert({user_id:me.id,catalog_id:t.id,task_name:t.name,station:t.station,uom:t.uom||'kg',product:$('sProduct').value.trim()||null,staff_count:Number($('sStaff').value)||1,equipment_id:eqId,planned_minutes:planMin,start_time:new Date().toISOString(),status:'in_progress'}).select().single()
+    if(error){msg($('logMsg'),isNetworkError(error)?netErr(error):equipBusyErr(error),false);await loadEquipState();populateEquipSelect('sEquip');return}
+    activeLogs.unshift(data);$('sProduct').value='';if($('sPlanMin'))$('sPlanMin').value='';clearMsg($('logMsg'));await loadEquipState();populateEquipSelect('sEquip');renderRunning()
+  } finally {
+    if(btn){ btn.disabled=false; if(label!=null) btn.textContent=label }
+  }
 }
 window.stopTaskFor=async function(id){
   const l=activeLogs.find(x=>x.id===id); if(!l)return
