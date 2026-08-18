@@ -121,7 +121,23 @@ function photoGateOK(log){
 }
 
 // ---- photos ----
+/* Three sizes, because we were serving ONE: the full original, everywhere.
+   The 1,232 photos already in the bucket average 2.81 MB, so a task showing
+   five 48px thumbnails was pulling ~22 MB down a phone connection to draw
+   five postage stamps -- which is why history and dashboard screens crawled
+   on the floor. Storage image transformation is enabled on this project, so
+   the resizing happens at the CDN and the stored originals are never
+   touched. That matters: these photos are the evidence attached to a
+   completed task, and quietly re-compressing food-production records to save
+   space is not a trade worth making. Measured on a real 4.37 MB photo:
+     thumbnail  160px cover  q55 -> 7.7 KB   (a 5-photo strip: 22 MB -> 38 KB)
+     full view 1400px contain q78 -> 524 KB  (8.6x less to open one)
+   photoUrl() still returns the untouched original for anything that needs it. */
 const photoUrl=p=>sb.storage.from('sim-photos').getPublicUrl(p).data.publicUrl
+const photoThumbUrl=(p,w)=>sb.storage.from('sim-photos')
+  .getPublicUrl(p,{transform:{width:w||160,height:w||160,resize:'cover',quality:55}}).data.publicUrl
+const photoViewUrl=p=>sb.storage.from('sim-photos')
+  .getPublicUrl(p,{transform:{width:1400,resize:'contain',quality:78}}).data.publicUrl
 
 /* ---- shrink before upload ----
    Phone cameras produce 2-6 MB originals and this app used to upload them
@@ -180,10 +196,11 @@ const fmtBytes=n=>n>=1048576?(n/1048576).toFixed(1)+' MB':Math.max(1,Math.round(
 function renderPhotoStrip(id,log){
   const box=$(id); if(!box) return; box.innerHTML=''
   const paths=(log&&log.photos)||[]
-  const urls=paths.map(photoUrl); const lb=urls.join('|')
+  // Thumbnails load the tiny version; the lightbox gets the large-but-not-original one.
+  const lb=paths.map(photoViewUrl).join('|')
   paths.forEach((p,idx)=>{
     const wrap=document.createElement('div'); wrap.className='pwrap'
-    const img=document.createElement('img'); img.src=urls[idx]; img.loading='lazy'; img.style.cursor='zoom-in'
+    const img=document.createElement('img'); img.src=photoThumbUrl(p,160); img.loading='lazy'; img.style.cursor='zoom-in'
     img.dataset.lb=lb; img.dataset.i=idx; img.onclick=()=>openLightboxEl(img)
     wrap.appendChild(img)
     const x=document.createElement('button'); x.className='del'; x.textContent='✕'; x.title='Remove photo'
