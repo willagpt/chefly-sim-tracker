@@ -53,6 +53,7 @@ window.loadWholesale=async function(){
     const {data:lots}=await sb.from('sim_ws_pack_lots').select('*').eq('week_id',wsWeek.id).order('lot_no'); wsLots=lots||[]
     if(wsLots.length){const {data:us}=await sb.from('sim_ws_lot_usage').select('*').in('lot_id',wsLots.map(l=>l.id)); wsUsage=us||[]} else wsUsage=[]
   } else {wsLots=[]; wsUsage=[]}
+  await wsShipLoad()
   renderWs()
   subscribeWs()
 }
@@ -525,7 +526,7 @@ function wsSetupView(){
 /* ================= render ================= */
 function renderWs(){
   const box=$('wsBody'); if(!box)return
-  const views=wsCanPlan()?[['plan','Plan'],['stock','Stock'],['pack','Pack day'],['setup','Setup']]:[['pack','Pack day'],['stock','Stock']]
+  const views=wsCanPlan()?[['plan','Plan'],['stock','Stock'],['pack','Pack day'],['ship','Shipments'],['setup','Setup']]:[['pack','Pack day'],['stock','Stock']]
   if(!views.some(x=>x[0]===wsView)) wsView=views[0][0]
   const bar='<div class="card" style="padding:10px 12px"><div style="display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden">'+
     views.map(([k,l],i)=>`<span onclick="setWsView('${k}')" style="padding:6px 14px;font-size:13px;cursor:pointer;${wsView===k?'background:var(--accent);color:#0b1220;font-weight:700':'color:var(--muted)'}${i?';border-left:1px solid var(--line)':''}">${l}</span>`).join('')+
@@ -534,6 +535,7 @@ function renderWs(){
   if(wsView==='plan') body=wsTargetsCard()+wsPlanTable()
   else if(wsView==='stock') body=wsStockView()
   else if(wsView==='pack') body=wsPackView()
+  else if(wsView==='ship') body=wsShipView()
   else body=wsSetupView()
   box.innerHTML=bar+body
 }
