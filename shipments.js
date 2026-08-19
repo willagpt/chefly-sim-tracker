@@ -284,48 +284,87 @@ function wsPalletList(s){
 }
 
 function wsPackCss(){
-  return `@page{size:A4;margin:14mm}
+  return `@page{size:A4;margin:0}
   *{box-sizing:border-box}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111;margin:0;font-size:12px}
-  .page{page-break-after:always;min-height:255mm;display:flex;flex-direction:column}
-  .page:last-child{page-break-after:auto}
-  .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:8px}
-  .brand{font-size:26px;font-weight:800;letter-spacing:3px;line-height:1}
-  .brand small{display:block;font-size:9px;letter-spacing:4px;font-weight:600;margin-bottom:2px}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111;font-size:11.5px;background:#eceef1;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* One .page = one sheet of A4, on screen and on paper. Screen shows it as a
+     white card on grey so the pack reads as documents rather than one long
+     scroll; print drops the card and fixes the height so Chrome cannot spill a
+     trailing blank page. */
+  .page{width:210mm;min-height:297mm;padding:15mm;background:#fff;margin:18px auto;
+        box-shadow:0 2px 16px rgba(15,23,42,.16);display:flex;flex-direction:column}
+  @media print{
+    body{background:#fff}
+    .page{width:auto;min-height:0;height:296mm;margin:0;box-shadow:none;page-break-after:always;break-after:page}
+    .page:last-child{page-break-after:auto;break-after:auto}
+  }
+
+  .bar{position:sticky;top:0;z-index:5;padding:11px 18px;background:#0f172a;color:#fff;
+       display:flex;justify-content:space-between;align-items:center;gap:14px;font-size:13px}
+  .bar b{font-weight:700;letter-spacing:.5px}
+  .bar span{color:#94a3b8}
+  .bar button{font:inherit;font-weight:700;padding:8px 18px;border-radius:7px;border:0;background:#fff;color:#0f172a;cursor:pointer}
+  .hint{max-width:210mm;margin:14px auto -4px;font-size:12px;color:#64748b;padding:0 4px}
+
+  .top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #111;padding-bottom:9px}
+  .brand{font-size:25px;font-weight:800;letter-spacing:3px;line-height:1}
+  .brand small{display:block;font-size:8px;letter-spacing:4px;font-weight:700;color:#666;margin-bottom:3px}
   .doctype{text-align:right}
-  .doctype h1{font-size:19px;margin:0;letter-spacing:2px;text-transform:uppercase}
-  .doctype div{font-size:10px;color:#555;margin-top:3px;letter-spacing:1px}
-  .cols{display:flex;gap:28px;margin-top:20px}
+  .doctype h1{font-size:18px;margin:0;letter-spacing:2px;text-transform:uppercase;line-height:1}
+  .doctype div{font-size:9.5px;color:#666;margin-top:4px;letter-spacing:1px}
+  .lbl{font-size:8px;letter-spacing:2px;color:#777;text-transform:uppercase;margin-bottom:6px}
+
+  .cols{display:flex;gap:26px;margin-top:22px}
   .cols>div{flex:1}
-  .lbl{font-size:9px;letter-spacing:2px;color:#666;text-transform:uppercase;margin-bottom:6px}
-  .who{font-size:15px;font-weight:700}
-  .sub{color:#444;margin-top:3px;line-height:1.5}
-  .kv{margin:2px 0;color:#333}
+  .who{font-size:14.5px;font-weight:700;line-height:1.3}
+  .sub{color:#444;margin-top:3px;line-height:1.55}
+  .kv{margin:3px 0;color:#444}
   .kv b{color:#111}
-  .stats{display:flex;gap:10px;margin:26px 0;text-align:center}
-  .stat{flex:1;border:1px solid #ddd;border-radius:6px;padding:14px 6px}
-  .stat .n{font-size:28px;font-weight:800;line-height:1}
-  .stat .t{font-size:8px;letter-spacing:2px;color:#666;text-transform:uppercase;margin-top:6px}
-  table{width:100%;border-collapse:collapse;margin-top:6px}
-  th{font-size:9px;letter-spacing:1.5px;color:#666;text-transform:uppercase;text-align:left;padding:6px 8px;border-bottom:1px solid #ccc}
-  td{padding:7px 8px;border-bottom:1px solid #eee}
-  .num{text-align:right}
-  tr.sub td{color:#666;font-size:11px;border-bottom:1px solid #ddd}
-  tr.tot td{font-weight:800;border-top:2px solid #111;border-bottom:none}
-  .sign{margin-top:auto;padding-top:26px;display:flex;gap:20px}
-  .sign div{flex:1;border-top:1px solid #111;padding-top:5px;font-size:8px;letter-spacing:1.5px;color:#666;text-transform:uppercase}
-  .foot{margin-top:14px;padding-top:7px;border-top:1px solid #ddd;display:flex;justify-content:space-between;font-size:8px;color:#888}
-  .label-body{flex:1;display:flex;flex-direction:column;justify-content:space-around;text-align:center;padding:14mm 0}
-  .pnum{font-size:96px;font-weight:800;line-height:.95}
-  .pof{font-size:26px;color:#555;font-weight:700}
-  .plbl{font-size:10px;letter-spacing:4px;color:#666;text-transform:uppercase;margin-top:2px}
-  .prod{font-size:34px;font-weight:700;margin:0;padding:18px 8px;border-top:2px solid #111;border-bottom:2px solid #111}
-  .lgrid{display:flex;gap:10px;text-align:left}
-  .lgrid>div{flex:1}
-  .lgrid .v{font-size:22px;font-weight:700;margin-top:5px}
-  .noprint{padding:10px 14px;background:#111;color:#fff;display:flex;justify-content:space-between;align-items:center;font-size:13px}
-  .noprint button{font:inherit;padding:6px 16px;border-radius:6px;border:0;background:#fff;color:#111;font-weight:700;cursor:pointer}
-  @media print{.noprint{display:none}}`
+
+  .stats{display:flex;gap:11px;margin:24px 0 26px;text-align:center}
+  .stat{flex:1;border:1px solid #dfe3e8;border-radius:7px;padding:15px 6px}
+  .stat .n{font-size:29px;font-weight:800;line-height:1;letter-spacing:-.5px}
+  .stat .t{font-size:7.5px;letter-spacing:2px;color:#777;text-transform:uppercase;margin-top:7px}
+
+  table{width:100%;border-collapse:collapse}
+  th{font-size:8px;letter-spacing:1.5px;color:#777;text-transform:uppercase;text-align:left;padding:7px 9px;border-bottom:1px solid #cbd2d9}
+  td{padding:8px 9px;border-bottom:1px solid #eef1f4}
+  .num{text-align:right;white-space:nowrap}
+  tr.subt td{color:#777;font-size:10.5px;background:#fafbfc;border-bottom:1px solid #e3e8ed}
+  tr.tot td{font-weight:800;border-top:2px solid #111;border-bottom:none;padding-top:10px}
+
+  /* Fills what used to be dead space on the note with something the driver can
+     actually use, rather than padding the page out. */
+  .notes{flex:1;display:flex;flex-direction:column;margin-top:24px;min-height:34mm}
+  .notesBox{flex:1;border:1px solid #dfe3e8;border-radius:7px;
+    background-image:repeating-linear-gradient(#fff 0 27px,#eef1f4 27px 28px)}
+  .sign{margin-top:26px;display:flex;gap:18px}
+  .sign div{flex:1;border-top:1px solid #111;padding-top:6px;font-size:7.5px;letter-spacing:1.5px;color:#666;text-transform:uppercase}
+  .foot{margin-top:16px;padding-top:8px;border-top:1px solid #e3e8ed;display:flex;justify-content:space-between;gap:12px;font-size:7.5px;color:#94a3b8}
+
+  /* ---- pallet label: read from across the warehouse ---- */
+  .label{padding:13mm}
+  .lpoV{font-size:19px;font-weight:800;letter-spacing:3.5px;line-height:1}
+  .lnum{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        border-bottom:1px solid #dfe3e8;padding:8px 0}
+  .lnumBig{font-size:165px;font-weight:800;line-height:.82;letter-spacing:-6px}
+  .lnumOf{font-size:29px;font-weight:700;color:#5b6774;margin-top:8px;letter-spacing:1px}
+  .lnumCap{font-size:10px;letter-spacing:9px;color:#777;text-transform:uppercase;margin-bottom:14px;padding-left:9px}
+  .lprod{padding:15px 0;border-bottom:1px solid #dfe3e8}
+  .lprodV{font-size:27px;font-weight:700;line-height:1.15;margin-top:5px}
+  .lrow{display:flex;border-bottom:1px solid #dfe3e8}
+  .lcell{flex:1;padding:15px 0}
+  .lcell+.lcell{border-left:1px solid #dfe3e8;padding-left:20px}
+  .lcellV{font-size:42px;font-weight:800;line-height:1;margin-top:7px;letter-spacing:-1px}
+  .ldest{padding:15px 0 0}
+  .ldestV{font-size:19px;font-weight:700;margin-top:5px}
+  .ldestA{color:#5b6774;margin-top:3px;line-height:1.5}
+
+  /* Last, so it beats the display:flex on .bar above -- otherwise the toolbar
+     prints as a page of its own and every pack comes out one page long. */
+  @media print{.bar,.hint{display:none !important}}`
 }
 
 function wsPackHtml(s){
@@ -337,11 +376,12 @@ function wsPackHtml(s){
   const po=esc(s.po_number), prod=esc(s.product_name)
   const dateLong=esc(wsShipDateLong(s.dispatch_date))
   const brand='<div class="brand"><small>LTD</small>WILLA</div>'
-  const foot=`<div class="foot"><span>Willa Ltd · Unit 17, 250 Milkwood Rd, London SE24 0HG</span><span>${collect?'Collection':'Delivery'} Note · ${po}</span><span>Goods ${collect?'collected':'received'} in good condition unless noted above</span></div>`
+  const foot=(title,right)=>`<div class="foot"><span>Willa Ltd · Unit 17, 250 Milkwood Rd, London SE24 0HG</span><span>${title} · ${po}</span><span>${right==null?`Goods ${collect?'collected':'received'} in good condition unless noted above`:right}</span></div>`
+  const noteTitle=collect?'Collection Note':'Delivery Note'
 
   // Page 1 -- delivery (or collection) note
   let h=`<div class="page">
-    <div class="top">${brand}<div class="doctype"><h1>${collect?'Collection Note':'Delivery Note'}</h1><div>Ref / PO · ${po}</div></div></div>
+    <div class="top">${brand}<div class="doctype"><h1>${noteTitle}</h1><div>Ref / PO · ${po}</div></div></div>
     <div class="cols">
       <div>
         <div class="lbl">${collect?'Collected by':'Deliver to'}</div>
@@ -360,17 +400,23 @@ function wsPackHtml(s){
     <div class="stats">
       <div class="stat"><div class="n">${wsShipNum(t.pallets)}</div><div class="t">Pallet${t.pallets===1?'':'s'}</div></div>
       <div class="stat"><div class="n">${wsShipNum(t.meals)}</div><div class="t">Meals</div></div>
+      <div class="stat"><div class="n">${wsShipNum(t.trays)}</div><div class="t">Trays</div></div>
       <div class="stat"><div class="n">${wsShipNum(t.configs)}</div><div class="t">Configuration${t.configs===1?'':'s'}</div></div>
     </div>
     <div class="lbl">Consignment breakdown</div>
-    <table><tbody>
-      ${lines.map(l=>`<tr><td style="width:22%">${esc(l.config)}</td><td>${prod}</td><td class="num">${wsShipNum(l.meals)}</td></tr>`).join('')}
-      <tr class="tot"><td>Total</td><td>${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'}</td><td class="num">${wsShipNum(t.meals)}</td></tr>
+    <table><thead><tr><th style="width:24%">Configuration</th><th>Product</th><th class="num">Trays</th><th class="num">Pallets</th><th class="num">Meals</th></tr></thead><tbody>
+      ${lines.map(l=>{const c=wsShipCalc(l,s.trays_per_pallet)
+        return `<tr><td>${esc(l.config)}</td><td>${prod}</td><td class="num">${wsShipNum(c.trays)}</td><td class="num">${wsShipNum(c.pallets)}</td><td class="num">${wsShipNum(c.meals)}</td></tr>`}).join('')}
+      <tr class="tot"><td>Total</td><td>${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'}</td><td class="num">${wsShipNum(t.trays)}</td><td class="num">${wsShipNum(t.pallets)}</td><td class="num">${wsShipNum(t.meals)}</td></tr>
     </tbody></table>
+    <div class="notes">
+      <div class="lbl">Notes, shortages or damage on ${collect?'collection':'delivery'}</div>
+      <div class="notesBox"></div>
+    </div>
     <div class="sign">
       <div>${collect?'Collected by (print name)':'Received by (print name)'}</div><div>Signature</div><div>Date &amp; time</div>
     </div>
-    ${foot}
+    ${foot(noteTitle)}
   </div>`
 
   // Page 2 -- packing list, pallet by pallet
@@ -380,49 +426,62 @@ function wsPackHtml(s){
     let r=''
     for(let i=0;i<c.fullPallets;i++){ n++; r+=`<tr><td>${String(n).padStart(2,'0')}</td><td>${esc(l.config)}</td><td>${prod}</td><td class="num">${wsShipNum(c.mealsPerFullPallet)}</td></tr>` }
     if(c.lastPalletMeals>0){ n++; r+=`<tr><td>${String(n).padStart(2,'0')}</td><td>${esc(l.config)}</td><td>${prod}</td><td class="num">${wsShipNum(c.lastPalletMeals)}</td></tr>` }
-    r+=`<tr class="sub"><td></td><td colspan="2">${esc(l.config)} subtotal</td><td class="num">${wsShipNum(c.meals)}</td></tr>`
+    r+=`<tr class="subt"><td></td><td colspan="2">${esc(l.config)} subtotal — ${wsShipNum(c.trays)} trays across ${wsShipNum(c.pallets)} pallet${c.pallets===1?'':'s'}</td><td class="num">${wsShipNum(c.meals)}</td></tr>`
     return r
   }).join('')
 
   h+=`<div class="page">
     <div class="top">${brand}<div class="doctype"><h1>Packing List</h1><div>Ref / PO · ${po}</div></div></div>
-    <div class="cols" style="margin-top:16px">
-      <div><div class="lbl">${collect?'Collected by':'Deliver to'}</div><div class="who" style="font-size:13px">${esc(d.name||'')}</div></div>
-      <div><div class="lbl">Product</div><div class="who" style="font-size:13px">${prod}</div></div>
-      <div><div class="lbl">${collect?'Collection date':'Dispatch date'}</div><div class="who" style="font-size:13px">${dateLong}</div></div>
+    <div class="cols">
+      <div><div class="lbl">${collect?'Collected by':'Deliver to'}</div><div class="who">${esc(d.name||'')}</div></div>
+      <div><div class="lbl">Product</div><div class="who">${prod}</div></div>
+      <div style="flex:0 0 30%"><div class="lbl">${collect?'Collection date':'Dispatch date'}</div><div class="who">${dateLong}</div></div>
     </div>
-    <table>
-      <thead><tr><th>Pallet</th><th>Configuration</th><th>Product</th><th class="num">Meals</th></tr></thead>
-      <tbody>${palletRows}
-        <tr class="tot"><td>Total</td><td colspan="2">${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'}</td><td class="num">${wsShipNum(t.meals)}</td></tr>
-      </tbody>
-    </table>
-    <div style="margin-top:14px;font-size:10px;color:#666">All quantities verified at dispatch. Configuration subtotals: ${lines.map(l=>esc(l.config)+' '+wsShipNum(l.meals)).join(' · ')} · Grand total ${wsShipNum(t.meals)} meals across ${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'}. Trays: ${wsShipNum(t.trays)}.</div>
-    ${foot}
+    <div style="margin-top:22px">
+      <table>
+        <thead><tr><th style="width:12%">Pallet</th><th style="width:22%">Configuration</th><th>Product</th><th class="num">Meals</th></tr></thead>
+        <tbody>${palletRows}
+          <tr class="tot"><td>Total</td><td colspan="2">${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'} · ${wsShipNum(t.trays)} trays</td><td class="num">${wsShipNum(t.meals)}</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <div class="lbl">Notes</div>
+      <div class="notesBox"></div>
+    </div>
+    ${foot('Packing List', 'All quantities verified at dispatch')}
   </div>`
 
   // Pages 3+ -- one label per pallet
   if(d.pallet_labels){
     pallets.forEach((p,i)=>{
-      h+=`<div class="page">
-        <div class="top">${brand}<div class="doctype"><div style="font-size:9px;letter-spacing:2px;color:#666;text-transform:uppercase">PO Number</div><h1 style="letter-spacing:4px">${po}</h1></div></div>
-        <div class="label-body">
-          <div><div><span class="pnum">${i+1}</span> <span class="pof">/ ${pallets.length}</span></div><div class="plbl">Pallet</div></div>
-          <div class="prod">${prod}</div>
-          <div class="lgrid">
-            <div><div class="lbl">Destination</div><div class="v">${esc(d.name||'')}</div></div>
-            <div><div class="lbl">Configuration</div><div class="v">${esc(p.config)}</div></div>
-            <div><div class="lbl">Meals</div><div class="v">${wsShipNum(p.meals)}</div></div>
-          </div>
+      h+=`<div class="page label">
+        <div class="top">${brand}<div class="doctype"><div class="lbl" style="margin-bottom:4px">PO Number</div><div class="lpoV">${po}</div></div></div>
+        <div class="lnum">
+          <div class="lnumCap">Pallet</div>
+          <div class="lnumBig">${i+1}</div>
+          <div class="lnumOf">of ${pallets.length}</div>
         </div>
-        <div class="foot" style="justify-content:center"><span>Willa Ltd · ${po} · Pallet ${i+1} of ${pallets.length}</span></div>
+        <div class="lprod"><div class="lbl">Product</div><div class="lprodV">${prod}</div></div>
+        <div class="lrow">
+          <div class="lcell"><div class="lbl">Configuration</div><div class="lcellV">${esc(p.config)}</div></div>
+          <div class="lcell"><div class="lbl">Meals on this pallet</div><div class="lcellV">${wsShipNum(p.meals)}</div></div>
+        </div>
+        <div class="ldest">
+          <div class="lbl">${collect?'Collected by':'Deliver to'}</div>
+          <div class="ldestV">${esc(d.name||'')}</div>
+          ${d.address_line?`<div class="ldestA">${esc(d.address_line)}</div>`:''}
+          ${d.sub_label?`<div class="ldestA">${esc(d.sub_label)}</div>`:''}
+        </div>
+        ${foot('Pallet '+(i+1)+' of '+pallets.length, esc(s.product_name)+' · '+dateLong)}
       </div>`
     })
   }
 
   const pageCount=2+(d.pallet_labels?pallets.length:0)
   return `<!doctype html><html><head><meta charset="utf-8"><title>${po} — ${collect?'collection':'shipping'} pack</title><style>${wsPackCss()}</style></head><body>
-    <div class="noprint"><span>${po} · ${pageCount} page${pageCount===1?'':'s'} · ${wsShipNum(t.pallets)} pallets · ${wsShipNum(t.meals)} meals · ${wsShipNum(t.trays)} trays</span><button onclick="window.print()">Print / Save as PDF</button></div>
+    <div class="bar"><span><b>${po}</b> &nbsp;·&nbsp; ${pageCount} page${pageCount===1?'':'s'} &nbsp;·&nbsp; ${wsShipNum(t.pallets)} pallets &nbsp;·&nbsp; ${wsShipNum(t.meals)} meals &nbsp;·&nbsp; ${wsShipNum(t.trays)} trays</span><button onclick="window.print()">Print / Save as PDF</button></div>
+    <div class="hint">In the print dialog set Margins to <b>None</b> and untick <b>Headers and footers</b>, or Chrome adds its own date and page numbers over the top of the pack.</div>
     ${h}</body></html>`
 }
 
