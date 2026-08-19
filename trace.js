@@ -599,7 +599,23 @@ window.mmReceiveChecked=async function(){
   const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'receive',date:today,order:{number:o.number,supplier:o.supplier},lines:picked}})
   if(error||!data||data.error){alert((data&&data.error)||(error&&error.message)||'Receive failed');return}
   o.received_date=today
-  alert('✓ '+data.received+' lines logged into GoodsIn.\n\nTRACEABILITY CODE: '+code+'\nWrite this date on the sticker of every item in this delivery.\n\n'+(data.mm_confirmed?'Receipt confirmed in MarketMan.':'MarketMan not auto-confirmed — mark it received in MarketMan as usual.')+(data.errors&&data.errors.length?('\n\nIssues:\n'+data.errors.join('\n')):''))
+  /* When MarketMan does not auto-confirm, say WHY. sim-marketman already
+     records every attempt it made (endpoint, HTTP status, MarketMan's own
+     error text) in mm_attempts, but that was thrown away and the floor just
+     saw "not auto-confirmed" -- so the duplicate work looked like the design
+     rather than a fault nobody could see. The reason line below is what tells
+     us whether the endpoint is wrong (404) or the order identifier is
+     (an error message), which is the difference between a five-minute fix and
+     a guess. Kept to one short line; the full detail goes to the console. */
+  let mmLine
+  if(data.mm_confirmed){ mmLine='Receipt confirmed in MarketMan — nothing else to do.' }
+  else{
+    const a=(data.mm_attempts||[]).filter(x=>x&&(x.err||x.status))
+    const why=a.length?a.map(x=>(x.path||'').split('/').pop()+': '+(x.err||('HTTP '+x.status))).join(' · '):'no response recorded'
+    mmLine='MarketMan not auto-confirmed — mark it received in MarketMan as usual.\n\nReason: '+why
+    try{ console.log('[MarketMan receive] attempts:', data.mm_attempts) }catch(e){}
+  }
+  alert('✓ '+data.received+' lines logged into GoodsIn.\n\nTRACEABILITY CODE: '+code+'\nWrite this date on the sticker of every item in this delivery.\n\n'+mmLine+(data.errors&&data.errors.length?('\n\nIssues:\n'+data.errors.join('\n')):''))
   await trEnsureIngredients(true); await trEnsureLots(true); renderIngredientList(); populateGiIngSelect(); renderGoodsInList(); populateTraceLotSelect()
   mmRenderList()
 }
