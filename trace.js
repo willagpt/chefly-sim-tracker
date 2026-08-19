@@ -194,11 +194,24 @@ window.removeBatchInput=async function(id){
 
 // ---- MarketMan expected deliveries ----
 let _mmSel=null
+/* This list is LIVE. Every tap calls MarketMan's API directly (sim-marketman,
+   action 'expected'). Nothing is cached and no sync job feeds it, so an order
+   placed in MarketMan a minute ago appears as soon as it is loaded again --
+   waiting achieves nothing, and people did wait.
+
+   What actually hid new orders was the window. MarketMan is asked for orders
+   whose DELIVERY date falls inside it, and that was fixed at 7 days ahead, so
+   an order placed today for delivery in a fortnight was invisible however many
+   times anyone reloaded -- with nothing on screen to say why. 30 days forward
+   covers a normal ordering horizon, and the range is now shown above the list
+   so an order falling outside it reads as out-of-range rather than missing. */
+const MM_DAYS_BACK=14, MM_DAYS_FWD=30
+let _mmCheckedAt=null
 window.loadExpected=async function(){
-  const box=$('mmBody'); if(!box)return; box.innerHTML='<p class="muted">Loading from MarketMan…</p>'
-  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'expected',days_back:14,days_forward:7}})
+  const box=$('mmBody'); if(!box)return; box.innerHTML='<p class="muted">Checking MarketMan…</p>'
+  const {data,error}=await sb.functions.invoke('sim-marketman',{body:{action:'expected',days_back:MM_DAYS_BACK,days_forward:MM_DAYS_FWD}})
   if(error||!data||data.error||data.ok===false){box.innerHTML='<p class="muted">'+esc((data&&data.error)||(error&&error.message)||'Could not reach MarketMan.')+'</p>';return}
-  _mmOrders=data.orders||[]; _mmSel=null
+  _mmOrders=data.orders||[]; _mmSel=null; _mmCheckedAt=new Date()
   const nums=_mmOrders.filter(o=>o.number).map(o=>'MM '+o.number)
   if(nums.length){
     const {data:recs}=await sb.from('sim_goods_in').select('invoice_ref,received_date').in('invoice_ref',nums).eq('active',true)
@@ -207,10 +220,18 @@ window.loadExpected=async function(){
   }
   mmRenderList()
 }
+function mmRangeNote(){
+  const f=new Date(Date.now()-MM_DAYS_BACK*864e5), t=new Date(Date.now()+MM_DAYS_FWD*864e5)
+  const d=x=>x.toLocaleDateString('en-GB',{day:'numeric',month:'short'})
+  return '<p class="muted" style="font-size:12px;margin:0 0 8px">Live from MarketMan'
+    +(_mmCheckedAt?' · checked '+_mmCheckedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'')
+    +' · showing deliveries due '+d(f)+' – '+d(t)
+    +'. Just placed an order? Tap Load again — this reads MarketMan live, there is nothing to wait for.</p>'
+}
 function mmRenderList(){
   const box=$('mmBody'); if(!box)return
-  if(!_mmOrders.length){box.innerHTML='<p class="muted">No open orders in the last 14 days / next 7 days.</p>';return}
-  box.innerHTML=_mmOrders.map((o,i)=>{
+  if(!_mmOrders.length){box.innerHTML=mmRangeNote()+'<p class="muted">No orders due in that range. If you have just placed one, check its delivery date falls inside the range above — and that it has been sent to the supplier in MarketMan, not left as a draft.</p>';return}
+  box.innerHTML=mmRangeNote()+_mmOrders.map((o,i)=>{
     const exp=String(o.expected||'').split(' ')[0]
     const done=!!o.received_date
     const badge=done?` <span class="pill done">✓ in GoodsIn · ${esc(giCode({received_date:o.received_date}))}</span>`:''
