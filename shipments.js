@@ -16,12 +16,16 @@
    Lives inside the Wholesale tab as the 'Shipments' view. */
 
 let wsDests=[], wsShips=[], wsShipLines=[], wsShipNewOpen=false
+let wsShipSel=new Set()   // shipments ticked to print as one combined pack
 
 // [label, tray capacity]. Large trays hold fewer because the meals are bigger.
 const WS_CONFIGS=[['Standard',30],['Large',24],['Lean',30]]
 const WS_TRAYS_PER_PALLET=45
 
 function wsShipDestOf(id){return wsDests.find(d=>d.id===id)}
+// Both Coolpack rows are legally 'Coolpack Solutions'; short_label is what
+// distinguishes them on screen. The full name still prints on the paperwork.
+function wsShipDestName(d){return d?(d.short_label||d.name||''):''}
 function wsShipLinesOf(id){return wsShipLines.filter(l=>l.shipment_id===id).sort((a,b)=>a.sort_order-b.sort_order)}
 function wsShipCapOf(config){const r=WS_CONFIGS.find(c=>c[0]===config);return r?r[1]:30}
 
@@ -86,6 +90,9 @@ async function wsShipLoad(){
     const {data:ln}=await sb.from('sim_ws_shipment_lines').select('*').in('shipment_id', wsShips.map(s=>s.id))
     wsShipLines=ln||[]
   } else wsShipLines=[]
+  // Changing week must not leave last week's ticks armed.
+  const ids=new Set(wsShips.map(x=>x.id))
+  wsShipSel.forEach(id=>{ if(!ids.has(id)) wsShipSel.delete(id) })
 }
 
 /* Prefill the new-shipment form from the week's agreed targets, so the common
@@ -177,7 +184,7 @@ window.wsShipDelete=async function(id, po){
 function wsShipNewCard(){
   const pre=wsShipPrefill(), prod=wsShipPrefillProduct()
   const dOpts='<option value="">Destination…</option>'+wsDests.filter(d=>d.active)
-    .map(d=>`<option value="${d.id}">${esc(d.name)}${d.sub_label?' — '+esc(d.sub_label):''}</option>`).join('')
+    .map(d=>`<option value="${d.id}">${esc(wsShipDestName(d))} — ${esc(d.name)}${d.mode==='collection'?' (collection)':''}</option>`).join('')
   const qty=WS_CONFIGS.map(([name,cap])=>`
     <div><label style="font-size:12px;color:var(--muted)">${name} <span style="opacity:.7">(${cap}/tray)</span></label>
     <input id="wsShipQty_${name}" type="number" min="0" value="${pre[name]===''?'':esc(pre[name])}" style="width:100%" /></div>`).join('')
@@ -231,12 +238,16 @@ function wsShipCard(s){
   if(s.status!=='cancelled') actions.push(`<button class="ghost sm" onclick="wsShipSetStatus('${s.id}','cancelled')">Cancel</button>`)
   actions.push(`<button class="ghost sm" onclick="wsShipDelete('${s.id}','${esc(s.po_number)}')">Delete</button>`)
 
+  const ticked=wsShipSel.has(s.id)
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
-      <div>
-        <h2 style="margin:0">${esc(d?d.name:'—')}</h2>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px">
-          ${esc(s.po_number)} · ${esc(s.product_name)} · ${wsShipNoun(d).toLowerCase()} ${esc(wsShipDateLong(s.dispatch_date))}
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <input type="checkbox" ${ticked?'checked':''} onchange="wsShipToggleSel('${s.id}')" title="Tick to print with another shipment as one pack" style="width:17px;height:17px;margin-top:4px;flex:0 0 auto;cursor:pointer" />
+        <div>
+          <h2 style="margin:0">${esc(wsShipDestName(d))}</h2>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">
+            ${esc(s.po_number)} · ${esc(s.product_name)} · ${wsShipNoun(d).toLowerCase()} ${esc(wsShipDateLong(s.dispatch_date))}
+          </div>
         </div>
       </div>
       ${statusPill}
@@ -264,9 +275,38 @@ function wsShipView(){
   if(wsShipNewOpen) h+=wsShipNewCard()
   if(!wsShips.length && !wsShipNewOpen)
     h+='<div class="card"><p class="muted">No shipments for this week yet.</p></div>'
+  h+=wsShipSelBar()
   h+=wsShips.map(wsShipCard).join('')
   return h
 }
+
+/* Coolpack UK and Coolpack Ireland leave on the same day to the same place, so
+   they are printed as one document -- each keeping its own PO, its own note and
+   its own page count, exactly like the combined pack was being assembled by
+   hand. Tick any two or more; it is not limited to Coolpack. */
+function wsShipSelBar(){
+  const picked=wsShips.filter(x=>wsShipSel.has(x.id))
+  if(!picked.length) return ''
+  const t=picked.reduce((a,x)=>{const n=wsShipTotals(x);a.meals+=n.meals;a.trays+=n.trays;a.pallets+=n.pallets;return a},{meals:0,trays:0,pallets:0})
+  const names=picked.map(x=>esc(x.po_number)).join(' + ')
+  const one=picked.length===1
+  return `<div class="card" style="border:1px solid var(--accent);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+      <b style="font-size:14px">${picked.length} shipment${one?'':'s'} ticked</b>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${names}${one?' — tick another to print them as one pack':` · ${wsShipNum(t.pallets)} pallets · ${wsShipNum(t.meals)} meals · ${wsShipNum(t.trays)} trays`}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${one?'':`<button onclick="wsPrintCombined()">Print ${picked.length} together</button>`}
+      <button class="ghost sm" onclick="wsShipClearSel()">Clear</button>
+    </div>
+  </div>`
+}
+
+window.wsShipToggleSel=function(id){
+  if(wsShipSel.has(id)) wsShipSel.delete(id); else wsShipSel.add(id)
+  renderWs()
+}
+window.wsShipClearSel=function(){ wsShipSel.clear(); renderWs() }
 
 /* ================= paperwork ================= */
 
@@ -367,7 +407,7 @@ function wsPackCss(){
   @media print{.bar,.hint{display:none !important}}`
 }
 
-function wsPackHtml(s){
+function wsPackPages(s){
   const d=wsShipDestOf(s.destination_id)||{}
   const t=wsShipTotals(s)
   const lines=wsShipLinesOf(s.id).filter(l=>Number(l.meals)>0)
@@ -478,18 +518,50 @@ function wsPackHtml(s){
     })
   }
 
-  const pageCount=2+(d.pallet_labels?pallets.length:0)
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${po} — ${collect?'collection':'shipping'} pack</title><style>${wsPackCss()}</style></head><body>
-    <div class="bar"><span><b>${po}</b> &nbsp;·&nbsp; ${pageCount} page${pageCount===1?'':'s'} &nbsp;·&nbsp; ${wsShipNum(t.pallets)} pallets &nbsp;·&nbsp; ${wsShipNum(t.meals)} meals &nbsp;·&nbsp; ${wsShipNum(t.trays)} trays</span><button onclick="window.print()">Print / Save as PDF</button></div>
+  return h
+}
+
+function wsPackPageCount(s){
+  const d=wsShipDestOf(s.destination_id)||{}
+  return 2+(d.pallet_labels?wsPalletList(s).length:0)
+}
+
+/* One document, one or many shipments. Combining does NOT merge the
+   consignments -- each keeps its own PO, its own note and its own labels; they
+   are simply printed back to back, which is how the combined Coolpack pack was
+   being put together by hand. */
+function wsPackDoc(ships){
+  const t=ships.reduce((a,x)=>{const n=wsShipTotals(x);a.meals+=n.meals;a.trays+=n.trays;a.pallets+=n.pallets;return a},{meals:0,trays:0,pallets:0})
+  const pageCount=ships.reduce((n,x)=>n+wsPackPageCount(x),0)
+  const pos=ships.map(x=>esc(x.po_number))
+  const many=ships.length>1
+  const title=many?'Combined pack — '+pos.join(' + '):pos[0]+' — pack'
+  const head=many
+    ? `<b>Combined pack</b> &nbsp;·&nbsp; ${pos.join(' &nbsp;+&nbsp; ')}`
+    : `<b>${pos[0]}</b>`
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${wsPackCss()}</style></head><body>
+    <div class="bar"><span>${head} &nbsp;·&nbsp; ${pageCount} page${pageCount===1?'':'s'} &nbsp;·&nbsp; ${wsShipNum(t.pallets)} pallets &nbsp;·&nbsp; ${wsShipNum(t.meals)} meals &nbsp;·&nbsp; ${wsShipNum(t.trays)} trays</span><button onclick="window.print()">Print / Save as PDF</button></div>
     <div class="hint">In the print dialog set Margins to <b>None</b> and untick <b>Headers and footers</b>, or Chrome adds its own date and page numbers over the top of the pack.</div>
-    ${h}</body></html>`
+    ${ships.map(wsPackPages).join('')}</body></html>`
+}
+
+function wsPackOpen(ships){
+  if(!ships.length) return
+  const empty=ships.filter(x=>!wsShipTotals(x).meals)
+  if(empty.length){alert((empty.length===1?empty[0].po_number+' has':'These shipments have')+' no meals on them yet.');return}
+  const w=window.open('', '_blank')
+  if(!w){alert('Your browser blocked the new window. Allow pop-ups for this site and try again.');return}
+  w.document.open(); w.document.write(wsPackDoc(ships)); w.document.close()
 }
 
 window.wsPrintPack=function(id){
-  const s=wsShips.find(x=>x.id===id); if(!s) return
-  const t=wsShipTotals(s)
-  if(!t.meals){alert('This shipment has no meals on it yet.');return}
-  const w=window.open('', '_blank')
-  if(!w){alert('Your browser blocked the new window. Allow pop-ups for this site and try again.');return}
-  w.document.open(); w.document.write(wsPackHtml(s)); w.document.close()
+  const s=wsShips.find(x=>x.id===id)
+  if(s) wsPackOpen([s])
+}
+window.wsPrintCombined=function(){
+  // Keep the printed order the same as the order on screen, so the pack matches
+  // the list the manager just ticked.
+  const picked=wsShips.filter(x=>wsShipSel.has(x.id))
+  if(picked.length<2){alert('Tick at least two shipments to print them together.');return}
+  wsPackOpen(picked)
 }
