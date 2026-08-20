@@ -106,11 +106,19 @@ function wsShipPrefill(){
   })
   return out
 }
-function wsShipPrefillProduct(){
+/* The meal this week's plan is built around. */
+function wsShipWeekMeal(){
   const ids=typeof wsWeekMealIds==='function'?wsWeekMealIds():new Set()
-  for(const id of ids){ const m=wsMealOf(id); if(m) return m.name }
-  const m=(wsMeals||[]).find(x=>x.active)
-  return m?m.name:''
+  for(const id of ids){ const m=wsMealOf(id); if(m) return m }
+  return (wsMeals||[]).find(x=>x.active)||null
+}
+/* Paperwork carries the name the CUSTOMER uses -- Simmer's menu name, the one
+   on their purchase order -- not the kitchen's. Checked against the real packs:
+   SIMCFOIUK050826 printed "Grilled Chicken Power Bowl" while the kitchen was
+   making "Japanese Chicken & Butternut Squash". */
+function wsShipPrefillProduct(){
+  const m=wsShipWeekMeal()
+  return m?(m.external_name||m.name):''
 }
 
 window.wsShipToggleNew=function(){ wsShipNewOpen=!wsShipNewOpen; renderWs() }
@@ -166,6 +174,14 @@ window.wsShipSetQty=async function(lineId, val){
   if(error){alert(error.message);return}
   await loadWholesale()
 }
+window.wsShipSetProduct=async function(id, val){
+  const product_name=(val||'').trim()
+  if(!product_name){alert('The product name cannot be empty — it prints on every label.');await loadWholesale();return}
+  const {error}=await sb.from('sim_ws_shipments')
+    .update({product_name, updated_at:new Date().toISOString()}).eq('id', id)
+  if(error){alert(error.message);return}
+  await loadWholesale()
+}
 window.wsShipSetStatus=async function(id, status){
   const {error}=await sb.from('sim_ws_shipments')
     .update({status, updated_at:new Date().toISOString()}).eq('id', id)
@@ -182,7 +198,7 @@ window.wsShipDelete=async function(id, po){
 /* ================= view ================= */
 
 function wsShipNewCard(){
-  const pre=wsShipPrefill(), prod=wsShipPrefillProduct()
+  const pre=wsShipPrefill(), prod=wsShipPrefillProduct(), meal=wsShipWeekMeal()
   const dOpts='<option value="">Destination…</option>'+wsDests.filter(d=>d.active)
     .map(d=>`<option value="${d.id}">${esc(wsShipDestName(d))} — ${esc(d.name)}${d.mode==='collection'?' (collection)':''}</option>`).join('')
   const qty=WS_CONFIGS.map(([name,cap])=>`
@@ -196,8 +212,9 @@ function wsShipNewCard(){
         <select id="wsShipDest" onchange="wsShipSyncPo()" style="width:100%">${dOpts}</select></div>
       <div><label style="font-size:12px;color:var(--muted)">Dispatch / collection date</label>
         <input id="wsShipDate" type="date" onchange="wsShipSyncPo()" style="width:100%" /></div>
-      <div><label style="font-size:12px;color:var(--muted)">Product</label>
-        <input id="wsShipProduct" value="${esc(prod)}" style="width:100%" /></div>
+      <div><label style="font-size:12px;color:var(--muted)">Product — as the customer names it</label>
+        <input id="wsShipProduct" value="${esc(prod)}" style="width:100%" />
+        ${meal&&meal.external_name&&meal.external_name!==meal.name?`<div style="font-size:11px;color:var(--muted);margin-top:3px">Kitchen calls it ${esc(meal.name)}</div>`:''}</div>
       <div><label style="font-size:12px;color:var(--muted)">PO number</label>
         <input id="wsShipPo" oninput="this.dataset.touched=1" placeholder="auto" style="width:100%" /></div>
       ${qty}
@@ -246,7 +263,9 @@ function wsShipCard(s){
         <div>
           <h2 style="margin:0">${esc(wsShipDestName(d))}</h2>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">
-            ${esc(s.po_number)} · ${esc(s.product_name)} · ${wsShipNoun(d).toLowerCase()} ${esc(wsShipDateLong(s.dispatch_date))}
+            ${esc(s.po_number)} · ${editable
+              ? `<input value="${esc(s.product_name)}" onchange="wsShipSetProduct('${s.id}',this.value)" title="Prints on the delivery note and every pallet label" style="font-size:12px;padding:2px 6px;max-width:230px" />`
+              : esc(s.product_name)} · ${wsShipNoun(d).toLowerCase()} ${esc(wsShipDateLong(s.dispatch_date))}
           </div>
         </div>
       </div>
