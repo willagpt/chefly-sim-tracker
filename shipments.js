@@ -371,13 +371,24 @@ function wsShipSelBar(){
   return `<div class="card" style="border:1px solid var(--accent);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div>
       <b style="font-size:14px">${one?'Combine — 1 shipment ticked':`Combine — ${picked.length} shipments ticked`}</b>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px">${names}${one?' — tick one more to print them as a single document':` · one document, ${wsShipNum(t.pallets)} pallets · ${wsShipNum(t.meals)} meals · ${wsShipNum(t.trays)} trays. Each keeps its own PO and its own note.`}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${names}${one?' — tick one more to merge them into a single consignment':wsShipMergeNote(picked,t)}</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       ${one?'':`<button onclick="wsPrintCombined()">Print ${picked.length} as one pack</button>`}
       <button class="ghost sm" onclick="wsShipClearSel()">Clear</button>
     </div>
   </div>`
+}
+
+/* The whole point of merging is fewer pallets, so say how many it saves before
+   anyone prints. Falls back to a plain description if the shipments cannot
+   share pallets anyway. */
+function wsShipMergeNote(picked, t){
+  const dests=wsPackDistinct(picked, s=>{const d=wsShipDestOf(s.destination_id); return d?d.name:''})
+  if(dests.length>1) return ` — these go to ${dests.map(esc).join(' and ')}, so they cannot share pallets`
+  const plan=wsCombinedPlan(picked)
+  const saved=t.pallets-plan.count
+  return ` · one consignment, one set of paperwork · <b>${wsShipNum(plan.count)} pallets</b>${saved>0?` instead of ${wsShipNum(t.pallets)}`:''} · ${wsShipNum(plan.totals.meals)} meals · ${wsShipNum(plan.totals.trays)} trays`
 }
 
 window.wsShipToggleSel=function(id){
@@ -388,9 +399,9 @@ window.wsShipClearSel=function(){ wsShipSel.clear(); renderWs() }
 
 /* ================= paperwork ================= */
 
-/* Expand a shipment into the physical pallet list, in the order they're
-   labelled: all of one configuration, then the next. A part pallet is still
-   a pallet and gets its own label. */
+/* Expand ONE shipment into its physical pallets, in the order they are
+   labelled: all of one configuration, then the next. A part pallet is still a
+   pallet and gets its own label. */
 function wsPalletList(s){
   const out=[]
   wsShipLinesOf(s.id).filter(l=>Number(l.meals)>0).forEach(l=>{
@@ -398,6 +409,73 @@ function wsPalletList(s){
     for(let i=0;i<c.fullPallets;i++) out.push({config:l.config, meals:c.mealsPerFullPallet})
     if(c.lastPalletMeals>0) out.push({config:l.config, meals:c.lastPalletMeals})
   })
+  return out
+}
+
+/* Two or more orders leaving together become ONE consignment, and the pallets
+   are worked out across all of them rather than per order. Coolpack UK's 1,954
+   Standard is 66 trays and Ireland's 31 is 2 more; separately that is 2 pallets
+   plus a nearly empty third, together it is 2.
+
+   Trays are NOT merged -- a tray belongs to one order, because you would not
+   put two customers' meals in the same tray. Pallets are shared, and a shared
+   pallet records how many meals of each order are on it, so whoever breaks it
+   down can see what belongs to whom. */
+function wsCombinedPlan(ships){
+  const tpp=Number(ships[0].trays_per_pallet)||WS_TRAYS_PER_PALLET
+  const order=WS_CONFIGS.map(c=>c[0])
+  ships.forEach(s=>wsShipLinesOf(s.id).forEach(l=>{ if(order.indexOf(l.config)<0) order.push(l.config) }))
+
+  const pallets=[], byConfig=[]
+  let no=0
+  order.forEach(config=>{
+    const blocks=[]
+    ships.forEach(s=>{
+      const l=wsShipLinesOf(s.id).find(x=>x.config===config && Number(x.meals)>0)
+      if(!l) return
+      const c=wsShipCalc(l, s.trays_per_pallet)
+      blocks.push({po:s.po_number, cap:c.cap, trays:c.trays, meals:c.meals, traysLeft:c.trays, mealsLeft:c.meals})
+    })
+    if(!blocks.length) return
+    const trays=blocks.reduce((a,b)=>a+b.trays,0)
+    const meals=blocks.reduce((a,b)=>a+b.meals,0)
+    const nPallets=Math.ceil(trays/tpp)
+    byConfig.push({config, cap:blocks[0].cap, trays, meals, pallets:nPallets,
+                   parts:blocks.map(b=>({po:b.po, trays:b.trays, meals:b.meals}))})
+
+    let bi=0
+    for(let p=0; p<nPallets; p++){
+      let room=tpp, parts=[], pTrays=0, pMeals=0
+      while(room>0 && bi<blocks.length){
+        const b=blocks[bi]
+        const take=Math.min(room, b.traysLeft)
+        // Every tray of an order is full except its last, so taking the whole
+        // remainder of a block takes exactly the meals it has left.
+        const m=(take===b.traysLeft) ? b.mealsLeft : take*b.cap
+        parts.push({po:b.po, trays:take, meals:m})
+        b.traysLeft-=take; b.mealsLeft-=m
+        room-=take; pTrays+=take; pMeals+=m
+        if(b.traysLeft===0) bi++
+      }
+      no++
+      pallets.push({no, config, trays:pTrays, meals:pMeals, parts, shared:parts.length>1})
+    }
+  })
+  const totals=pallets.reduce((a,p)=>{a.trays+=p.trays; a.meals+=p.meals; return a},{trays:0, meals:0})
+  return {tpp, byConfig, pallets, totals, count:pallets.length}
+}
+
+/* What a combined consignment is called. Coolpack receives the UK order and
+   collects the Ireland one, so a pack covering both is neither purely one nor
+   the other. */
+function wsPackNoteTitle(ships){
+  const modes=new Set(ships.map(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.mode==='collection'?'collection':'delivery'}))
+  if(modes.size>1) return 'Consignment Note'
+  return modes.has('collection')?'Collection Note':'Delivery Note'
+}
+function wsPackDistinct(ships, fn){
+  const out=[]
+  ships.forEach(s=>{const v=fn(s); if(v && out.indexOf(v)<0) out.push(v)})
   return out
 }
 
@@ -464,10 +542,18 @@ function wsPackCss(){
 
   /* ---- pallet label: read from across the warehouse ---- */
   .label{padding:13mm}
+  /* Without this the body is a plain block, so it never stretches and the label
+     stops half way down the sheet with the footer stranded below it. .lnum
+     takes the slack, which is what makes the pallet number the biggest thing
+     on the page. */
+  .label-body{flex:1;display:flex;flex-direction:column;padding-top:6mm}
+  .lnum{text-align:center}
+  .lprod,.lrow,.lorders,.ldest{text-align:left}
   .lpoV{font-size:19px;font-weight:800;letter-spacing:3.5px;line-height:1}
   .lnum{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
         border-bottom:1px solid #dfe3e8;padding:8px 0}
   .lnumBig{font-size:165px;font-weight:800;line-height:.82;letter-spacing:-6px}
+  .label.shared .lnumBig{font-size:132px}
   .lnumOf{font-size:29px;font-weight:700;color:#5b6774;margin-top:8px;letter-spacing:1px}
   .lnumCap{font-size:10px;letter-spacing:9px;color:#777;text-transform:uppercase;margin-bottom:14px;padding-left:9px}
   .lprod{padding:15px 0;border-bottom:1px solid #dfe3e8}
@@ -476,6 +562,9 @@ function wsPackCss(){
   .lcell{flex:1;padding:15px 0}
   .lcell+.lcell{border-left:1px solid #dfe3e8;padding-left:20px}
   .lcellV{font-size:42px;font-weight:800;line-height:1;margin-top:7px;letter-spacing:-1px}
+  .lorders{padding:13px 0;border-bottom:1px solid #dfe3e8;text-align:left}
+  .lorderRow{display:flex;justify-content:space-between;gap:12px;font-size:14px;padding:2px 0}
+  .lorderRow span{font-weight:600;letter-spacing:.5px}
   .ldest{padding:15px 0 0}
   .ldestV{font-size:19px;font-weight:700;margin-top:5px}
   .ldestA{color:#5b6774;margin-top:3px;line-height:1.5}
@@ -485,6 +574,23 @@ function wsPackCss(){
   @media print{.bar,.hint{display:none !important}}`
 }
 
+
+/* ---- shared page furniture ---- */
+const WS_BRAND='<div class="brand"><small>LTD</small>WILLA</div>'
+function wsPackFoot(left, right){
+  return `<div class="foot"><span>Willa Ltd · Unit 17, 250 Milkwood Rd, London SE24 0HG</span><span>${left}</span><span>${right}</span></div>`
+}
+function wsPackStat(n, label){
+  return `<div class="stat"><div class="n">${wsShipNum(n)}</div><div class="t">${label}</div></div>`
+}
+function wsPackNotesBox(label){
+  return `<div class="notes"><div class="lbl">${label}</div><div class="notesBox"></div></div>`
+}
+function wsPackSignRow(collect){
+  return `<div class="sign"><div>${collect?'Collected by (print name)':'Received by (print name)'}</div><div>Signature</div><div>Date &amp; time</div></div>`
+}
+
+/* ---- one shipment on its own ---- */
 function wsPackPages(s){
   const d=wsShipDestOf(s.destination_id)||{}
   const t=wsShipTotals(s)
@@ -493,13 +599,11 @@ function wsPackPages(s){
   const collect=d.mode==='collection'
   const po=esc(s.po_number), prod=esc(s.product_name)
   const dateLong=esc(wsShipDateLong(s.dispatch_date))
-  const brand='<div class="brand"><small>LTD</small>WILLA</div>'
-  const foot=(title,right)=>`<div class="foot"><span>Willa Ltd · Unit 17, 250 Milkwood Rd, London SE24 0HG</span><span>${title} · ${po}</span><span>${right==null?`Goods ${collect?'collected':'received'} in good condition unless noted above`:right}</span></div>`
   const noteTitle=collect?'Collection Note':'Delivery Note'
+  const received=`Goods ${collect?'collected':'received'} in good condition unless noted above`
 
-  // Page 1 -- delivery (or collection) note
   let h=`<div class="page">
-    <div class="top">${brand}<div class="doctype"><h1>${noteTitle}</h1><div>Ref / PO · ${po}</div></div></div>
+    <div class="top">${WS_BRAND}<div class="doctype"><h1>${noteTitle}</h1><div>Ref / PO · ${po}</div></div></div>
     <div class="cols">
       <div>
         <div class="lbl">${collect?'Collected by':'Deliver to'}</div>
@@ -516,10 +620,7 @@ function wsPackPages(s){
       </div>
     </div>
     <div class="stats">
-      <div class="stat"><div class="n">${wsShipNum(t.pallets)}</div><div class="t">Pallet${t.pallets===1?'':'s'}</div></div>
-      <div class="stat"><div class="n">${wsShipNum(t.meals)}</div><div class="t">Meals</div></div>
-      <div class="stat"><div class="n">${wsShipNum(t.trays)}</div><div class="t">Trays</div></div>
-      <div class="stat"><div class="n">${wsShipNum(t.configs)}</div><div class="t">Configuration${t.configs===1?'':'s'}</div></div>
+      ${wsPackStat(t.pallets,'Pallet'+(t.pallets===1?'':'s'))}${wsPackStat(t.meals,'Meals')}${wsPackStat(t.trays,'Trays')}${wsPackStat(t.configs,'Configuration'+(t.configs===1?'':'s'))}
     </div>
     <div class="lbl">Consignment breakdown</div>
     <table><thead><tr><th style="width:24%">Configuration</th><th>Product</th><th class="num">Trays</th><th class="num">Pallets</th><th class="num">Meals</th></tr></thead><tbody>
@@ -527,19 +628,13 @@ function wsPackPages(s){
         return `<tr><td>${esc(l.config)}</td><td>${prod}</td><td class="num">${wsShipNum(c.trays)}</td><td class="num">${wsShipNum(c.pallets)}</td><td class="num">${wsShipNum(c.meals)}</td></tr>`}).join('')}
       <tr class="tot"><td>Total</td><td>${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'}</td><td class="num">${wsShipNum(t.trays)}</td><td class="num">${wsShipNum(t.pallets)}</td><td class="num">${wsShipNum(t.meals)}</td></tr>
     </tbody></table>
-    <div class="notes">
-      <div class="lbl">Notes, shortages or damage on ${collect?'collection':'delivery'}</div>
-      <div class="notesBox"></div>
-    </div>
-    <div class="sign">
-      <div>${collect?'Collected by (print name)':'Received by (print name)'}</div><div>Signature</div><div>Date &amp; time</div>
-    </div>
-    ${foot(noteTitle)}
+    ${wsPackNotesBox('Notes, shortages or damage on '+(collect?'collection':'delivery'))}
+    ${wsPackSignRow(collect)}
+    ${wsPackFoot(noteTitle+' · '+po, received)}
   </div>`
 
-  // Page 2 -- packing list, pallet by pallet
   let n=0
-  const palletRows=lines.map(l=>{
+  const rows=lines.map(l=>{
     const c=wsShipCalc(l, s.trays_per_pallet)
     let r=''
     for(let i=0;i<c.fullPallets;i++){ n++; r+=`<tr><td>${String(n).padStart(2,'0')}</td><td>${esc(l.config)}</td><td>${prod}</td><td class="num">${wsShipNum(c.mealsPerFullPallet)}</td></tr>` }
@@ -549,53 +644,146 @@ function wsPackPages(s){
   }).join('')
 
   h+=`<div class="page">
-    <div class="top">${brand}<div class="doctype"><h1>Packing List</h1><div>Ref / PO · ${po}</div></div></div>
+    <div class="top">${WS_BRAND}<div class="doctype"><h1>Packing List</h1><div>Ref / PO · ${po}</div></div></div>
     <div class="cols">
       <div><div class="lbl">${collect?'Collected by':'Deliver to'}</div><div class="who">${esc(d.name||'')}</div></div>
       <div><div class="lbl">Product</div><div class="who">${prod}</div></div>
       <div style="flex:0 0 30%"><div class="lbl">${collect?'Collection date':'Dispatch date'}</div><div class="who">${dateLong}</div></div>
     </div>
-    <div style="margin-top:22px">
-      <table>
-        <thead><tr><th style="width:12%">Pallet</th><th style="width:22%">Configuration</th><th>Product</th><th class="num">Meals</th></tr></thead>
-        <tbody>${palletRows}
-          <tr class="tot"><td>Total</td><td colspan="2">${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'} · ${wsShipNum(t.trays)} trays</td><td class="num">${wsShipNum(t.meals)}</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="notes">
-      <div class="lbl">Notes</div>
-      <div class="notesBox"></div>
-    </div>
-    ${foot('Packing List', 'All quantities verified at dispatch')}
+    <div style="margin-top:22px"><table>
+      <thead><tr><th style="width:12%">Pallet</th><th style="width:22%">Configuration</th><th>Product</th><th class="num">Meals</th></tr></thead>
+      <tbody>${rows}
+        <tr class="tot"><td>Total</td><td colspan="2">${wsShipNum(t.pallets)} pallet${t.pallets===1?'':'s'} · ${wsShipNum(t.trays)} trays</td><td class="num">${wsShipNum(t.meals)}</td></tr>
+      </tbody></table></div>
+    ${wsPackNotesBox('Notes')}
+    ${wsPackFoot('Packing List · '+po, 'All quantities verified at dispatch')}
   </div>`
 
-  // Pages 3+ -- one label per pallet
-  if(d.pallet_labels){
-    pallets.forEach((p,i)=>{
-      h+=`<div class="page label">
-        <div class="top">${brand}<div class="doctype"><div class="lbl" style="margin-bottom:4px">PO Number</div><div class="lpoV">${po}</div></div></div>
-        <div class="lnum">
-          <div class="lnumCap">Pallet</div>
-          <div class="lnumBig">${i+1}</div>
-          <div class="lnumOf">of ${pallets.length}</div>
-        </div>
-        <div class="lprod"><div class="lbl">Product</div><div class="lprodV">${prod}</div></div>
-        <div class="lrow">
-          <div class="lcell"><div class="lbl">Configuration</div><div class="lcellV">${esc(p.config)}</div></div>
-          <div class="lcell"><div class="lbl">Meals on this pallet</div><div class="lcellV">${wsShipNum(p.meals)}</div></div>
-        </div>
-        <div class="ldest">
-          <div class="lbl">${collect?'Collected by':'Deliver to'}</div>
-          <div class="ldestV">${esc(d.name||'')}</div>
-          ${d.address_line?`<div class="ldestA">${esc(d.address_line)}</div>`:''}
-          ${d.sub_label?`<div class="ldestA">${esc(d.sub_label)}</div>`:''}
-        </div>
-        ${foot('Pallet '+(i+1)+' of '+pallets.length, esc(s.product_name)+' · '+dateLong)}
-      </div>`
+  if(d.pallet_labels) pallets.forEach((p,i)=>{
+    h+=wsLabelPage({
+      po, dest:d, product:prod, no:i+1, of:pallets.length,
+      config:p.config, meals:p.meals, parts:null,
+      footRight:esc(s.product_name)+' · '+dateLong, collect
+    })
+  })
+  return h
+}
+
+/* ---- one label, used by both single and combined packs ---- */
+function wsLabelPage(o){
+  const d=o.dest||{}
+  return `<div class="page label${o.parts?' shared':''}">
+    <div class="top">${WS_BRAND}<div class="doctype"><div class="lbl" style="margin-bottom:4px">${o.parts?'Consignment':'PO Number'}</div><div class="lpoV">${o.po}</div></div></div>
+    <div class="label-body">
+      <div class="lnum"><div class="lnumCap">Pallet</div><div class="lnumBig">${o.no}</div><div class="lnumOf">of ${o.of}</div></div>
+      <div class="lprod"><div class="lbl">Product</div><div class="lprodV">${o.product}</div></div>
+      <div class="lrow">
+        <div class="lcell"><div class="lbl">Configuration</div><div class="lcellV">${esc(o.config)}</div></div>
+        <div class="lcell"><div class="lbl">Meals on this pallet</div><div class="lcellV">${wsShipNum(o.meals)}</div></div>
+      </div>
+      ${o.parts?`<div class="lorders"><div class="lbl">Orders on this pallet</div>${o.parts.map(p=>`<div class="lorderRow"><span>${esc(p.po)}</span><b>${wsShipNum(p.meals)} meals · ${wsShipNum(p.trays)} trays</b></div>`).join('')}</div>`:''}
+      <div class="ldest">
+        <div class="lbl">${o.collect?'Collected by':'Deliver to'}</div>
+        <div class="ldestV">${esc(d.name||'')}</div>
+        ${d.address_line?`<div class="ldestA">${esc(d.address_line)}</div>`:''}
+      </div>
+    </div>
+    ${wsPackFoot('Pallet '+o.no+' of '+o.of, o.footRight)}
+  </div>`
+}
+
+/* ---- several orders as ONE consignment ---- */
+function wsCombinedPages(ships){
+  const plan=wsCombinedPlan(ships)
+  const dests=wsPackDistinct(ships, s=>{const d=wsShipDestOf(s.destination_id); return d?d.name:''})
+  const d0=wsShipDestOf(ships[0].destination_id)||{}
+  const prods=wsPackDistinct(ships, s=>s.product_name)
+  const dates=wsPackDistinct(ships, s=>wsShipDateLong(s.dispatch_date))
+  const noteTitle=wsPackNoteTitle(ships)
+  const anyCollect=ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.mode==='collection'})
+  const poList=ships.map(s=>esc(s.po_number))
+  const ref=poList.join(' + ')
+  const product=prods.map(esc).join(' · ')
+  const dateLong=dates.map(esc).join(' · ')
+  const received=`Goods ${anyCollect?'received or collected':'received'} in good condition unless noted above`
+
+  const orderRows=ships.map(s=>{
+    const d=wsShipDestOf(s.destination_id)||{}
+    const t=wsShipTotals(s)
+    return `<tr><td><b>${esc(s.po_number)}</b></td><td>${esc(d.sub_label||d.name||'')}</td><td>${d.mode==='collection'?'Collection':'Delivery'}</td><td class="num">${wsShipNum(t.trays)}</td><td class="num">${wsShipNum(t.meals)}</td></tr>`
+  }).join('')
+
+  const breakdown=plan.byConfig.map(c=>{
+    const per=c.parts.map(p=>`<tr><td>${esc(c.config)}</td><td>${esc(p.po)}</td><td class="num">${wsShipNum(p.trays)}</td><td class="num">${wsShipNum(p.meals)}</td></tr>`).join('')
+    return per+`<tr class="subt"><td colspan="2">${esc(c.config)} — ${wsShipNum(c.trays)} trays on ${wsShipNum(c.pallets)} shared pallet${c.pallets===1?'':'s'}</td><td class="num">${wsShipNum(c.trays)}</td><td class="num">${wsShipNum(c.meals)}</td></tr>`
+  }).join('')
+
+  // Page 1 -- one note for the whole consignment
+  let h=`<div class="page">
+    <div class="top">${WS_BRAND}<div class="doctype"><h1>${noteTitle}</h1><div>Ref / PO · ${ref}</div></div></div>
+    <div class="cols">
+      <div>
+        <div class="lbl">${anyCollect&&noteTitle==='Collection Note'?'Collected by':'Deliver to'}</div>
+        <div class="who">${dests.map(esc).join(' · ')}</div>
+        ${d0.address_line&&dests.length===1?`<div class="sub">${esc(d0.address_line)}</div>`:''}
+        ${d0.attn&&dests.length===1?`<div class="sub">Attn: ${esc(d0.attn)}</div>`:''}
+      </div>
+      <div>
+        <div class="lbl">Consignment</div>
+        <div class="kv">Product <b>${product}</b></div>
+        <div class="kv">Orders <b>${ships.length}</b></div>
+        <div class="kv">Date <b>${dateLong}</b></div>
+      </div>
+    </div>
+    <div class="stats">
+      ${wsPackStat(plan.count,'Pallet'+(plan.count===1?'':'s'))}${wsPackStat(plan.totals.meals,'Meals')}${wsPackStat(plan.totals.trays,'Trays')}${wsPackStat(ships.length,'Orders')}
+    </div>
+    <div class="lbl">Orders in this consignment</div>
+    <table><thead><tr><th style="width:26%">Order</th><th>Destination</th><th style="width:14%">Mode</th><th class="num">Trays</th><th class="num">Meals</th></tr></thead><tbody>${orderRows}</tbody></table>
+    <div class="lbl" style="margin-top:22px">Consignment breakdown</div>
+    <table><thead><tr><th style="width:26%">Configuration</th><th>Order</th><th class="num">Trays</th><th class="num">Meals</th></tr></thead><tbody>
+      ${breakdown}
+      <tr class="tot"><td>Total</td><td>${wsShipNum(plan.count)} pallet${plan.count===1?'':'s'}</td><td class="num">${wsShipNum(plan.totals.trays)}</td><td class="num">${wsShipNum(plan.totals.meals)}</td></tr>
+    </tbody></table>
+    ${wsPackNotesBox('Notes, shortages or damage')}
+    ${wsPackSignRow(false)}
+    ${wsPackFoot(noteTitle+' · '+ref, received)}
+  </div>`
+
+  // Page 2 -- one packing list, pallets numbered across the whole load
+  const palletRows=plan.pallets.map(p=>{
+    return p.parts.map((part,i)=>
+      `<tr${i?'':''}><td>${i?'':String(p.no).padStart(2,'0')}</td><td>${i?'':esc(p.config)}</td><td>${esc(part.po)}</td><td class="num">${wsShipNum(part.trays)}</td><td class="num">${wsShipNum(part.meals)}</td></tr>`
+    ).join('') + (p.shared?`<tr class="subt"><td></td><td colspan="2">Pallet ${p.no} shared between ${p.parts.length} orders</td><td class="num">${wsShipNum(p.trays)}</td><td class="num">${wsShipNum(p.meals)}</td></tr>`:'')
+  }).join('')
+
+  h+=`<div class="page">
+    <div class="top">${WS_BRAND}<div class="doctype"><h1>Packing List</h1><div>Ref / PO · ${ref}</div></div></div>
+    <div class="cols">
+      <div><div class="lbl">Destination</div><div class="who">${dests.map(esc).join(' · ')}</div></div>
+      <div><div class="lbl">Product</div><div class="who">${product}</div></div>
+      <div style="flex:0 0 30%"><div class="lbl">Date</div><div class="who">${dateLong}</div></div>
+    </div>
+    <div style="margin-top:22px"><table>
+      <thead><tr><th style="width:11%">Pallet</th><th style="width:20%">Configuration</th><th>Order</th><th class="num">Trays</th><th class="num">Meals</th></tr></thead>
+      <tbody>${palletRows}
+        <tr class="tot"><td>Total</td><td colspan="2">${wsShipNum(plan.count)} pallet${plan.count===1?'':'s'}</td><td class="num">${wsShipNum(plan.totals.trays)}</td><td class="num">${wsShipNum(plan.totals.meals)}</td></tr>
+      </tbody></table></div>
+    <div style="margin-top:12px;font-size:10px;color:#666">Pallets are shared between orders where they would otherwise ship part empty. Trays are never shared — every tray belongs to one order.</div>
+    ${wsPackNotesBox('Notes')}
+    ${wsPackFoot('Packing List · '+ref, 'All quantities verified at dispatch')}
+  </div>`
+
+  // Pages 3+ -- labels numbered across the whole load
+  if(ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.pallet_labels})){
+    plan.pallets.forEach(p=>{
+      h+=wsLabelPage({
+        po:ref, dest:(dests.length===1?d0:{name:dests.map(x=>x).join(' · ')}),
+        product, no:p.no, of:plan.count, config:p.config, meals:p.meals,
+        parts:p.parts, footRight:product+' · '+dateLong, collect:anyCollect
+      })
     })
   }
-
   return h
 }
 
@@ -604,23 +792,22 @@ function wsPackPageCount(s){
   return 2+(d.pallet_labels?wsPalletList(s).length:0)
 }
 
-/* One document, one or many shipments. Combining does NOT merge the
-   consignments -- each keeps its own PO, its own note and its own labels; they
-   are simply printed back to back, which is how the combined Coolpack pack was
-   being put together by hand. */
 function wsPackDoc(ships){
-  const t=ships.reduce((a,x)=>{const n=wsShipTotals(x);a.meals+=n.meals;a.trays+=n.trays;a.pallets+=n.pallets;return a},{meals:0,trays:0,pallets:0})
-  const pageCount=ships.reduce((n,x)=>n+wsPackPageCount(x),0)
-  const pos=ships.map(x=>esc(x.po_number))
   const many=ships.length>1
-  const title=many?'Combined pack — '+pos.join(' + '):pos[0]+' — pack'
-  const head=many
-    ? `<b>Combined pack</b> &nbsp;·&nbsp; ${pos.join(' &nbsp;+&nbsp; ')}`
-    : `<b>${pos[0]}</b>`
+  const plan=many?wsCombinedPlan(ships):null
+  const t=many
+    ? {meals:plan.totals.meals, trays:plan.totals.trays, pallets:plan.count}
+    : wsShipTotals(ships[0])
+  const pageCount=many
+    ? 2+(ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.pallet_labels})?plan.count:0)
+    : wsPackPageCount(ships[0])
+  const pos=ships.map(x=>esc(x.po_number))
+  const title=many?'Combined consignment — '+pos.join(' + '):pos[0]+' — pack'
+  const head=many?`<b>${pos.join(' &nbsp;+&nbsp; ')}</b> &nbsp;·&nbsp; one consignment`:`<b>${pos[0]}</b>`
   return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${wsPackCss()}</style></head><body>
     <div class="bar"><span>${head} &nbsp;·&nbsp; ${pageCount} page${pageCount===1?'':'s'} &nbsp;·&nbsp; ${wsShipNum(t.pallets)} pallets &nbsp;·&nbsp; ${wsShipNum(t.meals)} meals &nbsp;·&nbsp; ${wsShipNum(t.trays)} trays</span><button onclick="window.print()">Print / Save as PDF</button></div>
     <div class="hint">In the print dialog set Margins to <b>None</b> and untick <b>Headers and footers</b>, or Chrome adds its own date and page numbers over the top of the pack.</div>
-    ${ships.map(wsPackPages).join('')}</body></html>`
+    ${many?wsCombinedPages(ships):wsPackPages(ships[0])}</body></html>`
 }
 
 function wsPackOpen(ships){
@@ -637,9 +824,19 @@ window.wsPrintPack=function(id){
   if(s) wsPackOpen([s])
 }
 window.wsPrintCombined=function(){
-  // Keep the printed order the same as the order on screen, so the pack matches
-  // the list the manager just ticked.
+  // Screen order is print order, so the pack matches the list just ticked.
   const picked=wsShips.filter(x=>wsShipSel.has(x.id))
   if(picked.length<2){alert('Tick at least two shipments to print them together.');return}
+
+  // Sharing a pallet only makes sense if the pallets end up in the same place
+  // on the same day. Anything else would put one customer's meals on another
+  // customer's pallet.
+  const dests=wsPackDistinct(picked, s=>{const d=wsShipDestOf(s.destination_id); return d?d.name:''})
+  if(dests.length>1){
+    alert('These go to different places ('+dests.join(' and ')+'), so they cannot share pallets. Combine only shipments going to the same destination.')
+    return
+  }
+  const dates=wsPackDistinct(picked, s=>s.dispatch_date)
+  if(dates.length>1 && !confirm('These leave on different dates ('+dates.join(' and ')+'). Combine them onto shared pallets anyway?')) return
   wsPackOpen(picked)
 }
