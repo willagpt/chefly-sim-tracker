@@ -259,7 +259,10 @@ function wsShipCard(s){
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
       <div style="display:flex;gap:10px;align-items:flex-start">
-        <input type="checkbox" ${ticked?'checked':''} onchange="wsShipToggleSel('${s.id}')" title="Tick to print with another shipment as one pack" style="width:17px;height:17px;margin-top:4px;flex:0 0 auto;cursor:pointer" />
+        <label title="Tick two or more to print them as one document" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;flex:0 0 auto;margin-top:2px">
+          <input type="checkbox" ${ticked?'checked':''} onchange="wsShipToggleSel('${s.id}')" style="width:17px;height:17px;cursor:pointer;margin:0" />
+          <span style="font-size:9px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase">Combine</span>
+        </label>
         <div>
           <h2 style="margin:0">${esc(wsShipDestName(d))}</h2>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">
@@ -285,15 +288,71 @@ function wsShipCard(s){
   </div>`
 }
 
+/* Everything going out this week, and whether it adds up to what the week's
+   plan says. The three destinations should sum EXACTLY to the agreed targets --
+   if they do not, either a shipment is missing or someone has been typed over,
+   and it is far better to find that here than after the pallets are wrapped. */
+function wsShipWeekTotals(){
+  return wsShips.filter(s=>s.status!=='cancelled').reduce((a,s)=>{
+    const n=wsShipTotals(s)
+    a.meals+=n.meals; a.trays+=n.trays; a.pallets+=n.pallets; a.count++
+    return a
+  },{meals:0,trays:0,pallets:0,count:0})
+}
+function wsShipVsPlan(){
+  const target={}
+  ;(wsLines||[]).forEach(l=>{
+    const v=wsVariantOf(l.variant_id); if(!v) return
+    target[v.name]=(target[v.name]||0)+(Number(l.target_qty)||0)
+  })
+  if(!Object.keys(target).length) return null
+  const got={}
+  wsShips.filter(s=>s.status!=='cancelled').forEach(s=>wsShipLinesOf(s.id).forEach(l=>{
+    got[l.config]=(got[l.config]||0)+(Number(l.meals)||0)
+  }))
+  const names=[...new Set(Object.keys(target).concat(Object.keys(got)))]
+  const rows=names.map(n=>({config:n, target:target[n]||0, got:got[n]||0, diff:(got[n]||0)-(target[n]||0)}))
+  return {rows, ok:rows.every(r=>r.diff===0)}
+}
+
+function wsShipStat(n,label){
+  return `<div style="flex:1;min-width:96px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:10px 6px">
+    <div style="font-size:22px;font-weight:800;line-height:1">${wsShipNum(n)}</div>
+    <div style="font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-top:5px">${label}</div>
+  </div>`
+}
+function wsShipWeekCard(){
+  const t=wsShipWeekTotals()
+  if(!t.count) return ''
+  const p=wsShipVsPlan()
+  let check=''
+  if(p){
+    const detail=p.rows.map(r=>esc(r.config)+' '+wsShipNum(r.got)+(r.diff?` <b>(${r.diff>0?'+':''}${wsShipNum(r.diff)})</b>`:'')).join(' · ')
+    check=p.ok
+      ? `<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(34,197,94,.14);color:#86efac;font-size:12.5px">Matches this week's plan — ${detail}</div>`
+      : `<div style="margin-top:10px;padding:8px 10px;border-radius:8px;background:rgba(239,68,68,.14);color:#fca5a5;font-size:12.5px"><b>Does not match this week's plan</b> — ${detail}. Either a shipment is missing or a quantity has been changed.</div>`
+  }
+  return `<div class="card">
+    <div style="font-size:12px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Going out this week</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${wsShipStat(t.meals,'Meals')}${wsShipStat(t.trays,'Trays')}${wsShipStat(t.pallets,'Pallets')}${wsShipStat(t.count,t.count===1?'Shipment':'Shipments')}
+    </div>
+    ${check}
+  </div>`
+}
+
 function wsShipView(){
   if(!wsCanPlan()) return '<div class="card"><p class="muted">Managers only.</p></div>'
   let h='<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">'+
     '<div><h2 style="margin:0">Shipments</h2><p class="muted" style="font-size:13px;margin:2px 0 0">'+
-    'Delivery note, packing list and pallet labels are generated from these numbers — nothing is typed twice.</p></div>'+
+    'Delivery note, packing list and pallet labels are generated from these numbers — nothing is typed twice.'+
+    (wsShips.length>1?'<br>Tick <b>Combine</b> on two or more to print them as one document.':'')+
+    '</p></div>'+
     (wsShipNewOpen?'':'<button onclick="wsShipToggleNew()">＋ New shipment</button>')+'</div>'
   if(wsShipNewOpen) h+=wsShipNewCard()
   if(!wsShips.length && !wsShipNewOpen)
     h+='<div class="card"><p class="muted">No shipments for this week yet.</p></div>'
+  h+=wsShipWeekCard()
   h+=wsShipSelBar()
   h+=wsShips.map(wsShipCard).join('')
   return h
@@ -311,11 +370,11 @@ function wsShipSelBar(){
   const one=picked.length===1
   return `<div class="card" style="border:1px solid var(--accent);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div>
-      <b style="font-size:14px">${picked.length} shipment${one?'':'s'} ticked</b>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px">${names}${one?' — tick another to print them as one pack':` · ${wsShipNum(t.pallets)} pallets · ${wsShipNum(t.meals)} meals · ${wsShipNum(t.trays)} trays`}</div>
+      <b style="font-size:14px">${one?'Combine — 1 shipment ticked':`Combine — ${picked.length} shipments ticked`}</b>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${names}${one?' — tick one more to print them as a single document':` · one document, ${wsShipNum(t.pallets)} pallets · ${wsShipNum(t.meals)} meals · ${wsShipNum(t.trays)} trays. Each keeps its own PO and its own note.`}</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      ${one?'':`<button onclick="wsPrintCombined()">Print ${picked.length} together</button>`}
+      ${one?'':`<button onclick="wsPrintCombined()">Print ${picked.length} as one pack</button>`}
       <button class="ghost sm" onclick="wsShipClearSel()">Clear</button>
     </div>
   </div>`
