@@ -491,10 +491,18 @@ function wsPackCss(){
      trailing blank page. */
   .page{width:210mm;min-height:297mm;padding:15mm;background:#fff;margin:18px auto;
         box-shadow:0 2px 16px rgba(15,23,42,.16);display:flex;flex-direction:column}
+  /* Print height is NOT pinned. Pinning it to a sheet only works when the
+     browser's own margins are set to None; on Chrome's default margins the
+     content overflowed by a few millimetres and every pack ended with a blank
+     page. Natural height plus a hard break after each .page is right whatever
+     margins are chosen; the min-heights below keep the pages looking full. */
   @media print{
     body{background:#fff}
-    .page{width:auto;min-height:0;height:296mm;margin:0;box-shadow:none;page-break-after:always;break-after:page}
+    .page{width:auto;min-height:0;height:auto;margin:0;box-shadow:none;page-break-after:always;break-after:page}
     .page:last-child{page-break-after:auto;break-after:auto}
+    .notes{min-height:46mm}
+    .label-body{min-height:172mm}
+    .lnum{min-height:96mm}
   }
 
   .bar{position:sticky;top:0;z-index:5;padding:11px 18px;background:#0f172a;color:#fff;
@@ -775,7 +783,8 @@ function wsCombinedPages(ships){
   </div>`
 
   // Pages 3+ -- labels numbered across the whole load
-  if(ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.pallet_labels})){
+  const anyShared=plan.pallets.some(p=>p.shared)
+  if(anyShared || ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.pallet_labels})){
     plan.pallets.forEach(p=>{
       h+=wsLabelPage({
         po:ref, dest:(dests.length===1?d0:{name:dests.map(x=>x).join(' · ')}),
@@ -799,7 +808,7 @@ function wsPackDoc(ships){
     ? {meals:plan.totals.meals, trays:plan.totals.trays, pallets:plan.count}
     : wsShipTotals(ships[0])
   const pageCount=many
-    ? 2+(ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.pallet_labels})?plan.count:0)
+    ? 2+((plan.pallets.some(p=>p.shared) || ships.some(s=>{const d=wsShipDestOf(s.destination_id)||{}; return d.pallet_labels}))?plan.count:0)
     : wsPackPageCount(ships[0])
   const pos=ships.map(x=>esc(x.po_number))
   const title=many?'Combined consignment — '+pos.join(' + '):pos[0]+' — pack'
