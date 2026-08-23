@@ -1,0 +1,3005 @@
+{
+ "generated_for": "2026-08-26",
+ "meals": 1365,
+ "source": "240826 Chefly Distribution Order Volume Calculator",
+ "sections": [
+  {
+   "key": "comparison",
+   "title": "Your sheet vs the app",
+   "intro": "Every line on the Bratt Pans, Mixes, Ovens and Sunday tabs, matched against what the app produces for the same run. 37 of the 65 comparable lines already agree and are not listed \u2014 these are the ones that do not. Meat Team and Sauces are absent because the workbook counts them in boxes and portions rather than kilos, and fish is excluded from Mixes and Ovens for the same reason."
+  },
+  {
+   "key": "links",
+   "title": "Recipe links to confirm",
+   "intro": "Each of these is an ingredient line that never connected to the recipe that makes it \u2014 the same fault as the Lentils one. Until it is linked, everything below it reads zero. Confirm whether the proposed recipe is the right one."
+  },
+  {
+   "key": "self",
+   "title": "Ingredients that point at themselves",
+   "intro": "The importer matched by name, so these recipes ended up listing themselves as their own ingredient. Ordering totals are already corrected in the app, but the data still needs cleaning. \u201cRaw purchase\u201d means it is bought in, not made here."
+  },
+  {
+   "key": "bom",
+   "title": "Dishes with no components",
+   "intro": "These 14 dishes (61 meals) contribute nothing to any production requirement because nothing is defined underneath them. List the components and grams per portion, and the bill of materials can be built."
+  },
+  {
+   "key": "qty",
+   "title": "Quantities that disagree",
+   "intro": "The app derives kilos from grams-per-dish; the workbook derives them from cooked-yield ratios. Where they differ, one of the two inputs is wrong."
+  },
+  {
+   "key": "decision",
+   "title": "Decisions \u2014 James",
+   "intro": "These change how the app behaves rather than what the data says, so they need a call rather than a correction."
+  }
+ ],
+ "items": [
+  {
+   "id": "cp1",
+   "section": "comparison",
+   "sort": 1,
+   "title": "THAI GREEN CURRY",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 40.96 kg \u00b7 app 4.9 kg \u2014 the app is 36.06 kg lower (88%). Matched to \u201cThai Green Curry\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp2",
+   "section": "comparison",
+   "sort": 2,
+   "title": "ORZO",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 3.07 kg \u00b7 app 11 kg \u2014 the app is 7.93 kg higher (258%). Matched to \u201cOrzo\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp3",
+   "section": "comparison",
+   "sort": 3,
+   "title": "BASMATI RICE",
+   "station": "Sunday",
+   "evidence": "Sheet 20.04 kg \u00b7 app 27.08 kg \u2014 the app is 7.04 kg higher (35%). Matched to \u201cBasmati Rice\u201d.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp4",
+   "section": "comparison",
+   "sort": 4,
+   "title": "BROCCOLI IQF",
+   "station": "Ovens",
+   "evidence": "Sheet 14.26 kg \u00b7 app 7.5 kg \u2014 the app is 6.76 kg lower (47%). Matched to \u201cBroccoli Steamed\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp5",
+   "section": "comparison",
+   "sort": 5,
+   "title": "PENNE",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 4.06 kg \u00b7 app 9.9 kg \u2014 the app is 5.84 kg higher (144%). Matched to \u201cPenne\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp6",
+   "section": "comparison",
+   "sort": 6,
+   "title": "FARFALLE",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 3.59 kg \u00b7 app 8.6 kg \u2014 the app is 5.01 kg higher (140%). Matched to \u201cFarfalle, Cooked\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp7",
+   "section": "comparison",
+   "sort": 7,
+   "title": "RED PEPPERS IQF",
+   "station": "Ovens",
+   "evidence": "Sheet 5.32 kg \u00b7 app 1.3 kg \u2014 the app is 4.02 kg lower (76%). Matched to \u201cRoasted Red Peppers\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp8",
+   "section": "comparison",
+   "sort": 8,
+   "title": "TAGINE",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 6.82 kg \u00b7 app 3.6 kg \u2014 the app is 3.22 kg lower (47%). Matched to \u201cTagine\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp9",
+   "section": "comparison",
+   "sort": 9,
+   "title": "FUSILLI TRICOLORE",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 2.09 kg \u00b7 app 5.1 kg \u2014 the app is 3.01 kg higher (144%). Matched to \u201cFusilli\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp10",
+   "section": "comparison",
+   "sort": 10,
+   "title": "KALE IQF",
+   "station": "Ovens",
+   "evidence": "Sheet 11.35 kg \u00b7 app 8.4 kg \u2014 the app is 2.95 kg lower (26%). Matched to \u201cKALE IQF, Steamed\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp11",
+   "section": "comparison",
+   "sort": 11,
+   "title": "SUGAR SNAP",
+   "station": "Ovens",
+   "evidence": "Sheet 1.36 kg \u00b7 app 3.8 kg \u2014 the app is 2.44 kg higher (179%). Matched to \u201cEdamame\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp12",
+   "section": "comparison",
+   "sort": 12,
+   "title": "BLACK LENTILS",
+   "station": "Sunday",
+   "evidence": "Sheet 1.22 kg \u00b7 app 3.15 kg \u2014 the app is 1.93 kg higher (158%). Matched to \u201cBlack Lentils\u201d.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp13",
+   "section": "comparison",
+   "sort": 13,
+   "title": "GREEN BEANS IQF",
+   "station": "Ovens",
+   "evidence": "Sheet 6.07 kg \u00b7 app 4.3 kg \u2014 the app is 1.77 kg lower (29%). Matched to \u201cGreen Beans\u201d.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp14",
+   "section": "comparison",
+   "sort": 14,
+   "title": "PEARL BARLEY",
+   "station": "Sunday",
+   "evidence": "Sheet 2.92 kg \u00b7 app 4.1 kg \u2014 the app is 1.18 kg higher (40%). Matched to \u201cPearl Barley\u201d.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp15",
+   "section": "comparison",
+   "sort": 15,
+   "title": "Chermoula",
+   "station": "Mixes",
+   "evidence": "Sheet 1.07 kg \u00b7 app 0.3 kg \u2014 the app is 0.77 kg lower (72%). Matched to \u201cChermoula\u201d.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp16",
+   "section": "comparison",
+   "sort": 16,
+   "title": "BLACK QUINOA",
+   "station": "Sunday",
+   "evidence": "Sheet 0.24 kg \u00b7 app 0.86 kg \u2014 the app is 0.62 kg higher (258%). Matched to \u201cBlack Quinoa\u201d.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp17",
+   "section": "comparison",
+   "sort": 17,
+   "title": "BABY CORN",
+   "station": "Ovens",
+   "evidence": "Sheet 0.61 kg \u00b7 app 0.3 kg \u2014 the app is 0.31 kg lower (51%). Matched to \u201cBaby Corn\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "gap",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp18",
+   "section": "comparison",
+   "sort": 18,
+   "title": "ROSEMARY POTATOES",
+   "station": "Ovens",
+   "evidence": "Sheet 14.71 kg \u00b7 app 13.1 kg \u2014 the app is 1.61 kg lower (11%). Matched to \u201cRosemary Potatoes\u201d.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp19",
+   "section": "comparison",
+   "sort": 19,
+   "title": "SAAG ALOO",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 7.5 kg \u00b7 app 6.5 kg \u2014 the app is 1.0 kg lower (13%). Matched to \u201cSaag Aloo\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp20",
+   "section": "comparison",
+   "sort": 20,
+   "title": "Basmati and Black Quinoa",
+   "station": "Mixes",
+   "evidence": "Sheet 3.67 kg \u00b7 app 4.3 kg \u2014 the app is 0.63 kg higher (17%). Matched to \u201cBasmati and Black Quinoa\u201d.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp21",
+   "section": "comparison",
+   "sort": 21,
+   "title": "EGG FRIED RICE",
+   "station": "Bratt Pans",
+   "evidence": "Sheet 5.5 kg \u00b7 app 6 kg \u2014 the app is 0.5 kg higher (9%). Matched to \u201cEgg Fried Rice\u201d.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp22",
+   "section": "comparison",
+   "sort": 22,
+   "title": "CAULIFLOWER Florettes Steamed",
+   "station": "Ovens",
+   "evidence": "Sheet 3.1 kg \u00b7 app 2.6 kg \u2014 the app is 0.5 kg lower (16%). Matched to \u201cCauliflower Cheese\u201d.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp23",
+   "section": "comparison",
+   "sort": 23,
+   "title": "EDAMAME IQF",
+   "station": "Ovens",
+   "evidence": "Sheet 4.16 kg \u00b7 app 3.8 kg \u2014 the app is 0.36 kg lower (9%). Matched to \u201cEdamame\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp24",
+   "section": "comparison",
+   "sort": 24,
+   "title": "PEAS, Steamed",
+   "station": "Ovens",
+   "evidence": "Sheet 2.36 kg \u00b7 app 2.6 kg \u2014 the app is 0.24 kg higher (10%). Matched to \u201cPeas\u201d. The app tracks this as a sub-preparation rather than a station line.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp25",
+   "section": "comparison",
+   "sort": 25,
+   "title": "BLACK RICE",
+   "station": "Sunday",
+   "evidence": "Sheet 1.29 kg \u00b7 app 1.16 kg \u2014 the app is 0.13 kg lower (10%). Matched to \u201cBlack Rice\u201d.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp26",
+   "section": "comparison",
+   "sort": 26,
+   "title": "Tofu",
+   "station": "Mixes",
+   "evidence": "Sheet 0.32 kg \u00b7 app 0.3 kg \u2014 the app is 0.02 kg lower (6%). Matched to \u201cTofu\u201d.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "close",
+     "t": "close"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp27",
+   "section": "comparison",
+   "sort": 27,
+   "title": "VERMICELLI",
+   "station": "Bratt Pans",
+   "evidence": "On your sheet at 5.93 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp28",
+   "section": "comparison",
+   "sort": 28,
+   "title": "PAK CHOY, LEEKS, CAULIFLOW",
+   "station": "Bratt Pans",
+   "evidence": "On your sheet at 2.5 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp29",
+   "section": "comparison",
+   "sort": 29,
+   "title": "BIRYANI",
+   "station": "Bratt Pans",
+   "evidence": "On your sheet at 55.84 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp30",
+   "section": "comparison",
+   "sort": 30,
+   "title": "Rice Vinegar Soy Sesame Olive Oil Dressing",
+   "station": "Mixes",
+   "evidence": "On your sheet at 0.64 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp31",
+   "section": "comparison",
+   "sort": 31,
+   "title": "Lemon, Tahini Olive Oil Dressing",
+   "station": "Mixes",
+   "evidence": "On your sheet at 2.8 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp32",
+   "section": "comparison",
+   "sort": 32,
+   "title": "Garlic & Black Pepper Oil",
+   "station": "Mixes",
+   "evidence": "On your sheet at 0.24 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp33",
+   "section": "comparison",
+   "sort": 33,
+   "title": "Verde",
+   "station": "Mixes",
+   "evidence": "On your sheet at 3.48 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp34",
+   "section": "comparison",
+   "sort": 34,
+   "title": "TURNIP IQF",
+   "station": "Ovens",
+   "evidence": "On your sheet at 4.67 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp35",
+   "section": "comparison",
+   "sort": 35,
+   "title": "COURGETTE",
+   "station": "Ovens",
+   "evidence": "On your sheet at 0.36 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp36",
+   "section": "comparison",
+   "sort": 36,
+   "title": "CARROTS, DICED",
+   "station": "Ovens",
+   "evidence": "On your sheet at 8.53 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp37",
+   "section": "comparison",
+   "sort": 37,
+   "title": "SAVOY CABBAGE",
+   "station": "Ovens",
+   "evidence": "On your sheet at 2.78 kg. The app has no line for it at all \u2014 either it is made from something the app tracks under another name, or it is genuinely missing.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not in app",
+     "t": "notinapp"
+    }
+   ],
+   "options": [
+    "Missing from app",
+    "It's under another name",
+    "Not sure"
+   ],
+   "value_label": "What is it called in the app?"
+  },
+  {
+   "id": "cp38",
+   "section": "comparison",
+   "sort": 38,
+   "title": "Chickpea and Cauliflower Tikka Masala",
+   "station": "Bratt Pans",
+   "evidence": "The app asks for 0.4 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Bratt Pans",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp39",
+   "section": "comparison",
+   "sort": 39,
+   "title": "Butternut Squash",
+   "station": "Mixes",
+   "evidence": "The app asks for 1.1 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp40",
+   "section": "comparison",
+   "sort": 40,
+   "title": "CousCous",
+   "station": "Mixes",
+   "evidence": "The app asks for 7.8 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp41",
+   "section": "comparison",
+   "sort": 41,
+   "title": "Paradise Rice",
+   "station": "Mixes",
+   "evidence": "The app asks for 0.3 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp42",
+   "section": "comparison",
+   "sort": 42,
+   "title": "Pickled Carrot",
+   "station": "Mixes",
+   "evidence": "The app asks for 1.8 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp43",
+   "section": "comparison",
+   "sort": 43,
+   "title": "Salsa Verde",
+   "station": "Mixes",
+   "evidence": "The app asks for 0.4 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp44",
+   "section": "comparison",
+   "sort": 44,
+   "title": "Spring Greens",
+   "station": "Mixes",
+   "evidence": "The app asks for 2.6 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Mixes",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp45",
+   "section": "comparison",
+   "sort": 45,
+   "title": "Baked Cod",
+   "station": "Ovens",
+   "evidence": "The app asks for 2.8 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp46",
+   "section": "comparison",
+   "sort": 46,
+   "title": "Carrots and Courgettes",
+   "station": "Ovens",
+   "evidence": "The app asks for 0.1 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp47",
+   "section": "comparison",
+   "sort": 47,
+   "title": "Miso Salmon",
+   "station": "Ovens",
+   "evidence": "The app asks for 3.7 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp48",
+   "section": "comparison",
+   "sort": 48,
+   "title": "Panga Fish",
+   "station": "Ovens",
+   "evidence": "The app asks for 1.1 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp49",
+   "section": "comparison",
+   "sort": 49,
+   "title": "Pumpkin Seeds",
+   "station": "Ovens",
+   "evidence": "The app asks for 0.4 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp50",
+   "section": "comparison",
+   "sort": 50,
+   "title": "Roasted Butternut Squash Quarter Moons",
+   "station": "Ovens",
+   "evidence": "The app asks for 1.2 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp51",
+   "section": "comparison",
+   "sort": 51,
+   "title": "Rosemary Salmon",
+   "station": "Ovens",
+   "evidence": "The app asks for 6.4 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp52",
+   "section": "comparison",
+   "sort": 52,
+   "title": "Sesame Seeds",
+   "station": "Ovens",
+   "evidence": "The app asks for 0.3 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp53",
+   "section": "comparison",
+   "sort": 53,
+   "title": "Sunflower Seeds",
+   "station": "Ovens",
+   "evidence": "The app asks for 0.3 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp54",
+   "section": "comparison",
+   "sort": 54,
+   "title": "Teriyaki Salmon",
+   "station": "Ovens",
+   "evidence": "The app asks for 6.5 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "cp55",
+   "section": "comparison",
+   "sort": 55,
+   "title": "Wild Basmati Rice, cooked",
+   "station": "Ovens",
+   "evidence": "The app asks for 22.9 kg. Nothing on your sheet matches it. Either it sits on a tab counted in portions rather than kilos, or the app wants something you do not make.",
+   "badges": [
+    {
+     "l": "Ovens",
+     "t": "stn"
+    },
+    {
+     "l": "not on sheet",
+     "t": "notonsheet"
+    }
+   ],
+   "options": [
+    "App is wrong",
+    "It's on the sheet",
+    "Not sure"
+   ],
+   "value_label": "Where is it on the sheet?"
+  },
+  {
+   "id": "lk1",
+   "section": "links",
+   "sort": 1,
+   "title": "Rice Vinegar Soy Sesame Olive Oil Dressing",
+   "station": null,
+   "evidence": "\u201cEdamame, Sugar Snap and Fennel, SKU 13\u201d lists \u201cRice Vinegar Soy Sesame Olive Oil Dressing\u201d at 0.0905/kg, unlinked. Closest existing recipe: \u201cRice Vinegar Soy Sesame Olive Oil Dressing, SKU 13\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk2",
+   "section": "links",
+   "sort": 2,
+   "title": "Red Pepper, Roasted",
+   "station": null,
+   "evidence": "\u201cWild Rice, Peppers and Squash, SKU 16\u201d lists \u201cRed Pepper, Roasted\u201d at 0.3/kg, unlinked. Closest existing recipe: \u201cRoasted Red Peppers\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk3",
+   "section": "links",
+   "sort": 3,
+   "title": "Japanese Chiken Marinade",
+   "station": null,
+   "evidence": "\u201cJapanese Chicken\u201d lists \u201cJapanese Chiken Marinade\u201d at 0.08/kg, unlinked. Closest existing recipe: \u201cJapanese Chicken Marinade\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk4",
+   "section": "links",
+   "sort": 4,
+   "title": "Roasted Butternut Squash Cubes",
+   "station": null,
+   "evidence": "\u201cButternut Squash, Kale & Pearl Barley, SKU 8\u201d lists \u201cRoasted Butternut Squash Cubes\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cRoasted Butternut Squash\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk5",
+   "section": "links",
+   "sort": 5,
+   "title": "Butternut Squash, roasted 20x20",
+   "station": null,
+   "evidence": "\u201cSquash Risotto\u201d lists \u201cButternut Squash, roasted 20x20\u201d at 0.15/kg, unlinked. Closest existing recipe: \u201cRoasted Butternut Squash\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk6",
+   "section": "links",
+   "sort": 6,
+   "title": "Basmati Rice",
+   "station": null,
+   "evidence": "\u201cLime and Coriander Rice, Cooked\u201d lists \u201cBasmati Rice\u201d at 0.455/kg, unlinked. Closest existing recipe: \u201cBasmati Rice PS\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk7",
+   "section": "links",
+   "sort": 7,
+   "title": "Lemon, Tahini and Olive Oil Dressing",
+   "station": null,
+   "evidence": "\u201cButternut Squash, Kale & Pearl Barley, SKU 8\u201d lists \u201cLemon, Tahini and Olive Oil Dressing\u201d at 0.12/kg, unlinked. Closest existing recipe: \u201cLemon, Tahini and Olive Oil Dressing, SKU 8, 15\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk8",
+   "section": "links",
+   "sort": 8,
+   "title": "Yellow Carrot, roasted",
+   "station": null,
+   "evidence": "\u201cRoasted Carrots and Sweet Potato\u201d lists \u201cYellow Carrot, roasted\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cRoasted Yellow Carrots PS\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk9",
+   "section": "links",
+   "sort": 9,
+   "title": "Green Curry Paste",
+   "station": null,
+   "evidence": "\u201cThai Green Curry Sauce\u201d lists \u201cGreen Curry Paste\u201d at 0.1/kg, unlinked. Closest existing recipe: \u201cThai Green Curry Paste\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk10",
+   "section": "links",
+   "sort": 10,
+   "title": "Roasted Parsnip",
+   "station": null,
+   "evidence": "\u201cRoast Veg for Turkey, 30\u201d lists \u201cRoasted Parsnip\u201d at 0.3333/kg, unlinked. Closest existing recipe: \u201cRoast Parsnip\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk11",
+   "section": "links",
+   "sort": 11,
+   "title": "Yolk Chicken, Marinated",
+   "station": null,
+   "evidence": "\u201cJerk Chicken A\u201d lists \u201cYolk Chicken, Marinated\u201d at 1.3/kg, unlinked. Closest existing recipe: \u201cY2 Marinated Chicken\u201d.",
+   "badges": [
+    {
+     "l": "high confidence",
+     "t": "chigh"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk12",
+   "section": "links",
+   "sort": 12,
+   "title": "Steamed Caulfiower Florets",
+   "station": null,
+   "evidence": "\u201cCauliflower Cheese, SKU 30\u201d lists \u201cSteamed Caulfiower Florets\u201d at 0.75/kg, unlinked. Closest existing recipe: \u201cCauliflower Florets, Steamed\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk13",
+   "section": "links",
+   "sort": 13,
+   "title": "Cauliflower, Steamed",
+   "station": null,
+   "evidence": "\u201cBroccoli, Cauliflower and Spring Greens\u201d lists \u201cCauliflower, Steamed\u201d at 0.3086/kg, unlinked. Closest existing recipe: \u201cCauliflower Florets, Steamed\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk14",
+   "section": "links",
+   "sort": 14,
+   "title": "Caramelised Onions",
+   "station": null,
+   "evidence": "\u201cChickpea and Cauliflower Tikka Masala\u201d lists \u201cCaramelised Onions\u201d at 0.1/kg, unlinked. Closest existing recipe: \u201cCaramelised Onion PS\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk15",
+   "section": "links",
+   "sort": 15,
+   "title": "Caramellised Onion",
+   "station": null,
+   "evidence": "\u201cCousCous\u201d lists \u201cCaramellised Onion\u201d at 0.1364/kg, unlinked. Closest existing recipe: \u201cCaramelised Onion PS\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk16",
+   "section": "links",
+   "sort": 16,
+   "title": "Cranberry Beans (uncooked)",
+   "station": null,
+   "evidence": "\u201cSpicy Tamarind Butter Beans\u201d lists \u201cCranberry Beans (uncooked)\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cCranberry Beans, Cooked PS\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk17",
+   "section": "links",
+   "sort": 17,
+   "title": "Cooked Chickpeas",
+   "station": null,
+   "evidence": "\u201cChickpea and Cauliflower Tikka Masala\u201d lists \u201cCooked Chickpeas\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cChickpease Cooked PS\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk18",
+   "section": "links",
+   "sort": 18,
+   "title": "Roasted Cauliflower",
+   "station": null,
+   "evidence": "\u201cChickpea and Cauliflower Tikka Masala\u201d lists \u201cRoasted Cauliflower\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cRoasted Cauliflower (MF-P159)\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk19",
+   "section": "links",
+   "sort": 19,
+   "title": "Quinoa, cooked",
+   "station": null,
+   "evidence": "\u201cSweet Potato, Cavolo Nero, Black Beans, Quinoa\u201d lists \u201cQuinoa, cooked\u201d at 0.17/kg, unlinked. Closest existing recipe: \u201cWhite Quinoa Cooked \u2014 or Black?\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk20",
+   "section": "links",
+   "sort": 20,
+   "title": "Fire Roasted Peppers",
+   "station": null,
+   "evidence": "\u201cMarinara Sauce\u201d lists \u201cFire Roasted Peppers\u201d at 0.1283/kg, unlinked. Closest existing recipe: \u201cRoasted Red Peppers\u201d.",
+   "badges": [
+    {
+     "l": "medium confidence",
+     "t": "cmedium"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk21",
+   "section": "links",
+   "sort": 21,
+   "title": "Roasted Squash",
+   "station": null,
+   "evidence": "\u201cWild Rice, Peppers and Squash, SKU 16\u201d lists \u201cRoasted Squash\u201d at 0.225/kg, unlinked. Closest existing recipe: \u201cRoasted Butternut Squash\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk22",
+   "section": "links",
+   "sort": 22,
+   "title": "Gravy",
+   "station": null,
+   "evidence": "\u201cPeppercorn Sauce\u201d lists \u201cGravy\u201d at 0.75/kg, unlinked. Closest existing recipe: \u201cNew Gravy\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk23",
+   "section": "links",
+   "sort": 23,
+   "title": "Broccoli Florets, IQF Steamed",
+   "station": null,
+   "evidence": "\u201cTenderstem Broccoli, Broccoli & Olive Oil, SKU 2, 4, 31\u201d lists \u201cBroccoli Florets, IQF Steamed\u201d at 0.485/kg, unlinked. Closest existing recipe: \u201cBroccoli Steamed\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk24",
+   "section": "links",
+   "sort": 24,
+   "title": "BBQ Sauce",
+   "station": null,
+   "evidence": "\u201cKorean Spicy Beef, 39\u201d lists \u201cBBQ Sauce\u201d at 0.15/kg, unlinked. Closest existing recipe: \u201cKorean BBQ Sauce\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk25",
+   "section": "links",
+   "sort": 25,
+   "title": "BBQ Sauce",
+   "station": null,
+   "evidence": "\u201cVermicelli in BBQ Sauce, 39\u201d lists \u201cBBQ Sauce\u201d at 0.15/kg, unlinked. Closest existing recipe: \u201cKorean BBQ Sauce\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk26",
+   "section": "links",
+   "sort": 26,
+   "title": "Courgette",
+   "station": null,
+   "evidence": "\u201cThai Green Curry Sauce\u201d lists \u201cCourgette\u201d at 0.06/kg, unlinked. Closest existing recipe: \u201cCourgette, Sliced\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk27",
+   "section": "links",
+   "sort": 27,
+   "title": "Courgette",
+   "station": null,
+   "evidence": "\u201cAubergine chermoula\u201d lists \u201cCourgette\u201d at 0.5833/kg, unlinked. Closest existing recipe: \u201cCourgette, Sliced\u201d.",
+   "badges": [
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk28",
+   "section": "links",
+   "sort": 28,
+   "title": "Carrots, diced 5mm",
+   "station": null,
+   "evidence": "\u201cMarinara Sauce\u201d lists \u201cCarrots, diced 5mm\u201d at 0.0642/kg, unlinked. Closest existing recipe: \u201cCarrots Diced, Steamed\u201d.",
+   "badges": [
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk29",
+   "section": "links",
+   "sort": 29,
+   "title": "Carrots, diced 5mm",
+   "station": null,
+   "evidence": "\u201cNew Gravy\u201d lists \u201cCarrots, diced 5mm\u201d at 0.0642/kg, unlinked. Closest existing recipe: \u201cCarrots Diced, Steamed\u201d.",
+   "badges": [
+    {
+     "l": "this week",
+     "t": "hot"
+    },
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk30",
+   "section": "links",
+   "sort": 30,
+   "title": "Chicken Breast",
+   "station": null,
+   "evidence": "\u201cSatay Chicken\u201d lists \u201cChicken Breast\u201d at 1.25/kg, unlinked. Closest existing recipe: \u201cGrilled Chicken Breast PS\u201d.",
+   "badges": [
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "lk31",
+   "section": "links",
+   "sort": 31,
+   "title": "Chicken Breast",
+   "station": null,
+   "evidence": "\u201cShawarma Chicken\u201d lists \u201cChicken Breast\u201d at 1.25/kg, unlinked. Closest existing recipe: \u201cGrilled Chicken Breast PS\u201d.",
+   "badges": [
+    {
+     "l": "low confidence",
+     "t": "clow"
+    }
+   ],
+   "options": [
+    "Yes, link it",
+    "No",
+    "Not sure"
+   ],
+   "value_label": "If wrong \u2014 which recipe?"
+  },
+  {
+   "id": "sf1",
+   "section": "self",
+   "sort": 1,
+   "title": "Baby Corn",
+   "station": null,
+   "evidence": "Recipe \u201cBaby Corn\u201d lists \u201cBaby Corn\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf2",
+   "section": "self",
+   "sort": 2,
+   "title": "Basmati Rice PS",
+   "station": null,
+   "evidence": "Recipe \u201cBasmati Rice PS\u201d lists \u201cBasmati Rice\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf3",
+   "section": "self",
+   "sort": 3,
+   "title": "Bavette Steak",
+   "station": null,
+   "evidence": "Recipe \u201cBavette Steak\u201d lists \u201cBavette Steak\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf4",
+   "section": "self",
+   "sort": 4,
+   "title": "Black Beans",
+   "station": null,
+   "evidence": "Recipe \u201cBlack Beans\u201d lists \u201cBlack Beans\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf5",
+   "section": "self",
+   "sort": 5,
+   "title": "Black Beans Cooked PS",
+   "station": null,
+   "evidence": "Recipe \u201cBlack Beans Cooked PS\u201d lists \u201cBlack Beans\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf6",
+   "section": "self",
+   "sort": 6,
+   "title": "Black Quinoa Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cBlack Quinoa Cooked\u201d lists \u201cBlack Quinoa\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf7",
+   "section": "self",
+   "sort": 7,
+   "title": "Black Rice Cooked PS",
+   "station": null,
+   "evidence": "Recipe \u201cBlack Rice Cooked PS\u201d lists \u201cBlack Rice\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf8",
+   "section": "self",
+   "sort": 8,
+   "title": "Brisket",
+   "station": null,
+   "evidence": "Recipe \u201cBrisket\u201d lists \u201cBrisket\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf9",
+   "section": "self",
+   "sort": 9,
+   "title": "Broccoli Steamed",
+   "station": null,
+   "evidence": "Recipe \u201cBroccoli Steamed\u201d lists \u201cBroccoli IQF\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf10",
+   "section": "self",
+   "sort": 10,
+   "title": "Butternut Squash Quarter Moons",
+   "station": null,
+   "evidence": "Recipe \u201cButternut Squash Quarter Moons\u201d lists \u201cButternut Squash quarter moons\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf11",
+   "section": "self",
+   "sort": 11,
+   "title": "Cauliflower Florets, Steamed",
+   "station": null,
+   "evidence": "Recipe \u201cCauliflower Florets, Steamed\u201d lists \u201cCauliflower Florets IQF\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf12",
+   "section": "self",
+   "sort": 12,
+   "title": "Courgette, Sliced",
+   "station": null,
+   "evidence": "Recipe \u201cCourgette, Sliced\u201d lists \u201cCourgette, Sliced\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf13",
+   "section": "self",
+   "sort": 13,
+   "title": "CousCous",
+   "station": null,
+   "evidence": "Recipe \u201cCousCous\u201d lists \u201cCouscous\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf14",
+   "section": "self",
+   "sort": 14,
+   "title": "Cranberry Beans, Cooked PS",
+   "station": null,
+   "evidence": "Recipe \u201cCranberry Beans, Cooked PS\u201d lists \u201cCranberry Beans\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf15",
+   "section": "self",
+   "sort": 15,
+   "title": "Edamame",
+   "station": null,
+   "evidence": "Recipe \u201cEdamame\u201d lists \u201cEdamame\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf16",
+   "section": "self",
+   "sort": 16,
+   "title": "Farfalle, Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cFarfalle, Cooked\u201d lists \u201cFarfalle\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf17",
+   "section": "self",
+   "sort": 17,
+   "title": "Fennel",
+   "station": null,
+   "evidence": "Recipe \u201cFennel\u201d lists \u201cFennel\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf18",
+   "section": "self",
+   "sort": 18,
+   "title": "Fusilli, Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cFusilli, Cooked\u201d lists \u201cFusilli\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf19",
+   "section": "self",
+   "sort": 19,
+   "title": "Gnocchi",
+   "station": null,
+   "evidence": "Recipe \u201cGnocchi\u201d lists \u201cGnocchi\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf20",
+   "section": "self",
+   "sort": 20,
+   "title": "Green Beans, steamed",
+   "station": null,
+   "evidence": "Recipe \u201cGreen Beans, steamed\u201d lists \u201cGreen Beans\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf21",
+   "section": "self",
+   "sort": 21,
+   "title": "KALE IQF, Steamed",
+   "station": null,
+   "evidence": "Recipe \u201cKALE IQF, Steamed\u201d lists \u201cKale IQF\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf22",
+   "section": "self",
+   "sort": 22,
+   "title": "Marinated Cooked Chicken",
+   "station": null,
+   "evidence": "Recipe \u201cMarinated Cooked Chicken\u201d lists \u201cChicken, Marinated\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf23",
+   "section": "self",
+   "sort": 23,
+   "title": "Orzo, Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cOrzo, Cooked\u201d lists \u201cOrzo\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf24",
+   "section": "self",
+   "sort": 24,
+   "title": "Panga Fish",
+   "station": null,
+   "evidence": "Recipe \u201cPanga Fish\u201d lists \u201cPanga Fish\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf25",
+   "section": "self",
+   "sort": 25,
+   "title": "Pearl Barley Cooked PS",
+   "station": null,
+   "evidence": "Recipe \u201cPearl Barley Cooked PS\u201d lists \u201cPearl Barley\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf26",
+   "section": "self",
+   "sort": 26,
+   "title": "Peas",
+   "station": null,
+   "evidence": "Recipe \u201cPeas\u201d lists \u201cPeas\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf27",
+   "section": "self",
+   "sort": 27,
+   "title": "Penne, Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cPenne, Cooked\u201d lists \u201cPenne\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf28",
+   "section": "self",
+   "sort": 28,
+   "title": "Potatoes Diced, Steamed",
+   "station": null,
+   "evidence": "Recipe \u201cPotatoes Diced, Steamed\u201d lists \u201cPotatoes, Diced\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf29",
+   "section": "self",
+   "sort": 29,
+   "title": "Roasted  Butternut Squash",
+   "station": null,
+   "evidence": "Recipe \u201cRoasted  Butternut Squash\u201d lists \u201cButternut Squash\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf30",
+   "section": "self",
+   "sort": 30,
+   "title": "Roasted  Orange Carrots",
+   "station": null,
+   "evidence": "Recipe \u201cRoasted  Orange Carrots\u201d lists \u201cOrange Carrots\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf31",
+   "section": "self",
+   "sort": 31,
+   "title": "Roasted Yellow Carrots PS",
+   "station": null,
+   "evidence": "Recipe \u201cRoasted Yellow Carrots PS\u201d lists \u201cYellow Carrots\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf32",
+   "section": "self",
+   "sort": 32,
+   "title": "Spaghetti, Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cSpaghetti, Cooked\u201d lists \u201cSpaghetti\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf33",
+   "section": "self",
+   "sort": 33,
+   "title": "Sugar Snap",
+   "station": null,
+   "evidence": "Recipe \u201cSugar Snap\u201d lists \u201cSugar Snap\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf34",
+   "section": "self",
+   "sort": 34,
+   "title": "Tenderstem Broccoli",
+   "station": null,
+   "evidence": "Recipe \u201cTenderstem Broccoli\u201d lists \u201cTenderstem Broccoli\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf35",
+   "section": "self",
+   "sort": 35,
+   "title": "Tofu",
+   "station": null,
+   "evidence": "Recipe \u201cTofu\u201d lists \u201cTofu\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "sf36",
+   "section": "self",
+   "sort": 36,
+   "title": "White Quinoa Cooked",
+   "station": null,
+   "evidence": "Recipe \u201cWhite Quinoa Cooked\u201d lists \u201cWhite Quinoa\u201d as an ingredient of itself.",
+   "badges": [],
+   "options": [
+    "Raw purchase",
+    "It's a sub-recipe",
+    "Not sure"
+   ],
+   "value_label": "If a sub-recipe \u2014 which?"
+  },
+  {
+   "id": "nb1",
+   "section": "bom",
+   "sort": 1,
+   "title": "Japanese Chicken Breast x2",
+   "station": null,
+   "evidence": "SKU 69 \u00b7 31 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [
+    {
+     "l": "31 meals",
+     "t": "hot"
+    }
+   ],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb2",
+   "section": "bom",
+   "sort": 2,
+   "title": "Bacon Egg Bites",
+   "station": null,
+   "evidence": "SKU 42 \u00b7 6 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [
+    {
+     "l": "6 meals",
+     "t": "hot"
+    }
+   ],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb3",
+   "section": "bom",
+   "sort": 3,
+   "title": "Moroccan Chicken Thigh Portions",
+   "station": null,
+   "evidence": "SKU 67 \u00b7 5 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [
+    {
+     "l": "5 meals",
+     "t": "hot"
+    }
+   ],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb4",
+   "section": "bom",
+   "sort": 4,
+   "title": "Overnight Oats",
+   "station": null,
+   "evidence": "SKU 64 \u00b7 3 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb5",
+   "section": "bom",
+   "sort": 5,
+   "title": "Flame Grilled Bavette Portions",
+   "station": null,
+   "evidence": "SKU 70 \u00b7 3 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb6",
+   "section": "bom",
+   "sort": 6,
+   "title": "Tuscan Sausage, Chorizo and Butter Bean Stew",
+   "station": null,
+   "evidence": "SKU 10 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb7",
+   "section": "bom",
+   "sort": 7,
+   "title": "Dates and Coca Truffles",
+   "station": null,
+   "evidence": "SKU 47 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb8",
+   "section": "bom",
+   "sort": 8,
+   "title": "Cranberry and Pistachio Balls",
+   "station": null,
+   "evidence": "SKU 43 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb9",
+   "section": "bom",
+   "sort": 9,
+   "title": "Moroccan Lamb Portions",
+   "station": null,
+   "evidence": "SKU 72 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb10",
+   "section": "bom",
+   "sort": 10,
+   "title": "Jollof Rice with Grilled Chicken",
+   "station": null,
+   "evidence": "SKU 83 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb11",
+   "section": "bom",
+   "sort": 11,
+   "title": "Jerk Chicken",
+   "station": null,
+   "evidence": "SKU 28 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb12",
+   "section": "bom",
+   "sort": 12,
+   "title": "Red Peppers and Spinach Egg Bites",
+   "station": null,
+   "evidence": "SKU 45 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb13",
+   "section": "bom",
+   "sort": 13,
+   "title": "Seafood Chowder",
+   "station": null,
+   "evidence": "SKU 48 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "nb14",
+   "section": "bom",
+   "sort": 14,
+   "title": "Lamb and Apricot Kofta",
+   "station": null,
+   "evidence": "SKU 1 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all. Give the components and grams per portion.",
+   "badges": [],
+   "options": [
+    "Needs components",
+    "Not made here",
+    "Not sure"
+   ],
+   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+  },
+  {
+   "id": "qt1",
+   "section": "qty",
+   "sort": 1,
+   "title": "Basmati Rice",
+   "station": null,
+   "evidence": "App 27.1 kg cooked \u00b7 sheet 20.0 kg cooked. App is 7 kg higher. Some of the gap is the unlinked Lime & Coriander Rice line in the recipe-links section \u2014 worth re-checking once that is confirmed.",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "qt2",
+   "section": "qty",
+   "sort": 2,
+   "title": "Black Beans",
+   "station": null,
+   "evidence": "App 8.7 kg cooked \u00b7 sheet 0.8 kg raw. Biggest proportional gap on the Sunday sheet. Is 0.8 kg right for 87 portions?",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "qt3",
+   "section": "qty",
+   "sort": 3,
+   "title": "Pearl Barley",
+   "station": null,
+   "evidence": "App 4.1 kg cooked \u00b7 sheet 2.9 kg raw. Raw-vs-cooked explains part of this; check the barley ratio in the Butternut/Kale mix.",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "qt4",
+   "section": "qty",
+   "sort": 4,
+   "title": "Quinoa",
+   "station": null,
+   "evidence": "App 2.3 kg cooked \u00b7 sheet 1.2 kg raw. Same raw-vs-cooked question.",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "qt5",
+   "section": "qty",
+   "sort": 5,
+   "title": "Black Quinoa",
+   "station": null,
+   "evidence": "App 0.9 kg cooked \u00b7 sheet 0.2 kg raw. Same raw-vs-cooked question.",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "qt6",
+   "section": "qty",
+   "sort": 6,
+   "title": "Black Rice",
+   "station": null,
+   "evidence": "App 1.2 kg cooked \u00b7 sheet 1.3 kg raw. Close \u2014 probably fine.",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "qt7",
+   "section": "qty",
+   "sort": 7,
+   "title": "Cheesy Mash",
+   "station": null,
+   "evidence": "App 15.2 kg \u00b7 sheet 15.5 kg. Small gap, likely grams-per-portion rounding.",
+   "badges": [],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "dc1",
+   "section": "decision",
+   "sort": 1,
+   "title": "Raw vs cooked on the Sunday sheet",
+   "station": null,
+   "evidence": "The Sunday tab is inconsistent: Black Lentils, Quinoa, Black Beans, Pearl Barley, Black Rice and Black Quinoa show RAW weight; Basmati and Wild Basmati show COOKED yield. The app shows cooked throughout, so Black Lentils reads 3.15 kg in the app against 1.22 kg on paper. Suggested: show both \u2014 \u201c1.2 kg dry \u2192 3.15 kg cooked\u201d.",
+   "badges": [
+    {
+     "l": "James",
+     "t": "owner"
+    }
+   ],
+   "options": [
+    "Agreed",
+    "Different approach",
+    "Park it"
+   ],
+   "value_label": "Decision"
+  },
+  {
+   "id": "dc2",
+   "section": "decision",
+   "sort": 2,
+   "title": "Simmer top-ups are not imported",
+   "station": null,
+   "evidence": "The dish import takes the D2C column only, and matches exactly at 1,365 meals. The workbook's 1,377 includes 6 Simmer on SKU 6 (Chicken Black Dahl) and 6 on SKU 65 (Thai Super Green Chicken Curry). Should the importer add Simmer to the same SKU, or keep the wholesale lane separate?",
+   "badges": [
+    {
+     "l": "James",
+     "t": "owner"
+    }
+   ],
+   "options": [
+    "Agreed",
+    "Different approach",
+    "Park it"
+   ],
+   "value_label": "Decision"
+  },
+  {
+   "id": "dc3",
+   "section": "decision",
+   "sort": 3,
+   "title": "Components with no recipe behind them",
+   "station": null,
+   "evidence": "Chicken Thigh, Chicken chopped, Cubed Chicken and Meatballs have no recipe attached, so they show unlinked on Meat Team with nothing to click through to. They are butchery aggregates that only ever existed as lines on the MEAT TEAM tab. Write minimal prep specs, or leave them as plain quantity lines?",
+   "badges": [
+    {
+     "l": "James",
+     "t": "owner"
+    }
+   ],
+   "options": [
+    "Agreed",
+    "Different approach",
+    "Park it"
+   ],
+   "value_label": "Decision"
+  },
+  {
+   "id": "dc4",
+   "section": "decision",
+   "sort": 4,
+   "title": "Biryani on the Sunday sheet",
+   "station": null,
+   "evidence": "The workbook asks for 13.3 trays of Biryani Rice and 55.8 kg of Biryani on Bratt Pans, but SKU 74 is on All Dishes at quantity 0. James has confirmed this was added manually in error \u2014 no action needed in the app. Logged so it is not raised again.",
+   "badges": [
+    {
+     "l": "James",
+     "t": "owner"
+    }
+   ],
+   "options": [
+    "Agreed",
+    "Different approach",
+    "Park it"
+   ],
+   "value_label": "Decision"
+  }
+ ]
+}
