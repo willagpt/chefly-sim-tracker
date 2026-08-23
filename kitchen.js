@@ -146,15 +146,27 @@ window.kitchenShowRecipe=async function(rid,kg){
   document.body.appendChild(m)
 }
 
-/* ---------- PRODUCTION NEEDS (dish list → components → sub-preps → raw materials) ---------- */
+/* ---------- PRODUCTION NEEDS (dish list → components → sub-preps → raw materials) ----------
+   The day picker holds the SHIPPING date the dish list was imported for — that is the
+   anchor for everything, including work done earlier in the week. The Sunday section is
+   the same list sliced a different way: the grains, rices and fish cooked on the Sunday
+   of that production week, mirroring the workbook's "Sunday SIM Sheet" tab. */
 window.kitchenShowProduction=async function(dateStr){
   const d=dateStr||new Date().toISOString().slice(0,10)
-  const {data:r,error}=await sb.rpc('sim_production_requirements',{p_date:d})
-  if(error){alert(error.message);return}
+  const [rq,sq]=await Promise.all([
+    sb.rpc('sim_production_requirements',{p_date:d}),
+    sb.rpc('sim_prep_station_needs',{p_date:d,p_station:'Sunday'})
+  ])
+  if(rq.error){alert(rq.error.message);return}
+  const r=rq.data, sun=(sq&&sq.data)||null
   kitchenCloseRecipe()
   const comps=(r&&r.components)||[], subs=(r&&r.sub_preps)||[], raws=(r&&r.raws)||[]
+  const totals=(r&&r.totals)||[]
+  const totalByComp={}; totals.forEach(t=>{ if(t.component_id)totalByComp[t.component_id]=t })
+  const sunItems=(sun&&sun.items)||[]
   const _sts=[...new Set(comps.map(c=>c.station))]
   const psPicker=comps.length?('<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><select id="kpsStation" style="max-width:170px;font-size:13px;padding:4px 6px"><option value="">All stations</option>'
+    +(sunItems.length?'<option value="__sunday">Sunday prep</option>':'')
     +_sts.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')
     +'<option value="__sub">Sub-preparations</option><option value="__bulk">Advance prep (bulk)</option></select>'
     +'<button class="ghost sm" onclick="kitchenPrintSheets(\''+d+'\',document.getElementById(\'kpsStation\').value)">\u{1F5A8} Print sheets (PDF)</button></span>'):''
@@ -163,14 +175,23 @@ window.kitchenShowProduction=async function(dateStr){
   if(!comps.length){
     body+='<p class="muted">No dish list imported for this date yet — load it in Manage → Weekly packing orders, then come back.</p>'
   } else {
+    body+=kitchenSundayBlock(sun)
     const stations=[...new Set(comps.map(c=>c.station))]
     stations.forEach(st=>{
       const rows=comps.filter(c=>c.station===st)
       body+='<h2 style="font-size:15px;margin:14px 0 2px">'+esc(st)+'</h2>'
       rows.forEach(c=>{
         const rec=kitchenRecipes.find(x=>x.component_id===c.component_id)
-        const nm=rec?'<a class="link" onclick="kitchenShowRecipe(\''+rec.id+'\','+(c.kg!=null?c.kg:'null')+')">'+esc(c.name)+' ↗</a>':esc(c.name)
-        body+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="flex:1;min-width:0">'+nm+'</span><b>'+(c.kg!=null?c.kg+' kg':'–')+(c.unknown_grams>0?' +?':'')+'</b></div>'
+        const t=totalByComp[c.component_id]
+        // When a component is also an ingredient of another recipe (Lighter Mash inside
+        // Cheesy Mash, Basmati inside Egg Fried Rice), the line alone understates the
+        // cook. Show the total so the pan quantity matches the old paper sheet.
+        const extra=(t&&t.nested_kg>0)
+          ? '<div class="muted" style="font-size:11px">'+c.kg+' kg direct + '+t.nested_kg+' kg used inside other recipes = <b>'+t.total_kg+' kg</b> to cook</div>'
+          : ''
+        const scaleTo=(t&&t.nested_kg>0)?t.total_kg:c.kg
+        const nm=rec?'<a class="link" onclick="kitchenShowRecipe(\''+rec.id+'\','+(scaleTo!=null?scaleTo:'null')+')">'+esc(c.name)+' ↗</a>':esc(c.name)
+        body+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px"><span style="flex:1;min-width:0">'+nm+extra+'</span><b>'+(c.kg!=null?c.kg+' kg':'–')+(c.unknown_grams>0?' +?':'')+'</b></div>'
       })
     })
     if(subs.length){
@@ -197,6 +218,49 @@ window.kitchenShowProduction=async function(dateStr){
   document.body.appendChild(m)
 }
 
+/* ---------- SUNDAY PREP BLOCK ----------
+   Rendered above the day-of stations because it happens first. Quantities are the FULL
+   requirement (a grain's own component demand plus everything that consumes it further
+   down), which is what the workbook's Sunday tab totals. Trays/boxes come from the
+   per-unit divisors on sim_prep_schedule: rice by weight, fish by portion count. */
+function _kDayName(iso){
+  if(!iso)return ''
+  try{return new Date(iso+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}catch(e){return iso}
+}
+function kitchenSundayBlock(sun){
+  const items=(sun&&sun.items)||[]
+  if(!items.length)return ''
+  const live=items.filter(x=>x.kg>0)
+  const idle=items.filter(x=>!(x.kg>0))
+  let h='<div style="border:1px solid var(--line);border-left:3px solid #f97316;border-radius:8px;padding:10px 12px;margin:14px 0 4px">'
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">'
+  h+='<h2 style="font-size:15px;margin:0">Sunday prep <span class="pill" style="background:rgba(249,115,22,.18);color:#fdba74;font-size:10px">make ahead</span></h2>'
+  h+='<span class="muted" style="font-size:12px">cook '+esc(_kDayName(sun.prep_date))+' · for the '+esc(_kDayName(sun.production_date))+' run</span></div>'
+  h+='<p class="muted" style="font-size:12px;margin:4px 0 8px">Grains, rice and fish for the week — the old “Sunday SIM Sheet”. Quantities include what other recipes use, so this is the full amount to cook.</p>'
+  live.forEach(x=>{
+    const rec=x.recipe_id
+    // trays/boxes are rounded UP — you cannot cook 5.45 trays, you set up 6
+    const unit=(x.units!=null&&x.unit_label)
+      ? ('<span class="muted" style="font-size:12px"> · '+Math.ceil(x.units)+' '+esc(x.unit_label.toLowerCase())+' <span style="opacity:.7">('+x.units+')</span></span>')
+      : ''
+    const port=(x.portions!=null)?('<span class="muted" style="font-size:12px"> · '+x.portions+' portions</span>'):''
+    const src=x.source_note?(' <span class="pill off" style="font-size:10px">'+esc(x.source_note)+'</span>'):''
+    const note=x.batch_note?('<div class="muted" style="font-size:11px">'+esc(x.batch_note)+'</div>'):''
+    const via=(x.nested_kg>0&&x.direct_kg>0)
+      ? '<div class="muted" style="font-size:11px">'+x.direct_kg+' kg on its own + '+x.nested_kg+' kg inside other recipes</div>'
+      : (x.nested_kg>0?'<div class="muted" style="font-size:11px">all of it feeds other recipes</div>':'')
+    h+='<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:14px">'
+      +'<span style="flex:1;min-width:0"><a class="link" onclick="kitchenShowRecipe(\''+rec+'\','+x.kg+')">'+esc(x.name)+' ↗</a>'+src+unit+port+via+note+'</span>'
+      +'<b style="flex-shrink:0">'+(Math.round(x.kg*10)/10)+' kg</b></div>'
+  })
+  if(idle.length){
+    h+='<p class="muted" style="font-size:11px;margin:8px 0 0">Nothing needed this week: '
+      +idle.map(x=>esc(x.name)).join(' · ')+'</p>'
+  }
+  h+='</div>'
+  return h
+}
+
 /* ---------- PRINTABLE PRODUCTION SHEETS (A4 per component, station-grouped) ----------
    Ingredients scaled to the day's kg + method + HACCP/trace capture boxes.
    jsPDF built-in fonts are WinAnsi: no emoji/arrows in PDF text (degree sign is fine). */
@@ -209,26 +273,41 @@ function _psQty(kg){
 window.kitchenPrintSheets=async function(d,st){
   d=d||new Date().toISOString().slice(0,10)
   try{await _eodLibs()}catch(e){alert(e.message);return}
-  const [rq,recQ,ingQ]=await Promise.all([
+  const [rq,sq,recQ,ingQ]=await Promise.all([
     sb.rpc('sim_production_requirements',{p_date:d}),
+    sb.rpc('sim_prep_station_needs',{p_date:d,p_station:'Sunday'}),
     sb.from('sim_component_recipes').select('id,component_id,name,tab,source_file,prep_type,method,equipment,cook_notes'),
     sb.from('sim_component_ingredients').select('recipe_id,name,ratio_per_kg,sort_order')
   ])
   if(rq.error){alert(rq.error.message);return}
   const req=rq.data||{}
-  const comps=req.components||[], subs=req.sub_preps||[]
+  const comps=req.components||[], subs=req.sub_preps||[], totals=req.totals||[]
+  const sun=(sq&&sq.data)||null
+  const sunItems=((sun&&sun.items)||[]).filter(x=>x.kg>0)
   if(!comps.length){alert('No dish list imported for '+d+' - nothing to print.');return}
-  const recById={},recByComp={},ingByRec={}
+  const recById={},recByComp={},ingByRec={},totalByComp={}
   ;((recQ&&recQ.data)||[]).forEach(r=>{recById[r.id]=r; if(r.component_id)recByComp[r.component_id]=r})
   ;((ingQ&&ingQ.data)||[]).forEach(i=>{(ingByRec[i.recipe_id]=ingByRec[i.recipe_id]||[]).push(i)})
+  totals.forEach(t=>{ if(t.component_id)totalByComp[t.component_id]=t })
   let pages=[]
-  comps.forEach(c=>{pages.push({station:c.station.toUpperCase(),name:c.name,kg:c.kg,rec:recByComp[c.component_id]||null,unknown:c.unknown_grams>0})})
+  // Sunday first: it is cooked before everything else on this list.
+  sunItems.forEach(x=>{
+    const sub=(x.units!=null&&x.unit_label)?(x.units+' '+x.unit_label.toLowerCase()):null
+    pages.push({station:'SUNDAY PREP',name:x.name,kg:x.kg,rec:recById[x.recipe_id]||null,unknown:false,
+      subtitle:[sub,x.portions!=null?x.portions+' portions':null,x.source_note].filter(Boolean).join('  /  ')||null,
+      forDate:sun&&sun.prep_date})
+  })
+  comps.forEach(c=>{const t=totalByComp[c.component_id]
+    pages.push({station:c.station.toUpperCase(),name:c.name,
+      kg:(t&&t.nested_kg>0)?t.total_kg:c.kg,rec:recByComp[c.component_id]||null,unknown:c.unknown_grams>0,
+      subtitle:(t&&t.nested_kg>0)?(c.kg+' kg direct  +  '+t.nested_kg+' kg for other recipes'):null})})
   subs.forEach(x=>{const r=recById[x.recipe_id]
     pages.push({station:(r&&r.prep_type==='bulk_prep')?'ADVANCE PREP (BULK)':'SUB-PREPARATION',name:x.name,kg:x.kg,rec:r||null,unknown:false})})
 
   if(st){
     if(st==='__sub')pages=pages.filter(p=>p.station==='SUB-PREPARATION')
     else if(st==='__bulk')pages=pages.filter(p=>p.station==='ADVANCE PREP (BULK)')
+    else if(st==='__sunday')pages=pages.filter(p=>p.station==='SUNDAY PREP')
     else pages=pages.filter(p=>p.station===String(st).toUpperCase())
     if(!pages.length){alert('Nothing to print for that selection on '+d+'.');return}
   }
@@ -240,12 +319,16 @@ window.kitchenPrintSheets=async function(d,st){
   const tr=(x,y,s2,size,style,col)=>{doc.setFont('helvetica',style||'normal');doc.setFontSize(size);doc.setTextColor.apply(doc,col||INK);doc.text(String(s2),x,y,{align:'right'})}
   const dateStr=new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
 
+  const HDR_H=70, BODY_TOP=88
   const header=(p,cont)=>{
-    doc.setFillColor.apply(doc,INK);doc.rect(0,0,W,58,'F')
-    doc.setFillColor.apply(doc,ORANGE);doc.rect(0,0,6,58,'F')
-    t(M,20,'PRODUCTION SHEET - '+p.station+(cont?' (CONTINUED)':''),8,'bold',[248,205,184])
-    t(M,42,p.name.length>44?p.name.slice(0,43)+'...':p.name,17,'bold',[251,250,248])
-    tr(W-M,20,dateStr,9,'normal',[201,194,187])
+    doc.setFillColor.apply(doc,INK);doc.rect(0,0,W,HDR_H,'F')
+    doc.setFillColor.apply(doc,ORANGE);doc.rect(0,0,6,HDR_H,'F')
+    t(M,18,'PRODUCTION SHEET - '+p.station+(cont?' (CONTINUED)':''),8,'bold',[248,205,184])
+    t(M,40,p.name.length>44?p.name.slice(0,43)+'...':p.name,17,'bold',[251,250,248])
+    if(p.subtitle)t(M,56,p.subtitle,8,'normal',[201,194,187])
+    // A Sunday page carries its own cook date; day-of pages carry the run date.
+    const dLabel=p.forDate?(new Date(p.forDate+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+'  (for '+d+')'):dateStr
+    tr(W-M,18,dLabel,9,'normal',[201,194,187])
     tr(W-M,44,(p.kg!=null? _psQty(p.kg):'-')+(p.unknown?' +?':''),16,'bold',[251,250,248])
   }
   // fixed capture block: returns its height
@@ -273,7 +356,7 @@ window.kitchenPrintSheets=async function(d,st){
   pages.forEach((p,idx)=>{
     if(idx>0)doc.addPage()
     header(p,false)
-    let y=76
+    let y=BODY_TOP
     const ings=(p.rec&&ingByRec[p.rec.id])?[...ingByRec[p.rec.id]].sort((a,b)=>a.sort_order-b.sort_order):[]
     if(ings.length){
       doc.autoTable({startY:y,margin:{left:M,right:M},theme:'plain',
@@ -297,17 +380,17 @@ window.kitchenPrintSheets=async function(d,st){
         doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)
         for(const st2 of steps){
           const lines=doc.splitTextToSize(String(st2),W-2*M-10)
-          if(y+lines.length*11>H-CAP_H-40){doc.addPage();header(p,true);y=76;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)}
+          if(y+lines.length*11>H-CAP_H-40){doc.addPage();header(p,true);y=BODY_TOP;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor.apply(doc,INK)}
           doc.text(lines,M+4,y); y+=lines.length*11+2
         }
         y+=6
       }
       if((p.rec.equipment||[]).length){
-        if(y>H-CAP_H-40){doc.addPage();header(p,true);y=76}
+        if(y>H-CAP_H-40){doc.addPage();header(p,true);y=BODY_TOP}
         t(M,y,'Equipment: '+p.rec.equipment.join('  /  '),8,'normal',GREY); y+=14
       }
     }
-    if(y>H-CAP_H-24){doc.addPage();header(p,true);y=76}
+    if(y>H-CAP_H-24){doc.addPage();header(p,true);y=BODY_TOP}
     capture(Math.max(y+6,H-CAP_H-18))
     if(p.rec)t(M,H-16,'Source: '+(p.rec.source_file||'')+' - tab "'+p.rec.tab+'"',6.5,'normal',GREY)
   })
