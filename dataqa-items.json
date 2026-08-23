@@ -1,1615 +1,211 @@
 {
  "generated_for": "2026-08-26",
  "meals": 1365,
- "source": "240826 Chefly Distribution Order Volume Calculator (formula-corrected)",
+ "source": "After applying the board: 28 recipe links, 18 name merges, 5 dishes closed",
  "sections": [
   {
-   "key": "comparison",
-   "title": "Quantities that still disagree",
-   "intro": "Rebuilt after the workbook's formula faults were fixed. Every line is now compared on the basis its own formula points at \u2014 raw against raw, cooked against cooked \u2014 so unit mismatches no longer show up as differences. 44 of the 56 comparable lines agree and are not listed. Nine rows that appeared here earlier have been withdrawn: they were never differences, they were an error in how the comparison read the sheet. Korean Spicy Beef was one of them \u2014 sheet and app both say 4.2."
+   "key": "qty",
+   "title": "Quantities still to settle",
+   "intro": "Nine lines, all compared raw-against-raw so the cooked-versus-dry question is out of the way. Eleven of the twenty comparable lines now agree — Penne, Fusilli, Gnocchi, Farfalle, Broccoli IQF, Parsnip, Edamame, Spring Greens and Sugar Snap among them, most of them to the second decimal. These nine are what is left."
   },
   {
-   "key": "links",
-   "title": "Recipe links to confirm",
-   "intro": "Ingredient lines that never connected to the recipe that makes them \u2014 the same fault as the Lentils one. Until linked, everything below reads zero. Confirm whether the proposed recipe is right."
-  },
-  {
-   "key": "self",
-   "title": "Ingredients that point at themselves",
-   "intro": "There were 36 of these: recipes the importer joined to themselves because the ingredient and the finished prep share a name. 33 were provable from the data alone \u2014 each was the recipe's own raw input, with the yield ratio on it \u2014 and have been unlinked. Not one figure in the app moved, because both calculations already treated a self-link as raw. These three are left because a real upstream recipe exists for each, and choosing wrongly moves actual kilos."
-  },
-  {
-   "key": "bom",
-   "title": "Discontinued or still made?",
-   "intro": "Down to 5 dishes and 6 meals. Every one of these is absent from the production workbook entirely \u2014 the sheet has already dropped them \u2014 so they are almost certainly discontinued and only trickling in from long-standing customers. Confirm and they can be closed. The pre-production items that were here (egg bites, oats, truffles, the Portions products) have all been linked and are gone from this list."
-  },
-  {
-   "key": "merge",
-   "title": "Ingredient names counted twice",
-   "intro": "The same ingredient is spelled several ways, so the raw-materials total splits across them. Harmless on a cook sheet, dangerous on a picking or ordering list. Confirm each group really is one item."
+   "key": "missing",
+   "title": "Ingredients being bought that we may actually make",
+   "intro": "Each of these goes onto the raw-materials list under a name that says it has already been cooked or mixed — “Cavolo Nero, cooked”, “Verde Sauce”. If we make them, they need a short recipe so the real ingredients flow through to ordering. If we buy them ready, they are fine as they are and can be left."
   },
   {
    "key": "decision",
-   "title": "Decisions \u2014 James",
-   "intro": "These change how the app behaves rather than what the data says."
+   "title": "Decisions — James",
+   "intro": "One thing that needs a call rather than a fact."
   }
  ],
  "items": [
   {
-   "id": "cpaf88d3",
-   "section": "comparison",
+   "id": "q20a779e",
+   "section": "qty",
    "sort": 1,
-   "title": "RED PEPPERS IQF",
+   "title": "Carrot Diced, IQF",
    "station": null,
-   "evidence": "Sheet 5.32 kg \u00b7 app 1.3 kg (Roasted Red Peppers) \u2014 309% apart. Both figures are RAW input weight. 'Red Pepper, Roasted' in Wild Rice, Peppers and Squash @ 0.3 would add 3.39 kg cooked \u2014 more than the gap, so linking it alone would overshoot. Worth checking the ratio.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    },
-    {
-     "l": "309%",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 8.53 kg · app 0.23 kg — the app is 8.3 kg lower (97%). Both are RAW purchase weight, compared like for like. By far the biggest gap left. The app only uses diced carrot in two places — Marinara Sauce and New Gravy — at very small ratios. Your sheet asks for 8.53 kg. Something on OVEN 1 is consuming diced carrot that the app has no record of. Which mix or dish is it?",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "97%", "t": "gap"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cpb9a806",
-   "section": "comparison",
+   "id": "q2ba7e99",
+   "section": "qty",
    "sort": 2,
-   "title": "Chermoula",
+   "title": "Orzo",
    "station": null,
-   "evidence": "Sheet 1.07 kg \u00b7 app 0.3 kg (Chermoula) \u2014 258% apart. Both figures are COOKED weight.",
-   "badges": [
-    {
-     "l": "MIXES",
-     "t": "stn"
-    },
-    {
-     "l": "cooked",
-     "t": "clow"
-    },
-    {
-     "l": "258%",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 3.07 kg · app 4.39 kg — the app is 1.32 kg higher (43%). Both are RAW purchase weight, compared like for like. The app now wants MORE than the sheet. Orzo is 220 g per portion in the app across its dishes — worth checking that against the pack.",
+   "badges": [{"l": "BRATT PANS", "t": "stn"}, {"l": "43%", "t": "gap"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cp7e70fd",
-   "section": "comparison",
+   "id": "q2759b73",
+   "section": "qty",
    "sort": 3,
-   "title": "BLACK RICE",
+   "title": "Red Peppers, diced",
    "station": null,
-   "evidence": "Sheet 1.29 kg \u00b7 app 0.52 kg (Black Rice (raw)) \u2014 148% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "Sunday",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    },
-    {
-     "l": "148%",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 5.32 kg · app 7.51 kg — the app is 2.19 kg higher (41%). Both are RAW purchase weight, compared like for like. The app was 4 kg short here before today. Confirming the two Roasted Red Peppers links pushed it past the sheet instead. Either one of those ratios is too high, or the sheet is short.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "41%", "t": "gap"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cp948a9b",
-   "section": "comparison",
+   "id": "q2ecf4df",
+   "section": "qty",
    "sort": 4,
-   "title": "BROCCOLI IQF",
+   "title": "Cauliflower Florets IQF",
    "station": null,
-   "evidence": "Sheet 14.26 kg \u00b7 app 7.5 kg (Broccoli Steamed) \u2014 90% apart. Both figures are RAW input weight. 'Broccoli Florets, IQF Steamed' in Tenderstem & Broccoli @ 0.485 \u2014 linking it adds 5.33 kg cooked, which covers 98% of this gap. Confirm that link in the Recipe links section and this should resolve itself.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 3.1 kg · app 2.14 kg — the app is 0.96 kg lower (31%). Both are RAW purchase weight, compared like for like. Two dishes now draw on Cauliflower Florets, Steamed after today's links. Still about a kilo under the sheet.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "31%", "t": "clow"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cp064444",
-   "section": "comparison",
+   "id": "q25b0f81",
+   "section": "qty",
    "sort": 5,
-   "title": "TAGINE",
+   "title": "Green Beans",
    "station": null,
-   "evidence": "Sheet 6.82 kg \u00b7 app 3.6 kg (Tagine) \u2014 89% apart. Both figures are COOKED weight.",
-   "badges": [
-    {
-     "l": "BRATT PANS",
-     "t": "stn"
-    },
-    {
-     "l": "cooked",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 6.07 kg · app 4.3 kg — the app is 1.77 kg lower (29%). Both are RAW purchase weight, compared like for like. Unchanged by today's work — the app has been steady at 4.3 kg. 1.8 kg under.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "29%", "t": "clow"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cpea25c8",
-   "section": "comparison",
+   "id": "q21df70e",
+   "section": "qty",
    "sort": 6,
-   "title": "ORZO",
+   "title": "Peas",
    "station": null,
-   "evidence": "Sheet 3.07 kg \u00b7 app 11 kg (Orzo) \u2014 72% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "BRATT PANS",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 2.36 kg · app 2.87 kg — the app is 0.51 kg higher (22%). Both are RAW purchase weight, compared like for like. App slightly over. Peas appear both as a steamed prep and inside mixes; possible double count.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "22%", "t": "clow"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cpdc106e",
-   "section": "comparison",
+   "id": "q2ebd713",
+   "section": "qty",
    "sort": 7,
-   "title": "TURNIP IQF",
+   "title": "Kale IQF",
    "station": null,
-   "evidence": "Sheet 4.67 kg \u00b7 app 14.4 kg (Lighter Mash) \u2014 68% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 11.35 kg · app 9.19 kg — the app is 2.16 kg lower (19%). Both are RAW purchase weight, compared like for like. App about 2 kg under. Kale appears in several mixes as well as the steamed prep.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "19%", "t": "clow"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cp4e5484",
-   "section": "comparison",
+   "id": "q26ae60a",
+   "section": "qty",
    "sort": 8,
-   "title": "QUINOA",
+   "title": "Baby Corn",
    "station": null,
-   "evidence": "Sheet 1.21 kg \u00b7 app 0.76 kg (White Quinoa (raw)) \u2014 59% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "Sunday",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
+   "evidence": "Sheet 0.615 kg · app 0.5 kg — the app is 0.11 kg lower (19%). Both are RAW purchase weight, compared like for like. Almost certainly the six Simmer top-ups on SKU 65, which the D2C import does not take — the same cause as the Thai Green Curry line. Confirm and this one closes.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "19%", "t": "clow"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "cpfd1a2f",
-   "section": "comparison",
+   "id": "q2c3a721",
+   "section": "qty",
    "sort": 9,
-   "title": "GREEN BEANS IQF",
-   "station": null,
-   "evidence": "Sheet 6.07 kg \u00b7 app 4.3 kg (Green Beans) \u2014 41% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cp96c751",
-   "section": "comparison",
-   "sort": 10,
-   "title": "KALE IQF",
-   "station": null,
-   "evidence": "Sheet 11.35 kg \u00b7 app 8.4 kg (KALE IQF, Steamed) \u2014 35% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cpe69122",
-   "section": "comparison",
-   "sort": 11,
-   "title": "BASMATI RICE",
-   "station": null,
-   "evidence": "Sheet 20.04 kg \u00b7 app 27.08 kg (Basmati Rice) \u2014 26% apart. Both figures are RAW input weight.",
-   "badges": [
-    {
-     "l": "Sunday",
-     "t": "stn"
-    },
-    {
-     "l": "raw weight",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cp14a3ab",
-   "section": "comparison",
-   "sort": 12,
-   "title": "THAI GREEN CURRY",
-   "station": null,
-   "evidence": "Sheet 6.03 kg \u00b7 app 4.9 kg (Thai Green Curry) \u2014 23% apart. Both figures are COOKED weight.",
-   "badges": [
-    {
-     "l": "BRATT PANS",
-     "t": "stn"
-    },
-    {
-     "l": "cooked",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "lkaf7aa6",
-   "section": "links",
-   "sort": 1,
-   "title": "Rice Vinegar Soy Sesame Olive Oil Dressing",
-   "station": null,
-   "evidence": "\u201cEdamame, Sugar Snap and Fennel, SKU 13\u201d lists \u201cRice Vinegar Soy Sesame Olive Oil Dressing\u201d at 0.0905/kg, unlinked. Closest existing recipe: \u201cRice Vinegar Soy Sesame Olive Oil Dressing, SKU 13\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkb829e5",
-   "section": "links",
-   "sort": 2,
-   "title": "Red Pepper, Roasted",
-   "station": null,
-   "evidence": "\u201cWild Rice, Peppers and Squash, SKU 16\u201d lists \u201cRed Pepper, Roasted\u201d at 0.3/kg, unlinked. Closest existing recipe: \u201cRoasted Red Peppers\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lka497d6",
-   "section": "links",
-   "sort": 3,
-   "title": "Japanese Chiken Marinade",
-   "station": null,
-   "evidence": "\u201cJapanese Chicken\u201d lists \u201cJapanese Chiken Marinade\u201d at 0.08/kg, unlinked. Closest existing recipe: \u201cJapanese Chicken Marinade\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk8c84db",
-   "section": "links",
-   "sort": 4,
-   "title": "Roasted Butternut Squash Cubes",
-   "station": null,
-   "evidence": "\u201cButternut Squash, Kale & Pearl Barley, SKU 8\u201d lists \u201cRoasted Butternut Squash Cubes\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cRoasted Butternut Squash\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk1747bd",
-   "section": "links",
-   "sort": 5,
-   "title": "Butternut Squash, roasted 20x20",
-   "station": null,
-   "evidence": "\u201cSquash Risotto\u201d lists \u201cButternut Squash, roasted 20x20\u201d at 0.15/kg, unlinked. Closest existing recipe: \u201cRoasted Butternut Squash\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk5bb449",
-   "section": "links",
-   "sort": 6,
-   "title": "Basmati Rice",
-   "station": null,
-   "evidence": "\u201cLime and Coriander Rice, Cooked\u201d lists \u201cBasmati Rice\u201d at 0.455/kg, unlinked. Closest existing recipe: \u201cBasmati Rice PS\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk1c7633",
-   "section": "links",
-   "sort": 7,
-   "title": "Lemon, Tahini and Olive Oil Dressing",
-   "station": null,
-   "evidence": "\u201cButternut Squash, Kale & Pearl Barley, SKU 8\u201d lists \u201cLemon, Tahini and Olive Oil Dressing\u201d at 0.12/kg, unlinked. Closest existing recipe: \u201cLemon, Tahini and Olive Oil Dressing, SKU 8, 15\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lka5469d",
-   "section": "links",
-   "sort": 8,
-   "title": "Yellow Carrot, roasted",
-   "station": null,
-   "evidence": "\u201cRoasted Carrots and Sweet Potato\u201d lists \u201cYellow Carrot, roasted\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cRoasted Yellow Carrots PS\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lke076d2",
-   "section": "links",
-   "sort": 9,
-   "title": "Green Curry Paste",
-   "station": null,
-   "evidence": "\u201cThai Green Curry Sauce\u201d lists \u201cGreen Curry Paste\u201d at 0.1/kg, unlinked. Closest existing recipe: \u201cThai Green Curry Paste\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk5b1bf9",
-   "section": "links",
-   "sort": 10,
-   "title": "Roasted Parsnip",
-   "station": null,
-   "evidence": "\u201cRoast Veg for Turkey, 30\u201d lists \u201cRoasted Parsnip\u201d at 0.3333/kg, unlinked. Closest existing recipe: \u201cRoast Parsnip\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkb713bf",
-   "section": "links",
-   "sort": 11,
-   "title": "Yolk Chicken, Marinated",
-   "station": null,
-   "evidence": "\u201cJerk Chicken A\u201d lists \u201cYolk Chicken, Marinated\u201d at 1.3/kg, unlinked. Closest existing recipe: \u201cY2 Marinated Chicken\u201d.",
-   "badges": [
-    {
-     "l": "high confidence",
-     "t": "chigh"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkdb549c",
-   "section": "links",
-   "sort": 12,
-   "title": "Steamed Caulfiower Florets",
-   "station": null,
-   "evidence": "\u201cCauliflower Cheese, SKU 30\u201d lists \u201cSteamed Caulfiower Florets\u201d at 0.75/kg, unlinked. Closest existing recipe: \u201cCauliflower Florets, Steamed\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk6430ad",
-   "section": "links",
-   "sort": 13,
-   "title": "Cauliflower, Steamed",
-   "station": null,
-   "evidence": "\u201cBroccoli, Cauliflower and Spring Greens\u201d lists \u201cCauliflower, Steamed\u201d at 0.3086/kg, unlinked. Closest existing recipe: \u201cCauliflower Florets, Steamed\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk964b0f",
-   "section": "links",
-   "sort": 14,
-   "title": "Caramelised Onions",
-   "station": null,
-   "evidence": "\u201cChickpea and Cauliflower Tikka Masala\u201d lists \u201cCaramelised Onions\u201d at 0.1/kg, unlinked. Closest existing recipe: \u201cCaramelised Onion PS\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk758d26",
-   "section": "links",
-   "sort": 15,
-   "title": "Caramellised Onion",
-   "station": null,
-   "evidence": "\u201cCousCous\u201d lists \u201cCaramellised Onion\u201d at 0.1364/kg, unlinked. Closest existing recipe: \u201cCaramelised Onion PS\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk113255",
-   "section": "links",
-   "sort": 16,
-   "title": "Cranberry Beans (uncooked)",
-   "station": null,
-   "evidence": "\u201cSpicy Tamarind Butter Beans\u201d lists \u201cCranberry Beans (uncooked)\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cCranberry Beans, Cooked PS\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkd82b28",
-   "section": "links",
-   "sort": 17,
-   "title": "Cooked Chickpeas",
-   "station": null,
-   "evidence": "\u201cChickpea and Cauliflower Tikka Masala\u201d lists \u201cCooked Chickpeas\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cChickpease Cooked PS\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk820bf3",
-   "section": "links",
-   "sort": 18,
-   "title": "Roasted Cauliflower",
-   "station": null,
-   "evidence": "\u201cChickpea and Cauliflower Tikka Masala\u201d lists \u201cRoasted Cauliflower\u201d at 0.25/kg, unlinked. Closest existing recipe: \u201cRoasted Cauliflower (MF-P159)\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk418cff",
-   "section": "links",
-   "sort": 19,
-   "title": "Quinoa, cooked",
-   "station": null,
-   "evidence": "\u201cSweet Potato, Cavolo Nero, Black Beans, Quinoa\u201d lists \u201cQuinoa, cooked\u201d at 0.17/kg, unlinked. Closest existing recipe: \u201cWhite Quinoa Cooked \u2014 or Black?\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkaf9432",
-   "section": "links",
-   "sort": 20,
-   "title": "Fire Roasted Peppers",
-   "station": null,
-   "evidence": "\u201cMarinara Sauce\u201d lists \u201cFire Roasted Peppers\u201d at 0.1283/kg, unlinked. Closest existing recipe: \u201cRoasted Red Peppers\u201d.",
-   "badges": [
-    {
-     "l": "medium confidence",
-     "t": "cmedium"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk0a5bc9",
-   "section": "links",
-   "sort": 21,
-   "title": "Roasted Squash",
-   "station": null,
-   "evidence": "\u201cWild Rice, Peppers and Squash, SKU 16\u201d lists \u201cRoasted Squash\u201d at 0.225/kg, unlinked. Closest existing recipe: \u201cRoasted Butternut Squash\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk9b73a5",
-   "section": "links",
-   "sort": 22,
-   "title": "Gravy",
-   "station": null,
-   "evidence": "\u201cPeppercorn Sauce\u201d lists \u201cGravy\u201d at 0.75/kg, unlinked. Closest existing recipe: \u201cNew Gravy\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkfd5eca",
-   "section": "links",
-   "sort": 23,
-   "title": "Broccoli Florets, IQF Steamed",
-   "station": null,
-   "evidence": "\u201cTenderstem Broccoli, Broccoli & Olive Oil, SKU 2, 4, 31\u201d lists \u201cBroccoli Florets, IQF Steamed\u201d at 0.485/kg, unlinked. Closest existing recipe: \u201cBroccoli Steamed\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk1f0f31",
-   "section": "links",
-   "sort": 24,
-   "title": "BBQ Sauce",
-   "station": null,
-   "evidence": "\u201cKorean Spicy Beef, 39\u201d lists \u201cBBQ Sauce\u201d at 0.15/kg, unlinked. Closest existing recipe: \u201cKorean BBQ Sauce\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk00daac",
-   "section": "links",
-   "sort": 25,
-   "title": "BBQ Sauce",
-   "station": null,
-   "evidence": "\u201cVermicelli in BBQ Sauce, 39\u201d lists \u201cBBQ Sauce\u201d at 0.15/kg, unlinked. Closest existing recipe: \u201cKorean BBQ Sauce\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkf8033d",
-   "section": "links",
-   "sort": 26,
    "title": "Courgette",
    "station": null,
-   "evidence": "\u201cThai Green Curry Sauce\u201d lists \u201cCourgette\u201d at 0.06/kg, unlinked. Closest existing recipe: \u201cCourgette, Sliced\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
+   "evidence": "Sheet 0.36 kg · app 0.5 kg — the app is 0.14 kg higher (38%). Both are RAW purchase weight, compared like for like. Two recipes were linked to “Courgette, Sliced” today (Thai Green Curry and Aubergine chermoula). Worth a look at that recipe too: it is named for slicing but carries pomace oil and salt at a 1.7 yield, which reads more like a roast than a slice.",
+   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "38%", "t": "clow"}],
+   "options": ["App is right", "Sheet is right", "Neither"],
+   "value_label": "Correct quantity"
   },
   {
-   "id": "lk0390e6",
-   "section": "links",
-   "sort": 27,
-   "title": "Courgette",
-   "station": null,
-   "evidence": "\u201cAubergine chermoula\u201d lists \u201cCourgette\u201d at 0.5833/kg, unlinked. Closest existing recipe: \u201cCourgette, Sliced\u201d.",
-   "badges": [
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkb3abe6",
-   "section": "links",
-   "sort": 28,
-   "title": "Carrots, diced 5mm",
-   "station": null,
-   "evidence": "\u201cMarinara Sauce\u201d lists \u201cCarrots, diced 5mm\u201d at 0.0642/kg, unlinked. Closest existing recipe: \u201cCarrots Diced, Steamed\u201d.",
-   "badges": [
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk49d511",
-   "section": "links",
-   "sort": 29,
-   "title": "Carrots, diced 5mm",
-   "station": null,
-   "evidence": "\u201cNew Gravy\u201d lists \u201cCarrots, diced 5mm\u201d at 0.0642/kg, unlinked. Closest existing recipe: \u201cCarrots Diced, Steamed\u201d.",
-   "badges": [
-    {
-     "l": "this week",
-     "t": "hot"
-    },
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lkadd498",
-   "section": "links",
-   "sort": 30,
-   "title": "Chicken Breast",
-   "station": null,
-   "evidence": "\u201cSatay Chicken\u201d lists \u201cChicken Breast\u201d at 1.25/kg, unlinked. Closest existing recipe: \u201cGrilled Chicken Breast PS\u201d.",
-   "badges": [
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "lk72afb8",
-   "section": "links",
-   "sort": 31,
-   "title": "Chicken Breast",
-   "station": null,
-   "evidence": "\u201cShawarma Chicken\u201d lists \u201cChicken Breast\u201d at 1.25/kg, unlinked. Closest existing recipe: \u201cGrilled Chicken Breast PS\u201d.",
-   "badges": [
-    {
-     "l": "low confidence",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Yes, link it",
-    "No",
-    "Not sure"
-   ],
-   "value_label": "If wrong \u2014 which recipe?"
-  },
-  {
-   "id": "sf7d12c2",
-   "section": "self",
+   "id": "mrb54853",
+   "section": "missing",
    "sort": 1,
-   "title": "Black Beans \u2014 two recipes for one tab",
+   "title": "Vermicelli Glass Noodles, Cooked",
    "station": null,
-   "evidence": "Two recipes were imported from the same workbook tab (\u201cBlack Beans\u201d): \u201cBlack Beans Cooked PS\u201d (weekly book, Sauces, 8.7 kg this week) and \u201cBlack Beans\u201d (meat book, no component attached, 0 kg). They disagree on the dry-to-cooked ratio \u2014 0.46 against 0.28. One of the two is wrong, and the orphan is probably a duplicate import rather than a real prep. Which ratio is right?",
-   "badges": [
-    {
-     "l": "needs a person",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "0.46 is right \u2014 delete the other",
-    "0.28 is right",
-    "They are different beans"
-   ],
-   "value_label": "Correct dry ratio"
+   "evidence": "“Vermicelli Glass Noodles, Cooked” is being ordered as if you buy it ready-made — 5.89 kg goes onto the raw-materials list under that name. It is used in “Vermicelli in BBQ Sauce, 39”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "5.89 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "sf809088",
-   "section": "self",
+   "id": "mr3131c8",
+   "section": "missing",
    "sort": 2,
-   "title": "Marinated Cooked Chicken \u2014 what goes in it",
+   "title": "Verde Sauce",
    "station": null,
-   "evidence": "\u201cMarinated Cooked Chicken\u201d (tab \u201cYolk Chicken, Cooked\u201d) takes \u201cChicken, Marinated\u201d at 1.3 kg in per kg out. That input is not a purchase \u2014 you marinate it. \u201cY2 Marinated Chicken\u201d (tab \u201cYolk Chicken\u201d) is almost certainly the recipe that makes it: raw chicken 0.9, rapeseed oil, brown sugar, Yolk Spice Mix, salt, water, lemon. Linking the two would make the raw chicken and the spice mix flow through to the ordering list, which they do not today.",
-   "badges": [
-    {
-     "l": "needs a person",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Yes \u2014 link to Y2 Marinated Chicken",
-    "No \u2014 it is bought in marinated",
-    "Not sure"
-   ],
-   "value_label": "If a different recipe \u2014 which?"
+   "evidence": "“Verde Sauce” is being ordered as if you buy it ready-made — 3.12 kg goes onto the raw-materials list under that name. It is used in “Farfalle Verde”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "3.12 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "sf810bc2",
-   "section": "self",
+   "id": "mrd3c1bb",
+   "section": "missing",
    "sort": 3,
-   "title": "Bavette \u2014 which comes first, the brine or the steak",
+   "title": "Pok Choy Mix",
    "station": null,
-   "evidence": "Two Meat Team components, and the chain between them may be the wrong way round. \u201cBavette\u201d (tab \u201cYolk Bavette\u201d, 10.7 kg) is a brine: bavette 0.867 plus salt, water and ice. It currently draws from \u201cBavette Steak\u201d (tab \u201cBavette\u201d, 16.6 kg), which in turn takes \u201cBavette Steak\u201d at 1.2 \u2014 its own raw input. As modelled, you brine the finished steak. If it is the other way round, 9.3 kg of the 16.6 is being counted in the wrong place.",
-   "badges": [
-    {
-     "l": "needs a person",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Brine first \u2014 Bavette feeds Bavette Steak",
-    "As modelled is correct",
-    "Not sure"
-   ],
-   "value_label": "How it actually runs"
+   "evidence": "“Pok Choy Mix” is being ordered as if you buy it ready-made — 2.49 kg goes onto the raw-materials list under that name. It is used in “Edamame, Pok Choy Mix, SKU 9”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "2.49 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "nbb1d578",
-   "section": "bom",
-   "sort": 1,
-   "title": "Tuscan Sausage, Chorizo and Butter Bean Stew",
-   "station": null,
-   "evidence": "SKU 10 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cTuscan Sausage Stew\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "2 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nb356a19",
-   "section": "bom",
-   "sort": 2,
-   "title": "Lamb and Apricot Kofta",
-   "station": null,
-   "evidence": "SKU 1 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
-   "badges": [
-    {
-     "l": "1 meal",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nb0a57cb",
-   "section": "bom",
-   "sort": 3,
-   "title": "Jerk Chicken",
-   "station": null,
-   "evidence": "SKU 28 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJerk Chicken A\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "1 meal",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nb64e095",
-   "section": "bom",
+   "id": "mr40d0d9",
+   "section": "missing",
    "sort": 4,
-   "title": "Seafood Chowder",
+   "title": "Cavolo Nero, cooked",
    "station": null,
-   "evidence": "SKU 48 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
-   "badges": [
-    {
-     "l": "1 meal",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
+   "evidence": "“Cavolo Nero, cooked” is being ordered as if you buy it ready-made — 1.87 kg goes onto the raw-materials list under that name. It is used in “Sweet Potato, Cavolo Nero, Black Beans, Quinoa”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "1.87 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "nb7d7116",
-   "section": "bom",
+   "id": "mrc115f0",
+   "section": "missing",
    "sort": 5,
-   "title": "Jollof Rice with Grilled Chicken",
+   "title": "Aduki Beans, cooked",
    "station": null,
-   "evidence": "SKU 83 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJollof Sauce\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "1 meal",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
+   "evidence": "“Aduki Beans, cooked” is being ordered as if you buy it ready-made — 1.74 kg goes onto the raw-materials list under that name. It is used in “Sweet Potato, Cavolo Nero, Black Beans, Quinoa”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "1.74 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "dce76732",
-   "section": "decision",
-   "sort": 1,
-   "title": "Dry-goods picking sheet",
-   "station": null,
-   "evidence": "The convention is settled: component recipes are DRY weight, finished and meal recipes are COOKED. The app already totals every dry ingredient in the Raw materials list, and after the self-link fix it now matches your sheet almost exactly \u2014 Penne 4.06 vs 4.06, Fusilli 2.09 vs 2.09, Gnocchi 2.88 vs 2.88. What is missing is a picking sheet: that same list grouped by where it is stored and printable, so the team knows what dry pasta and grain to pull for the day. Where should it live \u2014 its own tab, or a section of Production needs?",
-   "badges": [
-    {
-     "l": "James",
-     "t": "owner"
-    }
-   ],
-   "options": [
-    "Own printable sheet",
-    "Section of Production needs",
-    "Both"
-   ],
-   "value_label": "Decision"
-  },
-  {
-   "id": "dcbfde34",
-   "section": "decision",
-   "sort": 2,
-   "title": "Ingredient names need merging before the picking sheet is usable",
-   "station": null,
-   "evidence": "The raw-materials total is split across spellings of the same ingredient: Salt (2.76) and SALT (0.01); Coconut Milk (2.97) and Coconut milk (2.12); Garlic IQF across three spellings. Fifteen groups in all. For a picking or ordering list this is dangerous \u2014 you would pull twice or miss some entirely. Merging them is straightforward once someone confirms each pair really is the same item.",
-   "badges": [
-    {
-     "l": "James",
-     "t": "owner"
-    }
-   ],
-   "options": [
-    "Merge them all",
-    "Review one by one",
-    "Other"
-   ],
-   "value_label": "Decision"
-  },
-  {
-   "id": "dc5153da",
-   "section": "decision",
-   "sort": 3,
-   "title": "Long-tail orders for discontinued dishes",
-   "station": null,
-   "evidence": "Dishes that are off the menu still receive occasional orders from long-standing customers \u2014 Jerk Chicken, Seafood Chowder, Lamb and Apricot Kofta among them. They arrive on the production list, get packed, but have no components, so the kitchen gets no requirement for them. James has flagged that how the website handles these needs addressing separately. Logged here so it is not lost; not for this pass.",
-   "badges": [
-    {
-     "l": "James",
-     "t": "owner"
-    }
-   ],
-   "options": [
-    "Parked \u2014 separate job",
-    "Handle it now",
-    "Other"
-   ],
-   "value_label": "Decision"
-  },
-  {
-   "id": "dc7ccf2f",
-   "section": "decision",
-   "sort": 4,
-   "title": "Simmer top-ups are not imported",
-   "station": null,
-   "evidence": "The dish import takes the D2C column only and matches exactly at 1,365 meals. The workbook's 1,377 includes 6 Simmer on SKU 6 and 6 on SKU 65. Should the importer add Simmer to the same SKU, or keep the wholesale lane separate?",
-   "badges": [
-    {
-     "l": "James",
-     "t": "owner"
-    }
-   ],
-   "options": [
-    "Add to the same SKU",
-    "Keep separate",
-    "Other"
-   ],
-   "value_label": "Decision"
-  },
-  {
-   "id": "dcf2fcc5",
-   "section": "decision",
-   "sort": 5,
-   "title": "Protect the workbook's formula cells",
-   "station": null,
-   "evidence": "Four cells had a number typed over the formula: Thai Green Curry (40.96 vs 6.03 correct), Pearl Barley (8.0 vs 4.07), Tagine Couscous (4.7 vs 3.10), Pickled Chilli (1.0 vs 0.46). Every one overstated production. All four are patched. Worth protecting those cells in the Google Sheet so it cannot happen again.",
-   "badges": [
-    {
-     "l": "James",
-     "t": "owner"
-    }
-   ],
-   "options": [
-    "Protect the cells",
-    "Leave as is",
-    "Other"
-   ],
-   "value_label": "Decision"
-  },
-  {
-   "id": "dc667823",
-   "section": "decision",
+   "id": "mrac2690",
+   "section": "missing",
    "sort": 6,
-   "title": "Build the component editor",
+   "title": "Small Carrot cubed, steamed",
    "station": null,
-   "evidence": "Every remaining item on this board is someone needing to change data they cannot currently touch \u2014 link an ingredient, merge two names, add components to a dish. There is no screen in the app that adds, renames or retires a component, so all of it routes through Claude. That is also how three names for one chicken came about: someone needed a line for chopped chicken, had no way to add one, and typed a new name into the sheet. A small editor turns the last stretch of this from a bottleneck into work the team can just do.",
-   "badges": [
-    {
-     "l": "James",
-     "t": "owner"
-    }
-   ],
-   "options": [
-    "Build it next",
-    "After the data is clean",
-    "Other"
-   ],
-   "value_label": "Decision"
+   "evidence": "“Small Carrot cubed, steamed” is being ordered as if you buy it ready-made — 0.6 kg goes onto the raw-materials list under that name. It is used in “Egg Fried Basmati Rice”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "0.6 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "mg9828b0",
-   "section": "merge",
-   "sort": 1,
-   "title": "coconut milk",
-   "station": null,
-   "evidence": "Counted separately as: Coconut Milk (2.97) + Coconut milk (2.12). Combined that is 5.09 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mgc4e8e7",
-   "section": "merge",
-   "sort": 2,
-   "title": "pomace oil",
-   "station": null,
-   "evidence": "Counted separately as: Pomace Oil (2.80) + Pomace OIL (0.16). Combined that is 2.96 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mgb295d1",
-   "section": "merge",
-   "sort": 3,
-   "title": "salt",
-   "station": null,
-   "evidence": "Counted separately as: Salt (2.76) + SALT (0.01). Combined that is 2.77 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mg7e6da7",
-   "section": "merge",
-   "sort": 4,
-   "title": "white onions",
-   "station": null,
-   "evidence": "Counted separately as: White onions (0.90) + Onions, white (0.63). Combined that is 1.53 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mg04df59",
-   "section": "merge",
-   "sort": 5,
-   "title": "garlic IQF",
-   "station": null,
-   "evidence": "Counted separately as: Garlic IQF (0.26) + Garlic, IQF (0.04) + GARLIC, IQF (0.03). Combined that is 0.33 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "3 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mgfade80",
-   "section": "merge",
-   "sort": 6,
-   "title": "lime juice",
-   "station": null,
-   "evidence": "Counted separately as: Lime Juice (0.23) + LIME JUICE (0.04). Combined that is 0.27 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mge1ec8d",
-   "section": "merge",
+   "id": "mrd289e6",
+   "section": "missing",
    "sort": 7,
-   "title": "ginger IQF",
+   "title": "Sweetcorn, Roasted",
    "station": null,
-   "evidence": "Counted separately as: Ginger IQF (0.23) + GINGER, IQF (0.02). Combined that is 0.25 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
+   "evidence": "“Sweetcorn, Roasted” is being ordered as if you buy it ready-made — 0.6 kg goes onto the raw-materials list under that name. It is used in “Egg Fried Basmati Rice”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
+   "badges": [{"l": "0.6 kg", "t": "clow"}],
+   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
+   "value_label": "If it needs one: what goes in it, per kg"
   },
   {
-   "id": "mg6fe393",
-   "section": "merge",
-   "sort": 8,
-   "title": "garlic oil",
+   "id": "dc783483",
+   "section": "decision",
+   "sort": 1,
+   "title": "Prep sheets are printing the wrong instructions",
    "station": null,
-   "evidence": "Counted separately as: Garlic Oil (0.13) + Garlic  Oil (0.11). Combined that is 0.24 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mg14ae54",
-   "section": "merge",
-   "sort": 9,
-   "title": "cumin",
-   "station": null,
-   "evidence": "Counted separately as: Cumin (0.22) + CUMIN (0.00). Combined that is 0.22 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mg76a393",
-   "section": "merge",
-   "sort": 10,
-   "title": "garlic puree",
-   "station": null,
-   "evidence": "Counted separately as: Garlic Puree (0.08) + Garlic puree (0.04). Combined that is 0.12 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mgb32ce3",
-   "section": "merge",
-   "sort": 11,
-   "title": "black pepper",
-   "station": null,
-   "evidence": "Counted separately as: Black Pepper (0.01) + Black pepper (0.01) + black pepper (0.00). Combined that is 0.02 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "3 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mgf1eef1",
-   "section": "merge",
-   "sort": 12,
-   "title": "ground cumin",
-   "station": null,
-   "evidence": "Counted separately as: Ground Cumin (0.01) + Cumin, ground (0.01) + Cumin ground (0.00). Combined that is 0.02 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "3 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mgfc3708",
-   "section": "merge",
-   "sort": 13,
-   "title": "dried rosemary",
-   "station": null,
-   "evidence": "Counted separately as: Dried Rosemary (0.01) + Rosemary, Dried (0.00). Combined that is 0.01 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mg07783e",
-   "section": "merge",
-   "sort": 14,
-   "title": "basmati rice",
-   "station": null,
-   "evidence": "Counted separately as: Basmati Rice (18.11) + Basmati (3.42) \u2014 check these are the same item. Combined that is 21.53 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
-  },
-  {
-   "id": "mg5c08c7",
-   "section": "merge",
-   "sort": 15,
-   "title": "tomatoes crushed",
-   "station": null,
-   "evidence": "Counted separately as: Tomato, Crushed (3.63) + Tomatos, Crushed (1.41). Combined that is 5.04 kg. Confirm these are the same item and it can be merged.",
-   "badges": [
-    {
-     "l": "2 spellings",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "Same item \u2014 merge",
-    "Different items",
-    "Not sure"
-   ],
-   "value_label": "Preferred name"
+   "evidence": "The method text on many recipes is contaminated by copy-paste from the workbook, and it prints on the sheets the kitchen works from. Baby Corn's method describes slicing aubergine. Gnocchi says add quinoa and water. Panga Fish says “lay the cod out”. Black Beans, Couscous and Tofu all read “divide marinade equally by number of trays with chicken meat”. Quantities are unaffected — but the written instructions are wrong on the page. Worth its own pass once the editor exists.",
+   "badges": [{"l": "James", "t": "owner"}],
+   "options": ["Fix it after the editor", "Fix it now", "Leave it"],
+   "value_label": "Decision"
   }
  ]
 }
