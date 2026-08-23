@@ -20,8 +20,8 @@
   },
   {
    "key": "bom",
-   "title": "Dishes with no components",
-   "intro": "These contribute nothing to any production requirement because nothing is defined underneath them. Give the components and grams per portion."
+   "title": "Discontinued or still made?",
+   "intro": "30 meals across 13 dishes produce no production requirement, because no components are attached \u2014 but they are still being packed. Several are off the menu and only trickle in from long-standing customers. Mark the ones that are genuinely discontinued; for any still made, a recipe already exists for most, so it only needs linking."
   },
   {
    "key": "merge",
@@ -1572,229 +1572,264 @@
    "value_label": "If a sub-recipe \u2014 which?"
   },
   {
-   "id": "nba72b20",
-   "section": "bom",
-   "sort": 1,
-   "title": "Japanese Chicken Breast x2",
-   "station": null,
-   "evidence": "SKU 69 \u00b7 31 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [
-    {
-     "l": "31 meals",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "Needs components",
-    "Not made here",
-    "Not sure"
-   ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
-  },
-  {
    "id": "nb92cfce",
    "section": "bom",
-   "sort": 2,
+   "sort": 1,
    "title": "Bacon Egg Bites",
    "station": null,
-   "evidence": "SKU 42 \u00b7 6 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
+   "evidence": "SKU 42 \u00b7 6 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cBacon Bites\u201d); only the link from the dish to it is missing.",
    "badges": [
     {
      "l": "6 meals",
-     "t": "hot"
+     "t": "clow"
     }
    ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb4d89d2",
    "section": "bom",
-   "sort": 3,
+   "sort": 2,
    "title": "Moroccan Chicken Thigh Portions",
    "station": null,
-   "evidence": "SKU 67 \u00b7 5 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
+   "evidence": "SKU 67 \u00b7 5 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cGrilled Chicken Thigh PS\u201d); only the link from the dish to it is missing.",
    "badges": [
     {
      "l": "5 meals",
-     "t": "hot"
+     "t": "clow"
     }
    ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nbc66c65",
    "section": "bom",
-   "sort": 4,
+   "sort": 3,
    "title": "Overnight Oats",
    "station": null,
-   "evidence": "SKU 64 \u00b7 3 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 64 \u00b7 3 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cOvernight Oats\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "3 meals",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nbb7103c",
    "section": "bom",
-   "sort": 5,
+   "sort": 4,
    "title": "Flame Grilled Bavette Portions",
    "station": null,
-   "evidence": "SKU 70 \u00b7 3 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 70 \u00b7 3 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cBavette\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "3 meals",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nbb1d578",
    "section": "bom",
-   "sort": 6,
+   "sort": 5,
    "title": "Tuscan Sausage, Chorizo and Butter Bean Stew",
    "station": null,
-   "evidence": "SKU 10 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 10 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cTuscan Sausage Stew\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "2 meals",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb827bfc",
    "section": "bom",
-   "sort": 7,
+   "sort": 6,
    "title": "Dates and Coca Truffles",
    "station": null,
-   "evidence": "SKU 47 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 47 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cDates and Cocoa Truffles\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "2 meals",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb0286dd",
    "section": "bom",
-   "sort": 8,
+   "sort": 7,
    "title": "Cranberry and Pistachio Balls",
    "station": null,
-   "evidence": "SKU 43 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 43 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cCranberry and Pistachio Balls\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "2 meals",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nbc09763",
    "section": "bom",
-   "sort": 9,
+   "sort": 8,
    "title": "Moroccan Lamb Portions",
    "station": null,
-   "evidence": "SKU 72 \u00b7 2 meals on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 72 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cMoorish Lamb\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "2 meals",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb7d7116",
    "section": "bom",
-   "sort": 10,
+   "sort": 9,
    "title": "Jollof Rice with Grilled Chicken",
    "station": null,
-   "evidence": "SKU 83 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 83 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJollof Sauce\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "1 meal",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb0a57cb",
    "section": "bom",
-   "sort": 11,
+   "sort": 10,
    "title": "Jerk Chicken",
    "station": null,
-   "evidence": "SKU 28 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 28 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJerk Chicken A\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "1 meal",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nbfb6443",
    "section": "bom",
-   "sort": 12,
+   "sort": 11,
    "title": "Red Peppers and Spinach Egg Bites",
    "station": null,
-   "evidence": "SKU 45 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 45 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cPeppers and Spinach Egg Bites\u201d); only the link from the dish to it is missing.",
+   "badges": [
+    {
+     "l": "1 meal",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb64e095",
    "section": "bom",
-   "sort": 13,
+   "sort": 12,
    "title": "Seafood Chowder",
    "station": null,
-   "evidence": "SKU 48 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 48 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
+   "badges": [
+    {
+     "l": "1 meal",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "nb356a19",
    "section": "bom",
-   "sort": 14,
+   "sort": 13,
    "title": "Lamb and Apricot Kofta",
    "station": null,
-   "evidence": "SKU 1 \u00b7 1 meal on the 26 Aug list. No components defined, so it produces no production requirement at all.",
-   "badges": [],
+   "evidence": "SKU 1 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
+   "badges": [
+    {
+     "l": "1 meal",
+     "t": "clow"
+    }
+   ],
    "options": [
-    "Needs components",
-    "Not made here",
+    "Discontinued \u2014 leave it",
+    "Still made \u2014 link it",
     "Not sure"
    ],
-   "value_label": "Components + grams, e.g. Bavette 150, Orzo 220"
+   "value_label": "If still made: components + grams"
   },
   {
    "id": "dce76732",
@@ -1837,9 +1872,29 @@
    "value_label": "Decision"
   },
   {
-   "id": "dc7ccf2f",
+   "id": "dc5153da",
    "section": "decision",
    "sort": 3,
+   "title": "Long-tail orders for discontinued dishes",
+   "station": null,
+   "evidence": "Dishes that are off the menu still receive occasional orders from long-standing customers \u2014 Jerk Chicken, Seafood Chowder, Lamb and Apricot Kofta among them. They arrive on the production list, get packed, but have no components, so the kitchen gets no requirement for them. James has flagged that how the website handles these needs addressing separately. Logged here so it is not lost; not for this pass.",
+   "badges": [
+    {
+     "l": "James",
+     "t": "owner"
+    }
+   ],
+   "options": [
+    "Parked \u2014 separate job",
+    "Handle it now",
+    "Other"
+   ],
+   "value_label": "Decision"
+  },
+  {
+   "id": "dc7ccf2f",
+   "section": "decision",
+   "sort": 4,
    "title": "Simmer top-ups are not imported",
    "station": null,
    "evidence": "The dish import takes the D2C column only and matches exactly at 1,365 meals. The workbook's 1,377 includes 6 Simmer on SKU 6 and 6 on SKU 65. Should the importer add Simmer to the same SKU, or keep the wholesale lane separate?",
@@ -1859,7 +1914,7 @@
   {
    "id": "dcf2fcc5",
    "section": "decision",
-   "sort": 4,
+   "sort": 5,
    "title": "Protect the workbook's formula cells",
    "station": null,
    "evidence": "Four cells had a number typed over the formula: Thai Green Curry (40.96 vs 6.03 correct), Pearl Barley (8.0 vs 4.07), Tagine Couscous (4.7 vs 3.10), Pickled Chilli (1.0 vs 0.46). Every one overstated production. All four are patched. Worth protecting those cells in the Google Sheet so it cannot happen again.",
@@ -1879,7 +1934,7 @@
   {
    "id": "dc667823",
    "section": "decision",
-   "sort": 5,
+   "sort": 6,
    "title": "Build the component editor",
    "station": null,
    "evidence": "Every remaining item on this board is someone needing to change data they cannot currently touch \u2014 link an ingredient, merge two names, add components to a dish. There is no screen in the app that adds, renames or retires a component, so all of it routes through Claude. That is also how three names for one chicken came about: someone needed a line for chopped chicken, had no way to add one, and typed a new name into the sheet. A small editor turns the last stretch of this from a bottleneck into work the team can just do.",
