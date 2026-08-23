@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Data QA — Chefly SIM Tracker</title>
+<!--
+  Token-gated QA board, same pattern as wall.html / packwall.html: no login, one shared
+  link, every rule enforced in the sim_public_qa RPC rather than here.
+
+  The QUESTIONS come from dataqa-items.json in this repo, so changing the board is a
+  reviewable commit rather than a database edit. Only the ANSWERS live in Supabase
+  (sim_qa_responses). Saves are debounced per row and optimistic; a failed save is shown
+  on the row it belongs to rather than as a page-level alert, so one bad row never makes
+  the rest of someone's work look lost.
+-->
+<style>
+:root{
+  --ground:#f4f6f7; --surface:#fff; --surface-2:#eceff1;
+  --ink:#15181b; --ink-2:#3d464e; --muted:#68727b;
+  --line:#dbe1e5; --line-2:#c5ced4;
+  --accent:#d94a15; --accent-ink:#a5350b; --accent-wash:#fdefe9;
+  --yes:#1a613a; --yes-wash:#e2f1e9;
+  --no:#a81f16;  --no-wash:#fbe9e7;
+  --maybe:#8a5205; --maybe-wash:#faf0e0;
+  --shadow:0 1px 2px rgba(21,24,27,.05),0 4px 14px -8px rgba(21,24,27,.14);
+}
+@media (prefers-color-scheme:dark){:root{
+  --ground:#14181b; --surface:#1b2024; --surface-2:#232a2f;
+  --ink:#eef2f4; --ink-2:#c3ccd2; --muted:#8e9aa2;
+  --line:#2c343a; --line-2:#3b454c;
+  --accent:#ff7443; --accent-ink:#ffa176; --accent-wash:#2e1b12;
+  --yes:#63c795; --yes-wash:#16261e;
+  --no:#ff8177;  --no-wash:#2f1917;
+  --maybe:#e0a24a; --maybe-wash:#2b2115;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 4px 14px -8px rgba(0,0,0,.6);
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-size:15px;line-height:1.55;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 18px 90px}
+.mast{padding:32px 0 14px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);
+  font-weight:700;margin:0 0 6px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.02em}
+.dek{color:var(--ink-2);margin:10px 0 0;max-width:62ch}
+.how{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:8px;padding:13px 17px;margin-top:16px;box-shadow:var(--shadow)}
+.how p{margin:0 0 7px;font-size:14px;color:var(--ink-2)} .how p:last-child{margin:0}
+.how b{color:var(--ink)}
+.whobar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:14px}
+.whobar label{font-size:13px;color:var(--muted)}
+#who{font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--line-2);border-radius:6px;
+  background:var(--surface);color:var(--ink);min-width:170px}
+#who:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.bar{position:sticky;top:0;z-index:5;background:var(--ground);padding:11px 0 9px;
+  border-bottom:1px solid var(--line);display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.nav{font-size:13px;font-weight:600;background:var(--surface);color:var(--ink-2);
+  border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer;font-family:inherit}
+.nav:hover{border-color:var(--line-2);color:var(--ink)}
+.nav[aria-pressed=true]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.nav .n{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
+.prog{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.prog b{color:var(--ink)}
+.sec{margin-top:30px}
+h2{font-size:22px;margin:0 0 3px;font-weight:800;letter-spacing:-.01em}
+.intro{color:var(--muted);font-size:14px;margin:0 0 14px;max-width:78ch}
+.rows{display:flex;flex-direction:column;gap:8px}
+.row{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 13px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px 16px;align-items:start;
+  box-shadow:var(--shadow)}
+.row.done{border-left:3px solid var(--yes)}
+.row.actioned{opacity:.62}
+.rtitle{font-weight:650;font-size:15px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rev{font-size:13.5px;color:var(--ink-2);margin-top:3px}
+.rctl{display:flex;flex-direction:column;gap:5px;min-width:264px}
+.verdict{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.vl{flex:1;text-align:center;font-size:12.5px;font-weight:650;padding:5px 8px;cursor:pointer;
+  color:var(--muted);background:var(--surface);border-right:1px solid var(--line);white-space:nowrap;
+  user-select:none}
+.vl:last-child{border-right:0}
+.vl:hover{background:var(--surface-2);color:var(--ink)}
+.vl.on0{background:var(--yes-wash);color:var(--yes)}
+.vl.on1{background:var(--no-wash);color:var(--no)}
+.vl.on2{background:var(--maybe-wash);color:var(--maybe)}
+.rin{font:inherit;font-size:13px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;
+  background:var(--surface-2);color:var(--ink);width:100%}
+.rin:focus{outline:2px solid var(--accent);outline-offset:-1px;background:var(--surface)}
+.rin::placeholder{color:var(--muted);opacity:.75}
+.state{font-size:11.5px;color:var(--muted);min-height:15px}
+.state.err{color:var(--no)}
+.chip{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  padding:1px 7px;border-radius:3px;border:1px solid currentColor}
+.chip.stn{color:var(--muted);border-style:dashed}
+.chip.hot,.chip.notinapp,.chip.notonsheet{color:var(--accent-ink)}
+.chip.gap{color:var(--no)} .chip.close{color:var(--maybe)}
+.chip.chigh{color:var(--yes)} .chip.cmedium{color:var(--maybe)} .chip.clow{color:var(--muted)}
+.chip.owner{color:var(--muted)}
+.act{margin-top:4px;font-size:12px;color:var(--yes)}
+#err{display:none;background:var(--no-wash);border:1px solid var(--no);color:var(--no);
+  padding:14px 16px;border-radius:8px;margin-top:24px}
+#load{color:var(--muted);padding:30px 0}
+footer{margin-top:50px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+@media(max-width:760px){.row{grid-template-columns:1fr}.rctl{min-width:0}.bar{position:static}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Chefly SIM Tracker · production data</p>
+    <h1>Data QA</h1>
+    <p class="dek">Everything that does not line up between the app and the production workbook. Answer what you can, skip what you cannot — it saves as you go.</p>
+    <div class="how">
+      <p><b>How this works.</b> Pick a verdict, add the correct value if you know it, leave a note. Nothing to save and nothing to send.</p>
+      <p><b>If you are not sure, say so.</b> A “not sure” with a note is far more useful than a guess — several of these have more than one plausible answer.</p>
+    </div>
+    <div class="whobar">
+      <label for="who">Your name</label>
+      <input id="who" placeholder="so we know who answered" autocomplete="name">
+    </div>
+  </header>
+  <div id="err"></div>
+  <div id="load">Loading…</div>
+  <div id="board" hidden>
+    <div class="bar" id="bar"></div>
+    <div id="secs"></div>
+  </div>
+  <footer id="foot"></footer>
+</div>
+
+<script type="module">
+// Loaded dynamically rather than with a static import so that a CDN failure produces a
+// readable message instead of a page stuck on "Loading..." forever -- the whole board is
+// useless without it, and a blank screen tells the person nothing about what to do.
+let createClient
+try {
+  ({ createClient } = await import('https://esm.sh/@supabase/supabase-js@2'))
+} catch (e) {
+  document.getElementById('load').hidden = true
+  const box = document.getElementById('err')
+  box.style.display = 'block'
+  box.textContent = 'Could not reach the database library (esm.sh). This is usually a network or '
+    + 'firewall problem rather than anything you did — try again, or on a different connection.'
+  throw e
+}
+const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
+const token = new URLSearchParams(location.search).get('t') || ''
+const $ = id => document.getElementById(id)
+const esc = v => v==null ? '' : String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+
+let DATA=null, ANS={}, filter='all'
+const who = () => ($('who').value||'').trim()
+try { $('who').value = localStorage.getItem('qaWho') || '' } catch(e){}
+$('who').addEventListener('change', () => { try{ localStorage.setItem('qaWho', who()) }catch(e){} })
+
+function fail(msg){ $('load').hidden=true; $('err').style.display='block'; $('err').textContent=msg }
+
+async function boot(){
+  if(!token){ fail('This link is missing its access token. Ask James for the full QA link.'); return }
+  let items
+  try {
+    const r = await fetch('dataqa-items.json', {cache:'no-cache'})
+    if(!r.ok) throw new Error('HTTP '+r.status)
+    items = await r.json()
+  } catch(e){ fail('Could not load the question list. '+e.message); return }
+  DATA = items
+  const { data, error } = await sb.rpc('sim_public_qa', { p_token: token })
+  if(error){ fail('Could not load your answers — check the link is complete. '+error.message); return }
+  ANS = data.answers || {}
+  render()
+  $('load').hidden = true
+  $('board').hidden = false
+  $('foot').textContent = 'Run of Wednesday 26 August 2026 · '+DATA.meals.toLocaleString()+
+    ' meals · compared against ' + DATA.source
+}
+
+function render(){
+  const secs = DATA.sections.filter(s => DATA.items.some(i => i.section===s.key))
+  $('bar').innerHTML =
+    btn('all','All',DATA.items.length) +
+    secs.map(s => btn(s.key, s.title, DATA.items.filter(i=>i.section===s.key).length)).join('') +
+    '<span class="prog" id="prog"></span>'
+  $('secs').innerHTML = secs.map(s => {
+    const rows = DATA.items.filter(i => i.section===s.key)
+    return `<section class="sec" data-sec="${esc(s.key)}"${filter!=='all'&&filter!==s.key?' hidden':''}>
+      <h2>${esc(s.title)}</h2><p class="intro">${esc(s.intro)}</p>
+      <div class="rows">${rows.map(rowHtml).join('')}</div></section>`
+  }).join('')
+  $('bar').querySelectorAll('.nav').forEach(b => b.onclick = () => {
+    filter = b.dataset.f
+    $('bar').querySelectorAll('.nav').forEach(x => x.setAttribute('aria-pressed', String(x===b)))
+    $('secs').querySelectorAll('.sec').forEach(x => { x.hidden = filter!=='all' && x.dataset.sec!==filter })
+  })
+  wire(); progress()
+}
+const btn = (f,label,n) =>
+  `<button class="nav" data-f="${esc(f)}" aria-pressed="${f===filter}">${esc(label)} <span class="n">${n}</span></button>`
+
+function rowHtml(i){
+  const a = ANS[i.id] || {}
+  const chips = (i.badges||[]).map(b => `<span class="chip ${esc(b.t)}">${esc(b.l)}</span>`).join('')
+  const opts = i.options.map((o,ix) =>
+    `<span class="vl${a.verdict===o?' on'+ix:''}" data-id="${esc(i.id)}" data-v="${esc(o)}" role="button" tabindex="0">${esc(o)}</span>`).join('')
+  const stamp = a.at ? `saved ${new Date(a.at).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}${a.by?' · '+esc(a.by):''}` : ''
+  return `<div class="row${a.verdict?' done':''}${a.actioned?' actioned':''}" data-row="${esc(i.id)}">
+    <div>
+      <div class="rtitle">${esc(i.title)}${chips}</div>
+      <div class="rev">${esc(i.evidence)}</div>
+      ${a.actioned?`<div class="act">✓ applied${a.actioned_note?' — '+esc(a.actioned_note):''}</div>`:''}
+    </div>
+    <div class="rctl">
+      <div class="verdict">${opts}</div>
+      <input class="rin" data-f="value" data-id="${esc(i.id)}" placeholder="${esc(i.value_label||'Correct value')}" value="${esc(a.value||'')}" autocomplete="off">
+      <input class="rin" data-f="note" data-id="${esc(i.id)}" placeholder="Note" value="${esc(a.note||'')}" autocomplete="off">
+      <div class="state" data-s="${esc(i.id)}">${stamp}</div>
+    </div>
+  </div>`
+}
+
+function wire(){
+  $('secs').querySelectorAll('.vl').forEach(el => {
+    const pick = () => {
+      const id = el.dataset.id, v = el.dataset.v
+      const cur = (ANS[id]||{}).verdict
+      setLocal(id, { verdict: cur===v ? null : v })   // tapping the chosen one clears it
+      const box = el.parentElement
+      box.querySelectorAll('.vl').forEach((x,ix) => x.classList.remove('on0','on1','on2'))
+      const nv = (ANS[id]||{}).verdict
+      if(nv) box.querySelectorAll('.vl').forEach((x,ix) => { if(x.dataset.v===nv) x.classList.add('on'+ix) })
+      el.closest('.row').classList.toggle('done', !!nv)
+      save(id); progress()
+    }
+    el.onclick = pick
+    el.onkeydown = e => { if(e.key===' '||e.key==='Enter'){ e.preventDefault(); pick() } }
+  })
+  $('secs').querySelectorAll('.rin').forEach(el => {
+    el.oninput = () => { setLocal(el.dataset.id, { [el.dataset.f]: el.value }); save(el.dataset.id, 700) }
+    el.onblur  = () => save(el.dataset.id, 0)
+  })
+}
+function setLocal(id, patch){ ANS[id] = Object.assign({}, ANS[id]||{}, patch) }
+
+const timers = {}
+function save(id, delay=250){
+  clearTimeout(timers[id])
+  timers[id] = setTimeout(async () => {
+    const a = ANS[id]||{}, st = $('secs').querySelector(`[data-s="${id}"]`)
+    if(st){ st.classList.remove('err'); st.textContent='saving…' }
+    const { data, error } = await sb.rpc('sim_public_qa', {
+      p_token: token, p_action: 'save', p_item_id: id,
+      p_verdict: a.verdict ?? null, p_value: a.value ?? null,
+      p_note: a.note ?? null, p_by: who() || null })
+    if(error){
+      if(st){ st.classList.add('err'); st.textContent = 'not saved — ' + error.message }
+      return
+    }
+    ANS = data.answers || ANS
+    const now = (ANS[id]||{}).at
+    if(st) st.textContent = 'saved' + (now ? ' ' + new Date(now).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '') + (who()?' · '+who():'')
+    progress()
+  }, delay)
+}
+function progress(){
+  const done = DATA.items.filter(i => (ANS[i.id]||{}).verdict).length
+  const p = $('prog'); if(p) p.innerHTML = `<b>${done}</b> of ${DATA.items.length} answered`
+}
+boot()
+</script>
+</body>
+</html>
