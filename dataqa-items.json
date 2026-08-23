@@ -21,7 +21,7 @@
   {
    "key": "bom",
    "title": "Discontinued or still made?",
-   "intro": "30 meals across 13 dishes produce no production requirement, because no components are attached \u2014 but they are still being packed. Several are off the menu and only trickle in from long-standing customers. Mark the ones that are genuinely discontinued; for any still made, a recipe already exists for most, so it only needs linking."
+   "intro": "Down to 5 dishes and 6 meals. Every one of these is absent from the production workbook entirely \u2014 the sheet has already dropped them \u2014 so they are almost certainly discontinued and only trickling in from long-standing customers. Confirm and they can be closed. The pre-production items that were here (egg bites, oats, truffles, the Portions products) have all been linked and are gone from this list."
   },
   {
    "key": "merge",
@@ -1572,89 +1572,9 @@
    "value_label": "If a sub-recipe \u2014 which?"
   },
   {
-   "id": "nb92cfce",
-   "section": "bom",
-   "sort": 1,
-   "title": "Bacon Egg Bites",
-   "station": null,
-   "evidence": "SKU 42 \u00b7 6 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cBacon Bites\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "6 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nb4d89d2",
-   "section": "bom",
-   "sort": 2,
-   "title": "Moroccan Chicken Thigh Portions",
-   "station": null,
-   "evidence": "SKU 67 \u00b7 5 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cGrilled Chicken Thigh PS\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "5 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nbc66c65",
-   "section": "bom",
-   "sort": 3,
-   "title": "Overnight Oats",
-   "station": null,
-   "evidence": "SKU 64 \u00b7 3 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cOvernight Oats\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "3 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nbb7103c",
-   "section": "bom",
-   "sort": 4,
-   "title": "Flame Grilled Bavette Portions",
-   "station": null,
-   "evidence": "SKU 70 \u00b7 3 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cBavette\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "3 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
    "id": "nbb1d578",
    "section": "bom",
-   "sort": 5,
+   "sort": 1,
    "title": "Tuscan Sausage, Chorizo and Butter Bean Stew",
    "station": null,
    "evidence": "SKU 10 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cTuscan Sausage Stew\u201d); only the link from the dish to it is missing.",
@@ -1672,72 +1592,12 @@
    "value_label": "If still made: components + grams"
   },
   {
-   "id": "nb827bfc",
+   "id": "nb356a19",
    "section": "bom",
-   "sort": 6,
-   "title": "Dates and Coca Truffles",
+   "sort": 2,
+   "title": "Lamb and Apricot Kofta",
    "station": null,
-   "evidence": "SKU 47 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cDates and Cocoa Truffles\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "2 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nb0286dd",
-   "section": "bom",
-   "sort": 7,
-   "title": "Cranberry and Pistachio Balls",
-   "station": null,
-   "evidence": "SKU 43 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cCranberry and Pistachio Balls\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "2 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nbc09763",
-   "section": "bom",
-   "sort": 8,
-   "title": "Moroccan Lamb Portions",
-   "station": null,
-   "evidence": "SKU 72 \u00b7 2 meals on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cMoorish Lamb\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "2 meals",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
-   "id": "nb7d7116",
-   "section": "bom",
-   "sort": 9,
-   "title": "Jollof Rice with Grilled Chicken",
-   "station": null,
-   "evidence": "SKU 83 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJollof Sauce\u201d); only the link from the dish to it is missing.",
+   "evidence": "SKU 1 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
    "badges": [
     {
      "l": "1 meal",
@@ -1754,7 +1614,7 @@
   {
    "id": "nb0a57cb",
    "section": "bom",
-   "sort": 10,
+   "sort": 3,
    "title": "Jerk Chicken",
    "station": null,
    "evidence": "SKU 28 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJerk Chicken A\u201d); only the link from the dish to it is missing.",
@@ -1772,29 +1632,9 @@
    "value_label": "If still made: components + grams"
   },
   {
-   "id": "nbfb6443",
-   "section": "bom",
-   "sort": 11,
-   "title": "Red Peppers and Spinach Egg Bites",
-   "station": null,
-   "evidence": "SKU 45 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cPeppers and Spinach Egg Bites\u201d); only the link from the dish to it is missing.",
-   "badges": [
-    {
-     "l": "1 meal",
-     "t": "clow"
-    }
-   ],
-   "options": [
-    "Discontinued \u2014 leave it",
-    "Still made \u2014 link it",
-    "Not sure"
-   ],
-   "value_label": "If still made: components + grams"
-  },
-  {
    "id": "nb64e095",
    "section": "bom",
-   "sort": 12,
+   "sort": 4,
    "title": "Seafood Chowder",
    "station": null,
    "evidence": "SKU 48 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
@@ -1812,12 +1652,12 @@
    "value_label": "If still made: components + grams"
   },
   {
-   "id": "nb356a19",
+   "id": "nb7d7116",
    "section": "bom",
-   "sort": 13,
-   "title": "Lamb and Apricot Kofta",
+   "sort": 5,
+   "title": "Jollof Rice with Grilled Chicken",
    "station": null,
-   "evidence": "SKU 1 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. No recipe exists for this one either.",
+   "evidence": "SKU 83 \u00b7 1 meal on the 26 Aug list, with no components attached \u2014 so it produces no production requirement, yet it still gets packed. A recipe already exists (\u201cJollof Sauce\u201d); only the link from the dish to it is missing.",
    "badges": [
     {
      "l": "1 meal",
