@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Prep instructions review — Chefly</title>
+<style>
+  :root{
+    --bg:#f7f5f2; --card:#fff; --ink:#1c1917; --mid:#57534e; --soft:#8a8279;
+    --line:#e7e2db; --line2:#d6cfc5; --accent:#c2410c; --accent-soft:#fff1e9;
+    --ok:#15803d; --ok-soft:#eef7f0; --warn:#b45309; --warn-soft:#fdf6e7;
+    --bad:#b91c1c; --bad-soft:#fdf0ef; --code:#f4f1ec;
+    --r:14px; --shadow:0 1px 2px rgba(28,25,23,.05),0 4px 14px rgba(28,25,23,.04);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#17150f; --card:#221f1a; --ink:#f5f0e8; --mid:#bdb5a8; --soft:#8d8579;
+      --line:#332e26; --line2:#463f34; --accent:#fb923c; --accent-soft:#2c1d12;
+      --ok:#6ee7a0; --ok-soft:#132318; --warn:#fcd34d; --warn-soft:#2a2110;
+      --bad:#fca5a5; --bad-soft:#2a1615; --code:#1b1813;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 4px 14px rgba(0,0,0,.25);}
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:ui-serif,Georgia,"Iowan Old Style","Times New Roman",serif;
+    background:var(--bg);color:var(--ink);line-height:1.55;-webkit-text-size-adjust:100%}
+  .sans{font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:780px;margin:0 auto;padding:28px 18px 120px}
+
+  header{margin-bottom:26px}
+  h1{font-size:31px;line-height:1.15;letter-spacing:-.02em;margin-bottom:10px;font-weight:600}
+  .lede{color:var(--mid);font-size:17px;max-width:60ch}
+  .lede b{color:var(--ink);font-weight:600}
+
+  .bar{position:sticky;top:0;z-index:20;background:var(--bg);
+    padding:12px 0 10px;margin:20px 0 4px;border-bottom:1px solid var(--line)}
+  .track{height:7px;background:var(--line);border-radius:99px;overflow:hidden}
+  .fill{height:100%;background:var(--accent);border-radius:99px;transition:width .35s cubic-bezier(.4,0,.2,1);width:0}
+  .barrow{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:8px;
+    font-size:13.5px;color:var(--mid)}
+  .barrow b{color:var(--ink);font-weight:600}
+
+  .filters{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 26px}
+  .filters button{font-family:inherit;font-size:13.5px;padding:6px 13px;border-radius:99px;cursor:pointer;
+    border:1px solid var(--line2);background:transparent;color:var(--mid);transition:.15s}
+  .filters button:hover{border-color:var(--soft);color:var(--ink)}
+  .filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+  h2.stn{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);
+    margin:36px 0 12px;padding-bottom:7px;border-bottom:1px solid var(--line);font-weight:600}
+  h2.stn:first-of-type{margin-top:8px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:20px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:90px}
+  .card.done{border-color:var(--line);opacity:.62}
+  .card.done:hover{opacity:1}
+  .card.flag{border-left:3px solid var(--warn)}
+
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:3px}
+  .rname{font-size:20px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+  .kg{flex-shrink:0;font-size:13px;color:var(--soft);white-space:nowrap;padding-top:5px}
+
+  .ings{margin:12px 0 2px;font-size:13.5px;color:var(--mid);line-height:1.85}
+  .ings .lbl{color:var(--soft);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+    display:block;margin-bottom:3px;font-weight:600}
+  .chip{display:inline-block;background:var(--code);border:1px solid var(--line);
+    border-radius:6px;padding:1px 8px;margin:0 5px 5px 0;font-size:13px}
+
+  .flagbox{margin:14px 0 0;padding:11px 13px;border-radius:10px;font-size:14px;
+    background:var(--warn-soft);color:var(--warn);border:1px solid transparent}
+  .flagbox b{font-weight:600}
+
+  .method{margin-top:14px;background:var(--code);border:1px solid var(--line);
+    border-radius:10px;padding:14px 16px}
+  .method .lbl{color:var(--soft);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;
+    margin-bottom:7px;font-weight:600}
+  .method ol{margin:0;padding-left:20px}
+  .method li{margin-bottom:6px;font-size:15px}
+  .method li:last-child{margin-bottom:0}
+  .method .none{color:var(--soft);font-style:italic;font-size:15px}
+
+  .ask{margin-top:18px;font-size:15.5px;font-weight:600}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+  .opts button{font-family:inherit;font-size:14.5px;padding:9px 15px;border-radius:9px;cursor:pointer;
+    border:1px solid var(--line2);background:transparent;color:var(--ink);transition:.15s;text-align:left}
+  .opts button:hover{border-color:var(--soft);background:var(--code)}
+  .opts button[aria-pressed="true"]{border-color:transparent;font-weight:600}
+  .opts button[aria-pressed="true"][data-k="ok"]{background:var(--ok-soft);color:var(--ok)}
+  .opts button[aria-pressed="true"][data-k="old"],
+  .opts button[aria-pressed="true"][data-k="none"]{background:var(--warn-soft);color:var(--warn)}
+  .opts button[aria-pressed="true"][data-k="wrong"]{background:var(--bad-soft);color:var(--bad)}
+
+  .write{margin-top:14px;display:none}
+  .write.on{display:block}
+  .write label{display:block;font-size:13.5px;color:var(--mid);margin-bottom:7px}
+  textarea{width:100%;font-family:inherit;font-size:15px;line-height:1.6;color:var(--ink);
+    background:var(--bg);border:1px solid var(--line2);border-radius:10px;padding:12px 13px;
+    resize:vertical;min-height:104px}
+  textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .saved{font-size:12.5px;color:var(--ok);margin-top:8px;height:16px;opacity:0;transition:opacity .2s}
+  .saved.on{opacity:1}
+
+  .who{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);
+    border-top:1px solid var(--line);padding:11px 18px;display:flex;gap:10px;align-items:center;
+    justify-content:center;font-size:14px;color:var(--mid);box-shadow:0 -2px 14px rgba(0,0,0,.05)}
+  .who input{font-family:inherit;font-size:14px;padding:6px 11px;border-radius:8px;
+    border:1px solid var(--line2);background:var(--bg);color:var(--ink);width:150px}
+  .who input:focus{outline:none;border-color:var(--accent)}
+
+  .msg{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    padding:26px;text-align:center;color:var(--mid);margin-top:40px}
+  .msg.err{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+  .empty{color:var(--soft);font-style:italic;padding:26px 0;text-align:center}
+  @media(max-width:520px){ h1{font-size:26px} .wrap{padding:20px 14px 130px} .card{padding:17px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="load" class="msg">Loading…</div>
+  <div id="err" class="msg err" style="display:none"></div>
+
+  <div id="app" style="display:none">
+    <header>
+      <h1>Prep instructions review</h1>
+      <p class="lede">The written method on each prep sheet came across from the workbook, and a lot of it
+      is wrong — <b>copied from a different recipe</b>, or just out of date. The quantities are fine; it is the
+      words the team reads that need fixing.</p>
+      <p class="lede" style="margin-top:11px">Below is every prep being made this week, biggest first, grouped
+      by station. For each one: does the method match what actually happens? Answers save as you go —
+      you can close this and come back.</p>
+    </header>
+
+    <div class="bar">
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <div class="barrow"><span><b id="ndone">0</b> of <b id="ntot">0</b> reviewed</span>
+        <span id="flagged" class="sans"></span></div>
+    </div>
+
+    <div class="filters sans" id="filters">
+      <button data-f="todo" aria-pressed="true">Still to do</button>
+      <button data-f="flag" aria-pressed="false">Looks wrong</button>
+      <button data-f="nometh" aria-pressed="false">No instructions</button>
+      <button data-f="done" aria-pressed="false">Reviewed</button>
+      <button data-f="all" aria-pressed="false">Everything</button>
+    </div>
+
+    <div id="list"></div>
+  </div>
+</div>
+
+<div class="who sans" id="whobar" style="display:none">
+  <span>Your name</span><input id="who" placeholder="Kaja" autocomplete="name" />
+</div>
+
+<script type="module">
+let createClient
+try { ({ createClient } = await import('https://esm.sh/@supabase/supabase-js@2')) }
+catch (e) {
+  document.getElementById('load').style.display = 'none'
+  const b = document.getElementById('err')
+  b.style.display = 'block'
+  b.textContent = 'Could not reach the database library (esm.sh). Check the connection and reload.'
+  throw e
+}
+const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
+const token = new URLSearchParams(location.search).get('t') || ''
+const $ = id => document.getElementById(id)
+const esc = v => v==null ? '' : String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+
+const OPTS = [
+  ['ok',    'Yes — this is right'],
+  ['old',   'Out of date'],
+  ['wrong', 'Belongs to another recipe'],
+  ['none',  'Never had instructions'],
+]
+const PROMPT = {
+  old:   'What does the team actually do now? One step per line is perfect.',
+  wrong: 'What should this one say instead? One step per line is perfect.',
+  none:  'What does the team do? One step per line is perfect.',
+}
+
+let DATA = null, FILTER = 'todo'
+const who = () => $('who').value.trim()
+try { $('who').value = localStorage.getItem('chefly_who') || '' } catch(e){}
+$('who').addEventListener('input', () => { try { localStorage.setItem('chefly_who', who()) } catch(e){} })
+
+function fail(m){ $('load').style.display='none'; $('err').style.display='block'; $('err').textContent=m }
+
+async function load(){
+  if(!token){ fail('This link is missing its access code. Ask James for the full link.'); return }
+  const { data, error } = await sb.rpc('sim_public_methods', { p_token: token })
+  if(error){ fail('Could not load the list. '+error.message); return }
+  DATA = data
+  $('load').style.display='none'; $('app').style.display='block'; $('whobar').style.display='flex'
+  render()
+}
+
+const isFlag = r => r.boilerplate || (r.foreign||[]).length > 0
+const isDone = r => !!(DATA.reviews[r.id] && DATA.reviews[r.id].verdict)
+const noMeth = r => (r.method||[]).length === 0
+
+function keep(r){
+  if(FILTER==='all')    return true
+  if(FILTER==='done')   return isDone(r)
+  if(FILTER==='todo')   return !isDone(r)
+  if(FILTER==='flag')   return isFlag(r) && !isDone(r)
+  if(FILTER==='nometh') return noMeth(r) && !isDone(r)
+  return true
+}
+
+function card(r){
+  const rev = DATA.reviews[r.id] || {}
+  const ings = (r.ingredients||[]).map(i=>`<span class="chip">${esc(i.n)}</span>`).join('')
+  let flag = ''
+  if(r.boilerplate) flag = `<div class="flagbox">⚠ This one carries the stray line <b>“divide marinade equally by number of trays with chicken meat”</b>, which was pasted onto a lot of sheets by mistake.</div>`
+  else if((r.foreign||[]).length) flag = `<div class="flagbox">⚠ The method mentions <b>${r.foreign.map(esc).join(', ')}</b>, which ${r.foreign.length>1?'are':'is'} not in this recipe. It may have been copied from a different sheet.</div>`
+  else if(noMeth(r)) flag = `<div class="flagbox">This prep has no written method at all.</div>`
+
+  const steps = (r.method||[]).length
+    ? `<ol>${r.method.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`
+    : `<div class="none">Nothing written.</div>`
+
+  const opts = OPTS.map(([k,label])=>
+    `<button class="sans" data-k="${k}" data-id="${r.id}" aria-pressed="${rev.verdict===k?'true':'false'}">${label}</button>`).join('')
+
+  const showWrite = rev.verdict && rev.verdict!=='ok'
+  return `<article class="card${isDone(r)?' done':''}${isFlag(r)||noMeth(r)?' flag':''}" id="c${r.id}">
+    <div class="top">
+      <div class="rname">${esc(r.name)}</div>
+      <div class="kg sans">${r.kg} kg</div>
+    </div>
+    <div class="ings sans"><span class="lbl">Goes in</span>${ings||'<span class="chip">—</span>'}</div>
+    ${flag}
+    <div class="method"><div class="lbl sans">Method as it prints today</div>${steps}</div>
+    <div class="ask sans">Does this match what actually happens?</div>
+    <div class="opts">${opts}</div>
+    <div class="write${showWrite?' on':''}" id="w${r.id}">
+      <label class="sans" id="l${r.id}">${PROMPT[rev.verdict]||PROMPT.old}</label>
+      <textarea id="t${r.id}" data-id="${r.id}" placeholder="e.g.&#10;Bring the water to the boil.&#10;Add the rice and salt, stir once.&#10;Cover, 12 minutes, then rest 5.">${esc(rev.method_text||'')}</textarea>
+      <div class="saved sans" id="s${r.id}">Saved</div>
+    </div>
+  </article>`
+}
+
+function render(){
+  const recs = DATA.recipes.filter(keep)
+  const tot = DATA.recipes.length
+  const done = DATA.recipes.filter(isDone).length
+  $('ndone').textContent = done; $('ntot').textContent = tot
+  $('fill').style.width = tot ? (done/tot*100)+'%' : '0%'
+  const nf = DATA.recipes.filter(r=>isFlag(r)&&!isDone(r)).length
+  $('flagged').textContent = nf ? `${nf} look wrong` : (done===tot ? 'All done — thank you' : '')
+
+  if(!recs.length){ $('list').innerHTML = `<div class="empty">Nothing in this view.</div>`; return }
+  const by = {}
+  for(const r of recs){ (by[r.station] ||= []).push(r) }
+  const order = Object.keys(by).sort((a,b)=>
+    by[b].reduce((s,x)=>s+x.kg,0) - by[a].reduce((s,x)=>s+x.kg,0))
+  $('list').innerHTML = order.map(st =>
+    `<h2 class="stn sans">${esc(st)} · ${by[st].length}</h2>` + by[st].map(card).join('')).join('')
+}
+
+async function save(id, verdict, text){
+  const { data, error } = await sb.rpc('sim_public_methods', {
+    p_token: token, p_action:'save', p_recipe_id: id,
+    p_verdict: verdict, p_text: text ?? null, p_by: who() || null })
+  if(error){ alert('Could not save — '+error.message); return false }
+  DATA.reviews = data.reviews
+  return true
+}
+
+$('list').addEventListener('click', async ev => {
+  const b = ev.target.closest('.opts button'); if(!b) return
+  const id = b.dataset.id, k = b.dataset.k
+  const cur = (DATA.reviews[id]||{}).verdict
+  const next = cur === k ? null : k
+  b.closest('.opts').querySelectorAll('button').forEach(x =>
+    x.setAttribute('aria-pressed', x.dataset.k === next ? 'true' : 'false'))
+  const w = $('w'+id)
+  if(next && next !== 'ok'){ w.classList.add('on'); $('l'+id).textContent = PROMPT[next] }
+  else w.classList.remove('on')
+  const txt = $('t'+id) ? $('t'+id).value : ''
+  if(await save(id, next, next==='ok' ? null : txt)){
+    const c = $('c'+id)
+    if(next) c.classList.add('done'); else c.classList.remove('done')
+    const tot = DATA.recipes.length, done = DATA.recipes.filter(isDone).length
+    $('ndone').textContent = done; $('fill').style.width = (done/tot*100)+'%'
+    const nf = DATA.recipes.filter(r=>isFlag(r)&&!isDone(r)).length
+    $('flagged').textContent = nf ? `${nf} look wrong` : (done===tot ? 'All done — thank you' : '')
+  }
+})
+
+const timers = {}
+$('list').addEventListener('input', ev => {
+  const t = ev.target.closest('textarea'); if(!t) return
+  const id = t.dataset.id
+  clearTimeout(timers[id])
+  timers[id] = setTimeout(async () => {
+    const v = (DATA.reviews[id]||{}).verdict
+    if(!v) return
+    if(await save(id, v, t.value)){
+      const s = $('s'+id); s.classList.add('on'); setTimeout(()=>s.classList.remove('on'), 1400)
+    }
+  }, 700)
+})
+
+$('filters').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if(!b) return
+  FILTER = b.dataset.f
+  $('filters').querySelectorAll('button').forEach(x =>
+    x.setAttribute('aria-pressed', x === b ? 'true' : 'false'))
+  render(); window.scrollTo({top:0,behavior:'smooth'})
+})
+
+load()
+</script>
+</body>
+</html>
