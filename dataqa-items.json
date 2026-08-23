@@ -6,7 +6,7 @@
   {
    "key": "comparison",
    "title": "Quantities that still disagree",
-   "intro": "Every line on the Bratt Pans, Mixes and Ovens tabs, compared against the app on a like-for-like basis. Where your sheet shows a raw input weight and the app shows cooked, the app figure has been converted using that recipe's own ratio \u2014 so these are real differences, not unit mismatches. 36 of the 49 comparable lines now agree and are not listed."
+   "intro": "Rebuilt after the workbook's formula faults were fixed. Every line is now compared on the basis its own formula points at \u2014 raw against raw, cooked against cooked \u2014 so unit mismatches no longer show up as differences. 44 of the 56 comparable lines agree and are not listed. Nine rows that appeared here earlier have been withdrawn: they were never differences, they were an error in how the comparison read the sheet. Korean Spicy Beef was one of them \u2014 sheet and app both say 4.2."
   },
   {
    "key": "links",
@@ -36,23 +36,23 @@
  ],
  "items": [
   {
-   "id": "cp78868a",
+   "id": "cpaf88d3",
    "section": "comparison",
    "sort": 1,
-   "title": "Korean Spicy Beef",
+   "title": "RED PEPPERS IQF",
    "station": null,
-   "evidence": "Sheet says 4.2 kg. From the app this line should be about 1.05 kg \u2014 sheet shows raw input (Beef in BBQ Sauce @ 0.25); app cooked 4.2 kg -> 1.05 raw. Difference +3.15 kg.",
+   "evidence": "Sheet 5.32 kg \u00b7 app 1.3 kg (Roasted Red Peppers) \u2014 309% apart. Both figures are RAW input weight. 'Red Pepper, Roasted' in Wild Rice, Peppers and Squash @ 0.3 would add 3.39 kg cooked \u2014 more than the gap, so linking it alone would overshoot. Worth checking the ratio.",
    "badges": [
     {
-     "l": "MIXES",
+     "l": "OVEN 1",
      "t": "stn"
     },
     {
-     "l": "raw basis",
+     "l": "raw weight",
      "t": "hot"
     },
     {
-     "l": "300%",
+     "l": "309%",
      "t": "gap"
     }
    ],
@@ -69,7 +69,7 @@
    "sort": 2,
    "title": "Chermoula",
    "station": null,
-   "evidence": "Sheet says 1.07 kg. From the app this line should be about 0.3 kg \u2014 both cooked. Difference +0.77 kg.",
+   "evidence": "Sheet 1.07 kg \u00b7 app 0.3 kg (Chermoula) \u2014 258% apart. Both figures are COOKED weight.",
    "badges": [
     {
      "l": "MIXES",
@@ -92,80 +92,48 @@
    "value_label": "Correct quantity"
   },
   {
-   "id": "cpaf88d3",
+   "id": "cp7e70fd",
    "section": "comparison",
    "sort": 3,
-   "title": "RED PEPPERS IQF",
+   "title": "BLACK RICE",
    "station": null,
-   "evidence": "Sheet says 5.32 kg. From the app this line should be about 2.08 kg \u2014 sheet shows raw input (Red Peppers, diced @ 1.6); app cooked 1.3 kg -> 2.08 raw. Difference +3.24 kg.",
+   "evidence": "Sheet 1.29 kg \u00b7 app 0.52 kg (Black Rice (raw)) \u2014 148% apart. Both figures are RAW input weight.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "raw weight",
+     "t": "hot"
+    },
+    {
+     "l": "148%",
+     "t": "gap"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp948a9b",
+   "section": "comparison",
+   "sort": 4,
+   "title": "BROCCOLI IQF",
+   "station": null,
+   "evidence": "Sheet 14.26 kg \u00b7 app 7.5 kg (Broccoli Steamed) \u2014 90% apart. Both figures are RAW input weight. 'Broccoli Florets, IQF Steamed' in Tenderstem & Broccoli @ 0.485 \u2014 linking it adds 5.33 kg cooked, which covers 98% of this gap. Confirm that link in the Recipe links section and this should resolve itself.",
    "badges": [
     {
      "l": "OVEN 1",
      "t": "stn"
     },
     {
-     "l": "raw basis",
+     "l": "raw weight",
      "t": "hot"
-    },
-    {
-     "l": "156%",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cp92defd",
-   "section": "comparison",
-   "sort": 4,
-   "title": "Vermicelli Noodles in BBQ Sauce",
-   "station": null,
-   "evidence": "Sheet says 6.97 kg. From the app this line should be about 2.86 kg \u2014 sheet shows raw input (Noodles in BBQ Sauce @ 0.415); app cooked 6.9 kg -> 2.86 raw. Difference +4.11 kg.",
-   "badges": [
-    {
-     "l": "MIXES",
-     "t": "stn"
-    },
-    {
-     "l": "raw basis",
-     "t": "hot"
-    },
-    {
-     "l": "143%",
-     "t": "gap"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cp78b6ee",
-   "section": "comparison",
-   "sort": 5,
-   "title": "Pickled Carrots",
-   "station": null,
-   "evidence": "Sheet says 0 kg. From the app this line should be about 1.8 kg \u2014 both cooked. Difference -1.8 kg.",
-   "badges": [
-    {
-     "l": "MIXES",
-     "t": "stn"
-    },
-    {
-     "l": "cooked",
-     "t": "clow"
-    },
-    {
-     "l": "100%",
-     "t": "gap"
     }
    ],
    "options": [
@@ -178,10 +146,10 @@
   {
    "id": "cp064444",
    "section": "comparison",
-   "sort": 6,
+   "sort": 5,
    "title": "TAGINE",
    "station": null,
-   "evidence": "Sheet says 6.82 kg. From the app this line should be about 3.6 kg \u2014 both cooked. Difference +3.22 kg.",
+   "evidence": "Sheet 6.82 kg \u00b7 app 3.6 kg (Tagine) \u2014 89% apart. Both figures are COOKED weight.",
    "badges": [
     {
      "l": "BRATT PANS",
@@ -200,19 +168,19 @@
    "value_label": "Correct quantity"
   },
   {
-   "id": "cp948a9b",
+   "id": "cpea25c8",
    "section": "comparison",
-   "sort": 7,
-   "title": "BROCCOLI IQF",
+   "sort": 6,
+   "title": "ORZO",
    "station": null,
-   "evidence": "Sheet says 14.26 kg. From the app this line should be about 8.25 kg \u2014 sheet shows raw input (Broccoli IQF @ 1.1); app cooked 7.5 kg -> 8.25 raw. Difference +6.01 kg.",
+   "evidence": "Sheet 3.07 kg \u00b7 app 11 kg (Orzo) \u2014 72% apart. Both figures are RAW input weight.",
    "badges": [
     {
-     "l": "OVEN 1",
+     "l": "BRATT PANS",
      "t": "stn"
     },
     {
-     "l": "raw basis",
+     "l": "raw weight",
      "t": "hot"
     }
    ],
@@ -224,19 +192,43 @@
    "value_label": "Correct quantity"
   },
   {
-   "id": "cp1ecdad",
+   "id": "cpdc106e",
    "section": "comparison",
-   "sort": 8,
-   "title": "SUGAR SNAP",
+   "sort": 7,
+   "title": "TURNIP IQF",
    "station": null,
-   "evidence": "Sheet says 1.36 kg. From the app this line should be about 3.99 kg \u2014 sheet shows raw input (Sugar Snap @ 1.05); app cooked 3.8 kg -> 3.99 raw. Difference -2.63 kg.",
+   "evidence": "Sheet 4.67 kg \u00b7 app 14.4 kg (Lighter Mash) \u2014 68% apart. Both figures are RAW input weight.",
    "badges": [
     {
      "l": "OVEN 1",
      "t": "stn"
     },
     {
-     "l": "raw basis",
+     "l": "raw weight",
+     "t": "hot"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cp4e5484",
+   "section": "comparison",
+   "sort": 8,
+   "title": "QUINOA",
+   "station": null,
+   "evidence": "Sheet 1.21 kg \u00b7 app 0.76 kg (White Quinoa (raw)) \u2014 59% apart. Both figures are RAW input weight.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "raw weight",
      "t": "hot"
     }
    ],
@@ -253,14 +245,14 @@
    "sort": 9,
    "title": "GREEN BEANS IQF",
    "station": null,
-   "evidence": "Sheet says 6.07 kg. From the app this line should be about 4.43 kg \u2014 sheet shows raw input (Green Beans @ 1.03); app cooked 4.3 kg -> 4.43 raw. Difference +1.64 kg.",
+   "evidence": "Sheet 6.07 kg \u00b7 app 4.3 kg (Green Beans) \u2014 41% apart. Both figures are RAW input weight.",
    "badges": [
     {
      "l": "OVEN 1",
      "t": "stn"
     },
     {
-     "l": "raw basis",
+     "l": "raw weight",
      "t": "hot"
     }
    ],
@@ -272,19 +264,43 @@
    "value_label": "Correct quantity"
   },
   {
-   "id": "cpea25c8",
+   "id": "cp96c751",
    "section": "comparison",
    "sort": 10,
-   "title": "ORZO",
+   "title": "KALE IQF",
    "station": null,
-   "evidence": "Sheet says 3.07 kg. From the app this line should be about 4.4 kg \u2014 sheet shows raw input (Orzo @ 0.4); app cooked 11 kg -> 4.40 raw. Difference -1.33 kg.",
+   "evidence": "Sheet 11.35 kg \u00b7 app 8.4 kg (KALE IQF, Steamed) \u2014 35% apart. Both figures are RAW input weight.",
    "badges": [
     {
-     "l": "BRATT PANS",
+     "l": "OVEN 1",
      "t": "stn"
     },
     {
-     "l": "raw basis",
+     "l": "raw weight",
+     "t": "hot"
+    }
+   ],
+   "options": [
+    "App is right",
+    "Sheet is right",
+    "Neither"
+   ],
+   "value_label": "Correct quantity"
+  },
+  {
+   "id": "cpe69122",
+   "section": "comparison",
+   "sort": 11,
+   "title": "BASMATI RICE",
+   "station": null,
+   "evidence": "Sheet 20.04 kg \u00b7 app 27.08 kg (Basmati Rice) \u2014 26% apart. Both figures are RAW input weight.",
+   "badges": [
+    {
+     "l": "Sunday",
+     "t": "stn"
+    },
+    {
+     "l": "raw weight",
      "t": "hot"
     }
    ],
@@ -298,10 +314,10 @@
   {
    "id": "cp14a3ab",
    "section": "comparison",
-   "sort": 11,
+   "sort": 12,
    "title": "THAI GREEN CURRY",
    "station": null,
-   "evidence": "Sheet says 6.03 kg. From the app this line should be about 4.9 kg \u2014 both cooked. Difference +1.13 kg.",
+   "evidence": "Sheet 6.03 kg \u00b7 app 4.9 kg (Thai Green Curry) \u2014 23% apart. Both figures are COOKED weight.",
    "badges": [
     {
      "l": "BRATT PANS",
@@ -310,54 +326,6 @@
     {
      "l": "cooked",
      "t": "clow"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cp96c751",
-   "section": "comparison",
-   "sort": 12,
-   "title": "KALE IQF",
-   "station": null,
-   "evidence": "Sheet says 11.35 kg. From the app this line should be about 9.24 kg \u2014 sheet shows raw input (Kale IQF @ 1.1); app cooked 8.4 kg -> 9.24 raw. Difference +2.11 kg.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw basis",
-     "t": "hot"
-    }
-   ],
-   "options": [
-    "App is right",
-    "Sheet is right",
-    "Neither"
-   ],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "cp35120e",
-   "section": "comparison",
-   "sort": 13,
-   "title": "BABY CORN",
-   "station": null,
-   "evidence": "Sheet says 0.61 kg. From the app this line should be about 0.51 kg \u2014 sheet shows raw input (Baby Corn @ 1.7); app cooked 0.3 kg -> 0.51 raw. Difference +0.1 kg.",
-   "badges": [
-    {
-     "l": "OVEN 1",
-     "t": "stn"
-    },
-    {
-     "l": "raw basis",
-     "t": "hot"
     }
    ],
    "options": [
