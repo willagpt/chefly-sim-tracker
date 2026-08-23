@@ -16,7 +16,7 @@
   {
    "key": "self",
    "title": "Ingredients that point at themselves",
-   "intro": "The importer matched by name, so these recipes list themselves as their own ingredient. Ordering totals are already corrected in the app; the data still needs cleaning. \u201cRaw purchase\u201d means bought in, not made here."
+   "intro": "There were 36 of these: recipes the importer joined to themselves because the ingredient and the finished prep share a name. 33 were provable from the data alone \u2014 each was the recipe's own raw input, with the yield ratio on it \u2014 and have been unlinked. Not one figure in the app moved, because both calculations already treated a self-link as raw. These three are left because a real upstream recipe exists for each, and choosing wrongly moves actual kilos."
   },
   {
    "key": "bom",
@@ -1032,544 +1032,64 @@
    "value_label": "If wrong \u2014 which recipe?"
   },
   {
-   "id": "sf4d562f",
+   "id": "sf7d12c2",
    "section": "self",
    "sort": 1,
-   "title": "Baby Corn",
+   "title": "Black Beans \u2014 two recipes for one tab",
    "station": null,
-   "evidence": "Recipe \u201cBaby Corn\u201d lists \u201cBaby Corn\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
+   "evidence": "Two recipes were imported from the same workbook tab (\u201cBlack Beans\u201d): \u201cBlack Beans Cooked PS\u201d (weekly book, Sauces, 8.7 kg this week) and \u201cBlack Beans\u201d (meat book, no component attached, 0 kg). They disagree on the dry-to-cooked ratio \u2014 0.46 against 0.28. One of the two is wrong, and the orphan is probably a duplicate import rather than a real prep. Which ratio is right?",
+   "badges": [
+    {
+     "l": "needs a person",
+     "t": "gap"
+    }
    ],
-   "value_label": "If a sub-recipe \u2014 which?"
+   "options": [
+    "0.46 is right \u2014 delete the other",
+    "0.28 is right",
+    "They are different beans"
+   ],
+   "value_label": "Correct dry ratio"
   },
   {
-   "id": "sfdc0dcc",
+   "id": "sf809088",
    "section": "self",
    "sort": 2,
-   "title": "Basmati Rice PS",
+   "title": "Marinated Cooked Chicken \u2014 what goes in it",
    "station": null,
-   "evidence": "Recipe \u201cBasmati Rice PS\u201d lists \u201cBasmati Rice\u201d as an ingredient of itself.",
-   "badges": [],
+   "evidence": "\u201cMarinated Cooked Chicken\u201d (tab \u201cYolk Chicken, Cooked\u201d) takes \u201cChicken, Marinated\u201d at 1.3 kg in per kg out. That input is not a purchase \u2014 you marinate it. \u201cY2 Marinated Chicken\u201d (tab \u201cYolk Chicken\u201d) is almost certainly the recipe that makes it: raw chicken 0.9, rapeseed oil, brown sugar, Yolk Spice Mix, salt, water, lemon. Linking the two would make the raw chicken and the spice mix flow through to the ordering list, which they do not today.",
+   "badges": [
+    {
+     "l": "needs a person",
+     "t": "gap"
+    }
+   ],
    "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
+    "Yes \u2014 link to Y2 Marinated Chicken",
+    "No \u2014 it is bought in marinated",
     "Not sure"
    ],
-   "value_label": "If a sub-recipe \u2014 which?"
+   "value_label": "If a different recipe \u2014 which?"
   },
   {
-   "id": "sf7a707c",
+   "id": "sf810bc2",
    "section": "self",
    "sort": 3,
-   "title": "Bavette Steak",
+   "title": "Bavette \u2014 which comes first, the brine or the steak",
    "station": null,
-   "evidence": "Recipe \u201cBavette Steak\u201d lists \u201cBavette Steak\u201d as an ingredient of itself.",
-   "badges": [],
+   "evidence": "Two Meat Team components, and the chain between them may be the wrong way round. \u201cBavette\u201d (tab \u201cYolk Bavette\u201d, 10.7 kg) is a brine: bavette 0.867 plus salt, water and ice. It currently draws from \u201cBavette Steak\u201d (tab \u201cBavette\u201d, 16.6 kg), which in turn takes \u201cBavette Steak\u201d at 1.2 \u2014 its own raw input. As modelled, you brine the finished steak. If it is the other way round, 9.3 kg of the 16.6 is being counted in the wrong place.",
+   "badges": [
+    {
+     "l": "needs a person",
+     "t": "gap"
+    }
+   ],
    "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
+    "Brine first \u2014 Bavette feeds Bavette Steak",
+    "As modelled is correct",
     "Not sure"
    ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf41bda7",
-   "section": "self",
-   "sort": 4,
-   "title": "Black Beans",
-   "station": null,
-   "evidence": "Recipe \u201cBlack Beans\u201d lists \u201cBlack Beans\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf446ecf",
-   "section": "self",
-   "sort": 5,
-   "title": "Black Beans Cooked PS",
-   "station": null,
-   "evidence": "Recipe \u201cBlack Beans Cooked PS\u201d lists \u201cBlack Beans\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf112f81",
-   "section": "self",
-   "sort": 6,
-   "title": "Black Quinoa Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cBlack Quinoa Cooked\u201d lists \u201cBlack Quinoa\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf4ab782",
-   "section": "self",
-   "sort": 7,
-   "title": "Black Rice Cooked PS",
-   "station": null,
-   "evidence": "Recipe \u201cBlack Rice Cooked PS\u201d lists \u201cBlack Rice\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfae8747",
-   "section": "self",
-   "sort": 8,
-   "title": "Brisket",
-   "station": null,
-   "evidence": "Recipe \u201cBrisket\u201d lists \u201cBrisket\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf5c0ef6",
-   "section": "self",
-   "sort": 9,
-   "title": "Broccoli Steamed",
-   "station": null,
-   "evidence": "Recipe \u201cBroccoli Steamed\u201d lists \u201cBroccoli IQF\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf376e02",
-   "section": "self",
-   "sort": 10,
-   "title": "Butternut Squash Quarter Moons",
-   "station": null,
-   "evidence": "Recipe \u201cButternut Squash Quarter Moons\u201d lists \u201cButternut Squash quarter moons\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf19b40f",
-   "section": "self",
-   "sort": 11,
-   "title": "Cauliflower Florets, Steamed",
-   "station": null,
-   "evidence": "Recipe \u201cCauliflower Florets, Steamed\u201d lists \u201cCauliflower Florets IQF\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfb5f5cb",
-   "section": "self",
-   "sort": 12,
-   "title": "Courgette, Sliced",
-   "station": null,
-   "evidence": "Recipe \u201cCourgette, Sliced\u201d lists \u201cCourgette, Sliced\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf022015",
-   "section": "self",
-   "sort": 13,
-   "title": "CousCous",
-   "station": null,
-   "evidence": "Recipe \u201cCousCous\u201d lists \u201cCouscous\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf9f0fa5",
-   "section": "self",
-   "sort": 14,
-   "title": "Cranberry Beans, Cooked PS",
-   "station": null,
-   "evidence": "Recipe \u201cCranberry Beans, Cooked PS\u201d lists \u201cCranberry Beans\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf3aeeff",
-   "section": "self",
-   "sort": 15,
-   "title": "Edamame",
-   "station": null,
-   "evidence": "Recipe \u201cEdamame\u201d lists \u201cEdamame\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfe2398d",
-   "section": "self",
-   "sort": 16,
-   "title": "Farfalle, Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cFarfalle, Cooked\u201d lists \u201cFarfalle\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf3b5d68",
-   "section": "self",
-   "sort": 17,
-   "title": "Fennel",
-   "station": null,
-   "evidence": "Recipe \u201cFennel\u201d lists \u201cFennel\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf0f9125",
-   "section": "self",
-   "sort": 18,
-   "title": "Fusilli, Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cFusilli, Cooked\u201d lists \u201cFusilli\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfb269fc",
-   "section": "self",
-   "sort": 19,
-   "title": "Gnocchi",
-   "station": null,
-   "evidence": "Recipe \u201cGnocchi\u201d lists \u201cGnocchi\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf15ce45",
-   "section": "self",
-   "sort": 20,
-   "title": "Green Beans, steamed",
-   "station": null,
-   "evidence": "Recipe \u201cGreen Beans, steamed\u201d lists \u201cGreen Beans\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf1f2f84",
-   "section": "self",
-   "sort": 21,
-   "title": "KALE IQF, Steamed",
-   "station": null,
-   "evidence": "Recipe \u201cKALE IQF, Steamed\u201d lists \u201cKale IQF\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf1e3a4c",
-   "section": "self",
-   "sort": 22,
-   "title": "Marinated Cooked Chicken",
-   "station": null,
-   "evidence": "Recipe \u201cMarinated Cooked Chicken\u201d lists \u201cChicken, Marinated\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf86d37e",
-   "section": "self",
-   "sort": 23,
-   "title": "Orzo, Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cOrzo, Cooked\u201d lists \u201cOrzo\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfe24704",
-   "section": "self",
-   "sort": 24,
-   "title": "Panga Fish",
-   "station": null,
-   "evidence": "Recipe \u201cPanga Fish\u201d lists \u201cPanga Fish\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sff3ed20",
-   "section": "self",
-   "sort": 25,
-   "title": "Pearl Barley Cooked PS",
-   "station": null,
-   "evidence": "Recipe \u201cPearl Barley Cooked PS\u201d lists \u201cPearl Barley\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf2ef58e",
-   "section": "self",
-   "sort": 26,
-   "title": "Peas",
-   "station": null,
-   "evidence": "Recipe \u201cPeas\u201d lists \u201cPeas\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf50b69e",
-   "section": "self",
-   "sort": 27,
-   "title": "Penne, Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cPenne, Cooked\u201d lists \u201cPenne\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf6a1672",
-   "section": "self",
-   "sort": 28,
-   "title": "Potatoes Diced, Steamed",
-   "station": null,
-   "evidence": "Recipe \u201cPotatoes Diced, Steamed\u201d lists \u201cPotatoes, Diced\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfc9bfb1",
-   "section": "self",
-   "sort": 29,
-   "title": "Roasted  Butternut Squash",
-   "station": null,
-   "evidence": "Recipe \u201cRoasted  Butternut Squash\u201d lists \u201cButternut Squash\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfa6f8f4",
-   "section": "self",
-   "sort": 30,
-   "title": "Roasted  Orange Carrots",
-   "station": null,
-   "evidence": "Recipe \u201cRoasted  Orange Carrots\u201d lists \u201cOrange Carrots\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf697028",
-   "section": "self",
-   "sort": 31,
-   "title": "Roasted Yellow Carrots PS",
-   "station": null,
-   "evidence": "Recipe \u201cRoasted Yellow Carrots PS\u201d lists \u201cYellow Carrots\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf0b49f4",
-   "section": "self",
-   "sort": 32,
-   "title": "Spaghetti, Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cSpaghetti, Cooked\u201d lists \u201cSpaghetti\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf030362",
-   "section": "self",
-   "sort": 33,
-   "title": "Sugar Snap",
-   "station": null,
-   "evidence": "Recipe \u201cSugar Snap\u201d lists \u201cSugar Snap\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf7fe95a",
-   "section": "self",
-   "sort": 34,
-   "title": "Tenderstem Broccoli",
-   "station": null,
-   "evidence": "Recipe \u201cTenderstem Broccoli\u201d lists \u201cTenderstem Broccoli\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sf91d280",
-   "section": "self",
-   "sort": 35,
-   "title": "Tofu",
-   "station": null,
-   "evidence": "Recipe \u201cTofu\u201d lists \u201cTofu\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
-  },
-  {
-   "id": "sfae4034",
-   "section": "self",
-   "sort": 36,
-   "title": "White Quinoa Cooked",
-   "station": null,
-   "evidence": "Recipe \u201cWhite Quinoa Cooked\u201d lists \u201cWhite Quinoa\u201d as an ingredient of itself.",
-   "badges": [],
-   "options": [
-    "Raw purchase",
-    "It's a sub-recipe",
-    "Not sure"
-   ],
-   "value_label": "If a sub-recipe \u2014 which?"
+   "value_label": "How it actually runs"
   },
   {
    "id": "nbb1d578",
