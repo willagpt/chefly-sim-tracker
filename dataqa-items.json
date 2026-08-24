@@ -1,211 +1,139 @@
 {
  "generated_for": "2026-08-26",
  "meals": 1365,
- "source": "After applying the board: 28 recipe links, 18 name merges, 5 dishes closed",
+ "source": "Rebuilt from the workbook's own consumer formulas — 14 missing links found and applied",
  "sections": [
   {
+   "key": "extra",
+   "title": "Does this actually go through the prep?",
+   "intro": "In each of these the app sends an ingredient through one of our own preparations, and the production sheet does not. Both can look right on paper — the question is what the team actually does. If the raw ingredient goes straight into the mix, the app is making work that does not happen; if it goes through the prep, the sheet is under-ordering. Five lines, biggest first."
+  },
+  {
    "key": "qty",
-   "title": "Quantities still to settle",
-   "intro": "Nine lines, all compared raw-against-raw so the cooked-versus-dry question is out of the way. Eleven of the twenty comparable lines now agree — Penne, Fusilli, Gnocchi, Farfalle, Broccoli IQF, Parsnip, Edamame, Spring Greens and Sugar Snap among them, most of them to the second decimal. These nine are what is left."
+   "title": "Two real quantity differences",
+   "intro": "For these two the app and the sheet agree completely on what feeds what — nothing missing, nothing extra. So the difference is a genuine quantity, not a wiring fault. Everything else that looked like a quantity problem this morning turned out to be a missing link, and has fixed itself."
+  },
+  {
+   "key": "confirm",
+   "title": "Two quick confirmations",
+   "intro": "Both of these already have an explanation. A yes closes them."
   },
   {
    "key": "missing",
-   "title": "Ingredients being bought that we may actually make",
-   "intro": "Each of these goes onto the raw-materials list under a name that says it has already been cooked or mixed — “Cavolo Nero, cooked”, “Verde Sauce”. If we make them, they need a short recipe so the real ingredients flow through to ordering. If we buy them ready, they are fine as they are and can be left."
-  },
-  {
-   "key": "decision",
-   "title": "Decisions — James",
-   "intro": "One thing that needs a call rather than a fact."
+   "title": "One we cannot answer from the sheet",
+   "intro": "The workbook has no tab for this, so nobody but the kitchen knows."
   }
  ],
  "items": [
   {
-   "id": "q20a779e",
+   "id": "cx6f93cc",
+   "section": "extra",
+   "sort": 1,
+   "title": "Does Primavera use roasted peppers, or frozen ones?",
+   "station": null,
+   "evidence": "The app has “Primavera” (7.62 kg) drawing its “Red Peppers IQF” from the Roasted Red Peppers prep, at 0.1692/kg — which adds 1.29 kg to what we make. The production sheet does not: it says Roasted Red Peppers is only for Wild Rice, Peppers and Squash. This is most of why red peppers now read 7.51 kg against the sheet's 5.32. So — do the peppers get roasted first and then go into Primavera, or do the frozen ones go straight in?",
+   "badges": [{"l": "1.29 kg", "t": "gap"}],
+   "options": ["Uses the prep — app is right", "Raw goes straight in — unlink it", "Not sure"],
+   "value_label": "Anything worth adding"
+  },
+  {
+   "id": "cx765186",
+   "section": "extra",
+   "sort": 2,
+   "title": "Does Verde use steamed peas, or frozen straight in?",
+   "station": null,
+   "evidence": "The app has “Verde” (3.46 kg) drawing its “Peas, IQF” from the Peas, Steamed prep, at 0.3/kg — which adds 1.04 kg to what we make. The production sheet does not: it says Peas, Steamed is only for Egg Fried Basmati and Farfalle Verde. Peas currently read 3.90 kg against the sheet's 2.36. This line is the biggest part of it. So — do the peas get steamed first and then go into Verde, or do the frozen ones go straight in?",
+   "badges": [{"l": "1.04 kg", "t": "gap"}],
+   "options": ["Uses the prep — app is right", "Raw goes straight in — unlink it", "Not sure"],
+   "value_label": "Anything worth adding"
+  },
+  {
+   "id": "cx086872",
+   "section": "extra",
+   "sort": 3,
+   "title": "Does Thai Green Curry use steamed peas?",
+   "station": null,
+   "evidence": "The app has “Thai Green Curry Sauce” (4.92 kg) drawing its “Peas” from the Peas, Steamed prep, at 0.07/kg — which adds 0.34 kg to what we make. The production sheet does not: it says Peas, Steamed is only for Egg Fried Basmati and Farfalle Verde. Smaller than the Verde line, but the same question. So — do the peas get steamed first, or do the frozen ones go straight into the curry?",
+   "badges": [{"l": "0.34 kg", "t": "clow"}],
+   "options": ["Uses the prep — app is right", "Raw goes straight in — unlink it", "Not sure"],
+   "value_label": "Anything worth adding"
+  },
+  {
+   "id": "cx71dd67",
+   "section": "extra",
+   "sort": 4,
+   "title": "Does Squash Risotto use the roasted squash prep?",
+   "station": null,
+   "evidence": "The app has “Squash Risotto” (4.37 kg) drawing its “Butternut Squash, roasted 20x20” from the Roasted Butternut Squash prep, at 0.15/kg — which adds 0.66 kg to what we make. The production sheet does not: it says Roasted Butternut Squash is only for Butternut Squash Kale & Pearl Barley, and Wild Rice Peppers & Squash. The line says roasted, so this one may well be right and the sheet simply routes risotto differently. So — does the risotto take squash from the roasting tray, or is it roasted as part of the risotto itself?",
+   "badges": [{"l": "0.66 kg", "t": "clow"}],
+   "options": ["Uses the prep — app is right", "Raw goes straight in — unlink it", "Not sure"],
+   "value_label": "Anything worth adding"
+  },
+  {
+   "id": "cx86f3ec",
+   "section": "extra",
+   "sort": 5,
+   "title": "Does New Gravy use the steamed diced carrot?",
+   "station": null,
+   "evidence": "The app has “New Gravy” (3.3 kg) drawing its “Carrots, diced 5mm” from the Carrots Diced, Steamed prep, at 0.0642/kg — which adds 0.21 kg to what we make. The production sheet does not: it says Carrots Diced, Steamed is only for Egg Fried Basmati and Biryani. New Gravy has no tab in the production workbook at all, so the sheet cannot settle this one either way. Claude added this link earlier today from the ingredient name alone. So — does the gravy take carrot from the steamer, or does the diced carrot go in raw and cook in the gravy?",
+   "badges": [{"l": "0.21 kg", "t": "clow"}],
+   "options": ["Uses the prep — app is right", "Raw goes straight in — unlink it", "Not sure"],
+   "value_label": "Anything worth adding"
+  },
+  {
+   "id": "q35b0f81",
    "section": "qty",
    "sort": 1,
-   "title": "Carrot Diced, IQF",
+   "title": "Green Beans",
    "station": null,
-   "evidence": "Sheet 8.53 kg · app 0.23 kg — the app is 8.3 kg lower (97%). Both are RAW purchase weight, compared like for like. By far the biggest gap left. The app only uses diced carrot in two places — Marinara Sauce and New Gravy — at very small ratios. Your sheet asks for 8.53 kg. Something on OVEN 1 is consuming diced carrot that the app has no record of. Which mix or dish is it?",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "97%", "t": "gap"}],
+   "evidence": "Sheet 6.07 kg · app 4.3 kg — the app wants 1.77 kg less. Both sides agree these go into “Green Beans, SKU 3, 22” and “Orzo Salad” — nothing is missing or extra. So this is a real quantity difference, not a wiring one. Either the grams per portion or the steaming yield is out.",
+   "badges": [{"l": "29%", "t": "gap"}],
    "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "q2ba7e99",
+   "id": "q3ba7e99",
    "section": "qty",
    "sort": 2,
    "title": "Orzo",
    "station": null,
-   "evidence": "Sheet 3.07 kg · app 4.39 kg — the app is 1.32 kg higher (43%). Both are RAW purchase weight, compared like for like. The app now wants MORE than the sheet. Orzo is 220 g per portion in the app across its dishes — worth checking that against the pack.",
-   "badges": [{"l": "BRATT PANS", "t": "stn"}, {"l": "43%", "t": "gap"}],
+   "evidence": "Sheet 3.073 kg · app 4.39 kg — the app wants 1.32 kg more. Both sides agree Orzo only goes into Orzo Salad. Nothing missing or extra, so again a real quantity difference — the app wants 1.3 kg more dry orzo than the sheet.",
+   "badges": [{"l": "43%", "t": "gap"}],
    "options": ["App is right", "Sheet is right", "Neither"],
    "value_label": "Correct quantity"
   },
   {
-   "id": "q2759b73",
-   "section": "qty",
-   "sort": 3,
-   "title": "Red Peppers, diced",
+   "id": "cfd238ed",
+   "section": "confirm",
+   "sort": 1,
+   "title": "Baby Corn — is the difference the Simmer top-up?",
    "station": null,
-   "evidence": "Sheet 5.32 kg · app 7.51 kg — the app is 2.19 kg higher (41%). Both are RAW purchase weight, compared like for like. The app was 4 kg short here before today. Confirming the two Roasted Red Peppers links pushed it past the sheet instead. Either one of those ratios is too high, or the sheet is short.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "41%", "t": "gap"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
+   "evidence": "Sheet 0.615 kg · app 0.50 kg. The gap is almost exactly the six Simmer meals on SKU 65 that the D2C import does not pick up — the same cause as the Thai Green Curry line. Confirm and this closes.",
+   "badges": [],
+   "options": ["Yes, that's the Simmer six", "No, something else", "Not sure"],
+   "value_label": "Anything worth adding"
   },
   {
-   "id": "q2ecf4df",
-   "section": "qty",
-   "sort": 4,
-   "title": "Cauliflower Florets IQF",
+   "id": "cf2831fc",
+   "section": "confirm",
+   "sort": 2,
+   "title": "Diced carrot — confirming the Biryani entry is the phantom",
    "station": null,
-   "evidence": "Sheet 3.1 kg · app 2.14 kg — the app is 0.96 kg lower (31%). Both are RAW purchase weight, compared like for like. Two dishes now draw on Cauliflower Florets, Steamed after today's links. Still about a kilo under the sheet.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "31%", "t": "clow"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
+   "evidence": "Sheet 8.53 kg · app 0.90 kg, which looks alarming until you read the sheet's own formula: 7.2 kg of that 8.53 is Biryani, driven by SKU 74 at 90 kg. SKU 74 is at quantity zero on All Dishes and James has already confirmed it was typed into the workbook by hand in error. Excluding it, the sheet wants 0.605 kg against the app's 0.90. Just confirming nobody is actually making Biryani this week.",
+   "badges": [],
+   "options": ["Correct — no Biryani", "We are making Biryani", "Not sure"],
+   "value_label": "Anything worth adding"
   },
   {
-   "id": "q25b0f81",
-   "section": "qty",
-   "sort": 5,
-   "title": "Green Beans",
-   "station": null,
-   "evidence": "Sheet 6.07 kg · app 4.3 kg — the app is 1.77 kg lower (29%). Both are RAW purchase weight, compared like for like. Unchanged by today's work — the app has been steady at 4.3 kg. 1.8 kg under.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "29%", "t": "clow"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "q21df70e",
-   "section": "qty",
-   "sort": 6,
-   "title": "Peas",
-   "station": null,
-   "evidence": "Sheet 2.36 kg · app 2.87 kg — the app is 0.51 kg higher (22%). Both are RAW purchase weight, compared like for like. App slightly over. Peas appear both as a steamed prep and inside mixes; possible double count.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "22%", "t": "clow"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "q2ebd713",
-   "section": "qty",
-   "sort": 7,
-   "title": "Kale IQF",
-   "station": null,
-   "evidence": "Sheet 11.35 kg · app 9.19 kg — the app is 2.16 kg lower (19%). Both are RAW purchase weight, compared like for like. App about 2 kg under. Kale appears in several mixes as well as the steamed prep.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "19%", "t": "clow"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "q26ae60a",
-   "section": "qty",
-   "sort": 8,
-   "title": "Baby Corn",
-   "station": null,
-   "evidence": "Sheet 0.615 kg · app 0.5 kg — the app is 0.11 kg lower (19%). Both are RAW purchase weight, compared like for like. Almost certainly the six Simmer top-ups on SKU 65, which the D2C import does not take — the same cause as the Thai Green Curry line. Confirm and this one closes.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "19%", "t": "clow"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "q2c3a721",
-   "section": "qty",
-   "sort": 9,
-   "title": "Courgette",
-   "station": null,
-   "evidence": "Sheet 0.36 kg · app 0.5 kg — the app is 0.14 kg higher (38%). Both are RAW purchase weight, compared like for like. Two recipes were linked to “Courgette, Sliced” today (Thai Green Curry and Aubergine chermoula). Worth a look at that recipe too: it is named for slicing but carries pomace oil and salt at a 1.7 yield, which reads more like a roast than a slice.",
-   "badges": [{"l": "OVEN 1", "t": "stn"}, {"l": "38%", "t": "clow"}],
-   "options": ["App is right", "Sheet is right", "Neither"],
-   "value_label": "Correct quantity"
-  },
-  {
-   "id": "mrb54853",
+   "id": "mr2d289e6",
    "section": "missing",
    "sort": 1,
-   "title": "Vermicelli Glass Noodles, Cooked",
-   "station": null,
-   "evidence": "“Vermicelli Glass Noodles, Cooked” is being ordered as if you buy it ready-made — 5.89 kg goes onto the raw-materials list under that name. It is used in “Vermicelli in BBQ Sauce, 39”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "5.89 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "mr3131c8",
-   "section": "missing",
-   "sort": 2,
-   "title": "Verde Sauce",
-   "station": null,
-   "evidence": "“Verde Sauce” is being ordered as if you buy it ready-made — 3.12 kg goes onto the raw-materials list under that name. It is used in “Farfalle Verde”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "3.12 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "mrd3c1bb",
-   "section": "missing",
-   "sort": 3,
-   "title": "Pok Choy Mix",
-   "station": null,
-   "evidence": "“Pok Choy Mix” is being ordered as if you buy it ready-made — 2.49 kg goes onto the raw-materials list under that name. It is used in “Edamame, Pok Choy Mix, SKU 9”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "2.49 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "mr40d0d9",
-   "section": "missing",
-   "sort": 4,
-   "title": "Cavolo Nero, cooked",
-   "station": null,
-   "evidence": "“Cavolo Nero, cooked” is being ordered as if you buy it ready-made — 1.87 kg goes onto the raw-materials list under that name. It is used in “Sweet Potato, Cavolo Nero, Black Beans, Quinoa”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "1.87 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "mrc115f0",
-   "section": "missing",
-   "sort": 5,
-   "title": "Aduki Beans, cooked",
-   "station": null,
-   "evidence": "“Aduki Beans, cooked” is being ordered as if you buy it ready-made — 1.74 kg goes onto the raw-materials list under that name. It is used in “Sweet Potato, Cavolo Nero, Black Beans, Quinoa”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "1.74 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "mrac2690",
-   "section": "missing",
-   "sort": 6,
-   "title": "Small Carrot cubed, steamed",
-   "station": null,
-   "evidence": "“Small Carrot cubed, steamed” is being ordered as if you buy it ready-made — 0.6 kg goes onto the raw-materials list under that name. It is used in “Egg Fried Basmati Rice”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "0.6 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "mrd289e6",
-   "section": "missing",
-   "sort": 7,
    "title": "Sweetcorn, Roasted",
    "station": null,
-   "evidence": "“Sweetcorn, Roasted” is being ordered as if you buy it ready-made — 0.6 kg goes onto the raw-materials list under that name. It is used in “Egg Fried Basmati Rice”. The name says it has already been cooked or mixed, so there should be a prep behind it, but no recipe exists. Either it really is bought in that state, or a short recipe needs writing.",
-   "badges": [{"l": "0.6 kg", "t": "clow"}],
-   "options": ["Bought in ready — leave it", "Needs a recipe", "Not sure"],
-   "value_label": "If it needs one: what goes in it, per kg"
-  },
-  {
-   "id": "dc783483",
-   "section": "decision",
-   "sort": 1,
-   "title": "Prep sheets are printing the wrong instructions",
-   "station": null,
-   "evidence": "The method text on many recipes is contaminated by copy-paste from the workbook, and it prints on the sheets the kitchen works from. Baby Corn's method describes slicing aubergine. Gnocchi says add quinoa and water. Panga Fish says “lay the cod out”. Black Beans, Couscous and Tofu all read “divide marinade equally by number of trays with chicken meat”. Quantities are unaffected — but the written instructions are wrong on the page. Worth its own pass once the editor exists.",
-   "badges": [{"l": "James", "t": "owner"}],
-   "options": ["Fix it after the editor", "Fix it now", "Leave it"],
-   "value_label": "Decision"
+   "evidence": "0.63 kg is going onto the raw-materials list under this name, for Egg Fried Basmati Rice. The name says it has already been roasted, but there is no recipe for it — and the production sheet has no tab for it either, so it cannot answer this one. Do we buy roasted sweetcorn, or roast it here?",
+   "badges": [{"l": "0.63 kg", "t": "clow"}],
+   "options": ["Bought in already roasted", "We roast it — needs a recipe", "Not sure"],
+   "value_label": "If we roast it: what goes in, per kg"
   }
  ]
 }
