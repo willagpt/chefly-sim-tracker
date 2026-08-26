@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Production Board — Chefly</title>
+<!--
+  The floor board. Both lines side by side, readable from several metres.
+
+  Combined output is shown, but deliberately smaller and beneath the lines --
+  1,300/hour looks fine when one line runs 750 and the other 550, and the second
+  line is the one that needs someone to walk over.
+-->
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--panel2:#273548;--line:#334155;--txt:#f1f5f9;--muted:#94a3b8;--accent:#f97316;--green:#22c55e;--amber:#f59e0b;--red:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:20px;display:flex;flex-direction:column;gap:16px}
+  header{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:26px}
+  .dot{width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 16px var(--accent)}
+  .clock{font-size:22px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .lines{display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1}
+  @media(max-width:900px){.lines{grid-template-columns:1fr}}
+  .ln{background:var(--panel);border:4px solid var(--line);border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:14px}
+  .ln.green{border-color:var(--green)} .ln.amber{border-color:var(--amber)} .ln.red{border-color:var(--red)}
+  .ln h2{font-size:26px;font-weight:900;display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .pill{font-size:15px;font-weight:900;padding:5px 14px;border-radius:999px;letter-spacing:1px}
+  .pill.green{background:rgba(34,197,94,.2);color:#86efac} .pill.amber{background:rgba(245,158,11,.2);color:#fcd34d}
+  .pill.red{background:rgba(239,68,68,.2);color:#fca5a5} .pill.grey{background:var(--panel2);color:var(--muted)}
+  .rate{text-align:center;padding:6px 0}
+  .rate .n{font-size:104px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+  .rate.green .n{color:var(--green)} .rate.amber .n{color:var(--amber)} .rate.red .n{color:var(--red)}
+  .rate .l{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-top:4px}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .stat{background:var(--panel2);border-radius:14px;padding:12px;text-align:center}
+  .stat .n{font-size:28px;font-weight:900;font-variant-numeric:tabular-nums}
+  .stat .n.pos{color:var(--green)} .stat .n.neg{color:var(--red)}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+  .who{color:var(--muted);font-size:16px}
+  .dt{background:var(--panel2);border-radius:12px;padding:10px 12px;font-size:15px}
+  .dt b{color:var(--txt)}
+  .idle{flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:22px;text-align:center}
+  .both{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .both .t{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:2px}
+  .both .v{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}
+  .both .v.pos{color:var(--green)} .both .v.neg{color:var(--red)}
+  .warn{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4);border-radius:12px;padding:10px 14px;font-size:15px;font-weight:700}
+  .err{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4);padding:16px;border-radius:12px}
+  .due{color:var(--amber);font-weight:800}
+</style>
+</head>
+<body>
+<header><div class="brand"><span class="dot"></span> Production</div><div class="clock" id="clock"></div></header>
+<div class="err" id="err" style="display:none"></div>
+<div class="lines" id="lines"></div>
+<div id="both"></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
+const token = new URLSearchParams(location.search).get('t') || ''
+const $ = id => document.getElementById(id)
+const esc = v => v==null?'':String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const num = n => Number(n||0).toLocaleString('en-GB')
+
+function lineCard(l, now){
+  const r = l.run, last = l.last
+  if(!r) return `<div class="ln"><h2>${esc(l.name)}<span class="pill grey">NO RUN</span></h2>
+    <div class="idle">Nothing running on this line</div></div>`
+  const status = last ? last.status : 'grey'
+  const rate = last ? last.rate_per_hour : null
+  const due = l.next_due ? new Date(l.next_due) : null
+  const overdueMin = due ? Math.round((now - due)/60000) : null
+  const varClass = r.variance>0?'pos':(r.variance<0?'neg':'')
+  const dt = (l.downtime||[])[0]
+  return `<div class="ln ${status}">
+    <h2>${esc(l.name)}<span class="pill ${status}">${status==='grey'?'WAITING':status.toUpperCase()}</span></h2>
+    <div class="rate ${status}"><div class="n">${rate!=null?num(rate):'–'}</div>
+      <div class="l">meals / hour · target ${num(r.target_per_hour)}</div></div>
+    <div class="grid">
+      <div class="stat"><div class="n">${num(r.produced)}</div><div class="l">Run output</div></div>
+      <div class="stat"><div class="n">${num(r.target_meals)}</div><div class="l">Run target</div></div>
+      <div class="stat"><div class="n ${varClass}">${r.variance>0?'+':''}${num(r.variance)}</div><div class="l">Variance</div></div>
+      <div class="stat"><div class="n">${num(r.headcount)}</div><div class="l">Operators</div></div>
+      <div class="stat"><div class="n">${r.mplh!=null?num(r.mplh):'–'}</div><div class="l">Per person/hr</div></div>
+      <div class="stat"><div class="n">${num(r.downtime_minutes)}</div><div class="l">Lost mins</div></div>
+    </div>
+    <div class="who">${esc(r.product)} · ${esc(r.team_leader||'no team leader')}${r.late_start_minutes>0?` · <span style="color:var(--red)">started ${num(r.late_start_minutes)} min late</span>`:''}</div>
+    ${dt?`<div class="dt">Biggest loss today · <b>${esc(dt.reason)} ${num(dt.mins)} min</b></div>`:''}
+    ${overdueMin!=null && overdueMin>2 ? `<div class="warn">Check overdue by ${num(overdueMin)} min</div>`
+      : (due?`<div class="dt">Next check <span class="due">${due.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span></div>`:'')}
+    ${r.checks_red>0?`<div class="warn">${num(r.checks_red)} of ${num(r.checks)} checks below target</div>`:''}
+  </div>`
+}
+
+function render(d){
+  $('err').style.display='none'
+  const now = new Date(d.now)
+  const lines = d.lines||[]
+  $('lines').innerHTML = lines.map(l=>lineCard(l, now)).join('')
+  const running = lines.filter(l=>l.run)
+  if(!running.length){ $('both').innerHTML=''; return }
+  const t = running.reduce((a,l)=>{
+    a.produced += Number(l.run.produced||0); a.target += Number(l.run.target_meals||0)
+    a.rate += Number((l.last&&l.last.rate_per_hour)||0); a.tgtRate += Number(l.run.target_per_hour||0)
+    return a
+  },{produced:0,target:0,rate:0,tgtRate:0})
+  const v = t.produced - t.target
+  // Shown, but small and last: a healthy combined figure is exactly how a line
+  // running 550 stays invisible.
+  $('both').innerHTML = `<div class="both">
+    <div><div class="t">Both lines</div><div class="v">${num(t.rate)} / hr</div></div>
+    <div><div class="t">Combined target</div><div class="v">${num(t.tgtRate)} / hr</div></div>
+    <div><div class="t">Output</div><div class="v">${num(t.produced)}</div></div>
+    <div><div class="t">Should have</div><div class="v">${num(t.target)}</div></div>
+    <div><div class="t">Variance</div><div class="v ${v>0?'pos':(v<0?'neg':'')}">${v>0?'+':''}${num(v)}</div></div>
+  </div>`
+}
+
+async function tick(){
+  if(!token){ $('err').style.display='block'; $('err').textContent='Missing token — open this page from the link in Manage.'; return }
+  const {data,error} = await sb.rpc('sim_public_prod',{p_token:token,p_action:'board',p_payload:{}})
+  if(error){ $('err').style.display='block'; $('err').textContent=error.message; return }
+  render(data)
+}
+function tickClock(){ $('clock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) }
+tickClock(); setInterval(tickClock, 10000)
+tick(); setInterval(tick, 15000)
+</script>
+</body>
+</html>
