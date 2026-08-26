@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Line — Chefly</title>
+<!--
+  Team Leader tablet. One per line, fixed to that line by the ?line= parameter.
+
+  Two things make this different from the counters that came before it:
+  the tablet ASKS on a clock rather than waiting to be told, and the number it
+  asks for is the cumulative sealer reading, which anyone can walk over and
+  verify. sim_ws_pack_lots recorded the planned quantity back to itself and was
+  abandoned after 23 lots.
+
+  Token page on purpose: a factory tablet has no one to log in and nothing to
+  lose a session to. Same pattern as wall.html / packwall.html / linecount.html.
+-->
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--panel2:#273548;--line:#334155;--txt:#f1f5f9;--muted:#94a3b8;--accent:#f97316;--green:#22c55e;--amber:#f59e0b;--red:#ef4444}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:14px;display:flex;flex-direction:column;gap:12px;max-width:720px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:24px}
+  .dot{width:13px;height:13px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  .clock{font-size:17px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .rate{background:var(--panel);border:3px solid var(--line);border-radius:22px;padding:20px;text-align:center}
+  .rate .n{font-size:88px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums}
+  .rate .l{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:6px}
+  .rate.green{border-color:var(--green)} .rate.amber{border-color:var(--amber)} .rate.red{border-color:var(--red)}
+  .rate.green .n{color:var(--green)} .rate.amber .n{color:var(--amber)} .rate.red .n{color:var(--red)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+  .stat .n{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+  .stat .n.pos{color:var(--green)} .stat .n.neg{color:var(--red)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  .card h2{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+  label{display:block;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+  input,select{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:19px;font-family:inherit}
+  .f{margin-bottom:12px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .big{background:var(--accent);color:#0b1220;border:none;border-radius:20px;font-size:30px;font-weight:900;padding:26px 10px;cursor:pointer;width:100%;letter-spacing:.5px;font-family:inherit}
+  .big:active{transform:scale(.99)} .big[disabled]{opacity:.5}
+  .ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:14px;font-size:16px;font-weight:700;padding:14px;cursor:pointer;width:100%;font-family:inherit}
+  .li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px;font-variant-numeric:tabular-nums}
+  .li:last-child{border-bottom:none}
+  .tag{font-size:12px;font-weight:800;padding:3px 9px;border-radius:999px}
+  .tag.green{background:rgba(34,197,94,.2);color:#86efac} .tag.amber{background:rgba(245,158,11,.2);color:#fcd34d}
+  .tag.red{background:rgba(239,68,68,.2);color:#fca5a5} .tag.grey{background:var(--panel2);color:var(--muted)}
+  .err{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.4);padding:15px;border-radius:12px;font-size:16px}
+  /* The prompt takes the screen. A banner that can be scrolled past is how the
+     two previous attempts quietly stopped being used. */
+  .over{position:fixed;inset:0;background:var(--bg);z-index:50;padding:16px;overflow:auto;display:none}
+  .over.on{display:block}
+  .over .inner{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  .over h1{font-size:26px;font-weight:900}
+  .over .sub{color:var(--muted);font-size:15px}
+  .reasons{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+  .reason{background:var(--panel2);color:var(--txt);border:2px solid var(--line);border-radius:14px;padding:16px 8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  .reason.on{border-color:var(--accent);background:rgba(249,115,22,.18)}
+  .mins{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px}
+  .min{background:var(--panel2);color:var(--txt);border:2px solid var(--line);border-radius:12px;padding:14px 4px;font-size:18px;font-weight:800;cursor:pointer;font-family:inherit}
+  .min.on{border-color:var(--accent);background:rgba(249,115,22,.18)}
+</style>
+</head>
+<body>
+<header><div class="brand"><span class="dot"></span> <span id="lineName">Line</span></div><div class="clock" id="clock"></div></header>
+<div class="err" id="err" style="display:none"></div>
+<div id="body"></div>
+
+<div class="over" id="over"><div class="inner" id="overInner"></div></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const sb = createClient('https://fhztszxpgqhunogwcoxw.supabase.co','sb_publishable_3g-avL7NqQQsIMESfiGk4Q_8dBIarve')
+const q = new URLSearchParams(location.search)
+const token = q.get('t') || ''
+const lineKey = q.get('line') || 'Line 1'
+const $ = id => document.getElementById(id)
+const esc = v => v==null?'':String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
+const num = n => Number(n||0).toLocaleString('en-GB')
+let S = null, busy = false, deferUntil = 0, pick = {reason:null, mins:null}
+
+function showErr(m){ $('err').style.display='block'; $('err').textContent=m }
+function hideErr(){ $('err').style.display='none' }
+const hhmm = ts => { const d=new Date(ts); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0') }
+
+async function call(action, payload){
+  if(!token){ showErr('Missing token — open this page from the link in Manage.'); return null }
+  if(busy) return null
+  busy = true
+  const {data, error} = await sb.rpc('sim_public_prod',{p_token:token, p_action:action, p_payload:payload||{line:lineKey}})
+  busy = false
+  if(error){ showErr(error.message); return null }
+  hideErr(); S = data; render(); return data
+}
+
+/* ---------- no run open ---------- */
+function setupView(){
+  const people = (S.people||[])
+  const opts = '<option value="">—</option>' + people.map(p=>`<option>${esc(p)}</option>`).join('')
+  return `<div class="card">
+    <h2>Start a run on ${esc(S.line.name)}</h2>
+    <div class="f"><label>Product</label><input id="fProduct" placeholder="e.g. Grilled Chicken Power Bowl" /></div>
+    <div class="two">
+      <div class="f"><label>Team Leader</label><select id="fTL">${opts}</select></div>
+      <div class="f"><label>Supervisor</label><select id="fSup">${opts}</select></div>
+    </div>
+    <div class="two">
+      <div class="f"><label>Operators on the line</label><input id="fHead" type="number" inputmode="numeric" min="1" value="7" /></div>
+      <div class="f"><label>Target meals / hour</label><input id="fTarget" type="number" inputmode="numeric" value="${S.line.target}" /></div>
+    </div>
+    <div class="two">
+      <div class="f"><label>Planned quantity</label><input id="fPlanned" type="number" inputmode="numeric" placeholder="optional" /></div>
+      <div class="f"><label>Scheduled start</label><input id="fSched" type="time" /></div>
+    </div>
+    <div class="two">
+      <div class="f"><label>Counting</label><select id="fMode">
+        <option value="counter">Sealer counter reading</option>
+        <option value="added">Meals since last check</option>
+      </select></div>
+      <div class="f"><label>Counter now</label><input id="fOpen" type="number" inputmode="numeric" placeholder="e.g. 18427" /></div>
+    </div>
+    <button class="big" id="startBtn" onclick="startRun()">START RUN</button>
+  </div>`
+}
+
+window.startRun = async function(){
+  const v = id => ($(id).value||'').trim()
+  if(!v('fProduct')){ alert('Enter the product.'); return }
+  let sched = null
+  if(v('fSched')){ const d=new Date(); const [h,m]=v('fSched').split(':'); d.setHours(+h,+m,0,0); sched = d.toISOString() }
+  $('startBtn').disabled = true
+  await call('start', {line:lineKey, product:v('fProduct'), team_leader:v('fTL'), supervisor:v('fSup'),
+    headcount:v('fHead'), planned_qty:v('fPlanned'), target_per_hour:v('fTarget'),
+    count_mode:v('fMode'), opening_counter:v('fOpen'), scheduled_start:sched})
+}
+
+/* ---------- run open ---------- */
+function runView(){
+  const r = S.run, checks = S.checks||[]
+  const last = checks[0]
+  const rate = last ? last.rate_per_hour : null
+  const status = last ? last.status : 'grey'
+  const due = S.next_due ? new Date(S.next_due) : null
+  const mins = due ? Math.round((due - new Date(S.now))/60000) : null
+  const varClass = r.variance>0?'pos':(r.variance<0?'neg':'')
+  return `<div class="rate ${status}">
+      <div class="n">${rate!=null?num(rate):'–'}</div>
+      <div class="l">meals / hour · last ${last?num(last.block_minutes):r.target_per_hour&&'–'} min · target ${num(r.target_per_hour)}</div>
+    </div>
+    <div class="grid">
+      <div class="stat"><div class="n">${num(r.produced)}</div><div class="l">Made this run</div></div>
+      <div class="stat"><div class="n">${num(r.target_meals)}</div><div class="l">Should have</div></div>
+      <div class="stat"><div class="n ${varClass}">${r.variance>0?'+':''}${num(r.variance)}</div><div class="l">Variance</div></div>
+      <div class="stat"><div class="n">${r.mplh!=null?num(r.mplh):'–'}</div><div class="l">Per person / hr</div></div>
+      <div class="stat"><div class="n">${mins!=null?(mins<=0?'NOW':mins):'–'}</div><div class="l">Next check</div></div>
+    </div>
+    <div class="card">
+      <h2>${esc(r.product)} · ${esc(r.team_leader||'no team leader')} · ${num(r.headcount)} on the line</h2>
+      <button class="big" onclick="openCheck()">ENTER CHECK NOW</button>
+    </div>
+    <div class="card"><h2>Checks so far</h2>
+      ${checks.length ? checks.map(c=>`<div class="li">
+        <span>${hhmm(c.entered_at)} · ${num(c.meals)} meals${c.downtime_reason?` · <span style="color:var(--muted)">${esc(c.downtime_reason)} ${num(c.downtime_minutes)}m</span>`:''}</span>
+        <span><b>${num(c.rate_per_hour)}</b>/hr <span class="tag ${c.status}">${c.pct_target!=null?c.pct_target+'%':'—'}</span></span>
+      </div>`).join('') : '<div class="li" style="color:var(--muted)">No checks yet — the first one is due 30 minutes after the start.</div>'}
+    </div>
+    <button class="ghost" onclick="finishRun()">Finish this run</button>`
+}
+
+window.finishRun = async function(){
+  if(!confirm('Finish the run on '+S.line.name+'?')) return
+  await call('finish', {line:lineKey})
+}
+
+/* ---------- the 30-minute prompt ---------- */
+window.openCheck = function(){
+  const r = S.run
+  pick = {reason:null, mins:null}
+  const countField = r.count_mode==='added'
+    ? `<div class="f"><label>Meals since the last check</label><input id="cAdded" type="number" inputmode="numeric" autofocus /></div>`
+    : `<div class="f"><label>Sealer counter reading${S.last_counter!=null?` — last was ${num(S.last_counter)}`:''}</label><input id="cCounter" type="number" inputmode="numeric" autofocus /></div>`
+  $('overInner').innerHTML = `
+    <h1>${esc(S.line.name)} check</h1>
+    <div class="sub">${esc(r.product)} · target ${num(r.target_per_hour)} / hour</div>
+    ${countField}
+    <div class="two">
+      <div class="f"><label>Operators now</label><input id="cHead" type="number" inputmode="numeric" value="${num(r.headcount)}" /></div>
+      <div class="f"><label>Rejects</label><input id="cRej" type="number" inputmode="numeric" value="0" /></div>
+    </div>
+    <div><label>Any lost time? Tap a reason, or skip</label>
+      <div class="reasons">${(S.reasons||[]).map(x=>`<button class="reason" data-r="${esc(x)}" onclick="pickReason(this)">${esc(x)}</button>`).join('')}</div>
+    </div>
+    <div id="minsWrap" style="display:none"><label>Minutes lost</label>
+      <div class="mins">${[2,5,10,15,20,30,45,60].map(m=>`<button class="min" data-m="${m}" onclick="pickMins(this)">${m}</button>`).join('')}</div>
+    </div>
+    <button class="big" id="saveBtn" onclick="saveCheck()">SAVE</button>
+    <button class="ghost" onclick="deferCheck()">Not yet — remind me in 5 minutes</button>`
+  $('over').classList.add('on')
+}
+window.pickReason = function(el){
+  const on = el.classList.contains('on')
+  document.querySelectorAll('.reason').forEach(b=>b.classList.remove('on'))
+  if(on){ pick.reason=null; $('minsWrap').style.display='none'; return }
+  el.classList.add('on'); pick.reason = el.dataset.r
+  $('minsWrap').style.display = 'block'
+}
+window.pickMins = function(el){
+  document.querySelectorAll('.min').forEach(b=>b.classList.remove('on'))
+  el.classList.add('on'); pick.mins = Number(el.dataset.m)
+}
+window.deferCheck = function(){ deferUntil = Date.now()+5*60*1000; $('over').classList.remove('on') }
+window.saveCheck = async function(){
+  const g = id => { const el=$(id); return el?(el.value||'').trim():'' }
+  if(S.run.count_mode==='counter' && !g('cCounter')){ alert('Enter the counter reading.'); return }
+  if(S.run.count_mode==='added' && !g('cAdded')){ alert('Enter how many meals since the last check.'); return }
+  if(pick.reason && pick.mins==null){ alert('Tap how many minutes were lost.'); return }
+  $('saveBtn').disabled = true
+  const r = await call('check', {line:lineKey, counter_reading:g('cCounter'), meals_added:g('cAdded'),
+    headcount:g('cHead'), rejects:g('cRej'), downtime_minutes:pick.mins||'', downtime_reason:pick.reason||'',
+    entered_by:S.run.team_leader||''})
+  if(r){ deferUntil = 0; $('over').classList.remove('on') } else { $('saveBtn').disabled = false }
+}
+
+/* ---------- loop ---------- */
+function render(){
+  if(!S) return
+  $('lineName').textContent = S.line ? S.line.name : 'Line'
+  $('body').innerHTML = S.run ? runView() : setupView()
+  const due = S.next_due ? new Date(S.next_due) : null
+  const overdue = S.run && due && (new Date(S.now) >= due) && Date.now() > deferUntil
+  if(overdue && !$('over').classList.contains('on')) openCheck()
+  if(!S.run) $('over').classList.remove('on')
+}
+function tickClock(){ $('clock').textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) }
+tickClock(); setInterval(tickClock, 10000)
+call('state', {line:lineKey})
+setInterval(()=>{ if(!$('over').classList.contains('on')) call('state', {line:lineKey}) }, 20000)
+</script>
+</body>
+</html>
