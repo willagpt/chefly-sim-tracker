@@ -298,7 +298,7 @@ window.loadHistory=async function(){
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
   histLogs=logs||[]; histProfs=profs||[]; histStaffs=staffs||[]
   const nameFor=l=>{ if(l.user_id){const p=histProfs.find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=histStaffs.find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
-  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',uom:uomFor(l),mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
+  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,start:_clock(l.start_time),finish:_clock(l.finish_time),who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',uom:uomFor(l),mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
   $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
@@ -312,9 +312,10 @@ window.loadHistory=async function(){
     const rate=l.units_per_hour!=null?` · <b style="color:var(--accent)">${l.units_per_hour} ${u}/hr</b>`:''
     const wasteTxt=l.waste_kg?` · ${l.waste_kg} ${u} waste`:''
     const editLink=canEdit?`<a class="link" style="flex-shrink:0;font-size:13px" onclick="editLog('${l.id}')">✏️ Edit</a>`:''
+    const timeTxt=(l.start_time||l.finish_time)?` · ${_clock(l.start_time)||'–'} → ${_clock(l.finish_time)||'–'}`:''
     return `<div class="task-item" style="flex-direction:column;align-items:stretch;gap:4px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-        <div style="min-width:0"><b style="font-size:15px">${esc(l.task_name)}</b> <span class="muted">· ${esc(who)}</span><div class="muted" style="font-size:12px;margin-top:1px">${l.log_date}${l.product?' · '+esc(l.product):''}${l.station?' · '+esc(l.station):''}</div></div>
+        <div style="min-width:0"><b style="font-size:15px">${esc(l.task_name)}</b> <span class="muted">· ${esc(who)}</span><div class="muted" style="font-size:12px;margin-top:1px">${l.log_date}${timeTxt}${l.product?' · '+esc(l.product):''}${l.station?' · '+esc(l.station):''}</div></div>
         ${editLink}
       </div>
       <div style="font-size:14px"><b>${l.units??'–'} ${u}</b>${rate} · ${l.total_minutes??'–'} min${wasteTxt} · ${l.staff_count??1} ppl${photos.length?' · 📷 '+photos.length:''}</div>
@@ -530,8 +531,8 @@ window.delLog=async function(id){
 }
 window.exportCsv=function(){
   if(!historyRows.length){alert('Nothing to export — load a range first.');return}
-  const cols=['date','who','task','station','product','kg','uom','mins','uph','waste','staff','photos','comments']
-  const head=['Date','Name','Task','Station','Product','Qty','Unit','Minutes','Per hour','Waste','People','Photos','Comments']
+  const cols=['date','start','finish','who','task','station','product','kg','uom','mins','uph','waste','staff','photos','comments']
+  const head=['Date','Start','Finish','Name','Task','Station','Product','Qty','Unit','Minutes','Per hour','Waste','People','Photos','Comments']
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"'
   const csv=[head.join(',')].concat(historyRows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\n')
   const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a')
