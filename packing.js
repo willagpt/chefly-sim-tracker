@@ -180,6 +180,15 @@ function _daySpan(a,b){if(!a||!b)return '';let m=Math.round((new Date(b)-new Dat
 function packReconBanner(){
   const r=packRecon
   if(!r) return ''
+  if(r.locked){
+    // James, 31 Aug: once a day is locked (Sunday 10am import) the pack list
+    // IS the plan — the website keeps taking orders and cancellations after
+    // the lock, and that churn is the office's problem, not the packers'.
+    // So a locked day never compares against live orders and never warns.
+    const lockedAt=r.locked_at?new Date(r.locked_at).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'—'
+    return `<div style="margin-top:10px;padding:8px 12px;border-radius:10px;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.35);font-size:13px">
+      <b style="color:#cbd5e1">🔒 Plan locked ${esc(lockedAt)}</b> <span class="muted">— ${Number(r.plan_total_meals).toLocaleString()} meals. Pack to this list; orders placed or cancelled after the lock are handled by the office.</span></div>`
+  }
   const when=r.orders_synced_at?new Date(r.orders_synced_at).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'—'
   if(r.ok){
     return `<div style="margin-top:10px;padding:8px 12px;border-radius:10px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.35);font-size:13px">
