@@ -182,6 +182,16 @@ window.wsDeleteRevision=async function(id){
   await loadWholesale()
 }
 window.wsToggleRev=function(id){ wsOpenRev=(wsOpenRev===id)?null:id; renderWs() }
+function wsRevSizeTotals(lines){
+  // size (variant name: Standard/Large/Lean) -> total meals, in variant sort order
+  const order=[], tot={}
+  ;(lines||[]).forEach(l=>{
+    const v=wsVariantOf(l.variant_id); if(!v) return
+    if(!(v.name in tot)){tot[v.name]=0; order.push(v.name)}
+    tot[v.name]+=l.qty
+  })
+  return order.map(n=>[n,tot[n]])
+}
 function wsRevDiff(prev,cur){
   // per-variant changes between two snapshots (prev may be null)
   const p={}; (prev?prev.lines:[]).forEach(l=>{p[l.variant_id]=l.qty})
@@ -232,6 +242,21 @@ function wsRevCard(){
         </div>
         <span style="font-size:12px;color:var(--muted)">${fmt(r.logged_at)}${r.logged_by?' · '+esc(r.logged_by):''}${r.note?' · '+esc(r.note):''} ${open?'▾':'▸'}</span>
       </div>`
+    {
+      // per-size strip: Standard / Large / Lean totals, jump vs previous next to each
+      const sizes=wsRevSizeTotals(r.lines)
+      const pmap={}; if(prev) wsRevSizeTotals(prev.lines).forEach(([n,t])=>{pmap[n]=t})
+      if(sizes.length){
+        h+='<div style="display:flex;gap:14px;flex-wrap:wrap;padding:0 12px 9px;font-size:12.5px">'
+        sizes.forEach(([n,t])=>{
+          const d=prev?t-(pmap[n]||0):null
+          h+=`<span style="white-space:nowrap"><span style="color:var(--muted)">${esc(n)}</span> <b>${wsInt(t)}</b>${
+            d==null?'':(d===0?' <span style="color:var(--muted)">·</span>'
+            :` <b style="color:${d>0?'var(--green)':'var(--red)'}">${d>0?'+':''}${wsInt(d)}</b>`)}</span>`
+        })
+        h+='</div>'
+      }
+    }
     if(open){
       h+='<div style="border-top:1px solid var(--line);padding:8px 12px;background:var(--panel2)">'
       if(!prev){
