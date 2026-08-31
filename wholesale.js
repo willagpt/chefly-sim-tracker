@@ -10,6 +10,7 @@
 
 let wsMeals=[], wsVariants=[], wsComps=[], wsBom=[], wsWeekStart=null, wsWeek=null, wsLines=[]
 let wsOnHand={}, wsMoves=[], wsLots=[], wsUsage=[], wsView='plan', wsChannel=null, wsOpenLot=null, wsPackVar=null
+let wsRevs=[], wsOpenRev=null   // client order revision log (draft / final / final 2)
 
 const WS_STAGES=[
   ['build_ahead_frozen','Build ahead — freeze','Cook, pack & freeze to build stock (salsa, beans)'],
@@ -52,14 +53,15 @@ window.loadWholesale=async function(){
   if(wsWeek){
     const {data:lots}=await sb.from('sim_ws_pack_lots').select('*').eq('week_id',wsWeek.id).order('lot_no'); wsLots=lots||[]
     if(wsLots.length){const {data:us}=await sb.from('sim_ws_lot_usage').select('*').in('lot_id',wsLots.map(l=>l.id)); wsUsage=us||[]} else wsUsage=[]
-  } else {wsLots=[]; wsUsage=[]}
+    const {data:rv}=await sb.from('sim_ws_order_revisions').select('*').eq('week_id',wsWeek.id).order('rev_no'); wsRevs=rv||[]
+  } else {wsLots=[]; wsUsage=[]; wsRevs=[]}
   await wsShipLoad()
   renderWs()
   subscribeWs()
 }
 function subscribeWs(){
   if(wsChannel) return
-  wsChannel=db.onChanges('ws-live',['sim_ws_week_lines','sim_ws_stock_moves','sim_ws_pack_lots','sim_ws_lot_usage'],()=>{
+  wsChannel=db.onChanges('ws-live',['sim_ws_week_lines','sim_ws_stock_moves','sim_ws_pack_lots','sim_ws_lot_usage','sim_ws_order_revisions'],()=>{
     const t=$('wsTab'); if(t&&!t.classList.contains('hidden')) loadWholesale()
   })
 }
@@ -130,6 +132,139 @@ window.wsUnpickMeal=async function(mealId){
   for(const l of lines) await sb.from('sim_ws_week_lines').delete().eq('id',l.id)
   await loadWholesale()
 }
+/* ============ CLIENT ORDER LOG (draft / final / final 2) ============
+   The client emails Monday morning with an estimate, again Tuesday late
+   afternoon, sometimes twice. Each email: type the new numbers into the
+   inputs above, then log it with one tap. Every revision is a snapshot of
+   the per-variant quantities, and the log shows what changed against the
+   previous revision — no more recounting on a spreadsheet. */
+const WS_REV_LABELS=[['draft','Draft'],['final','Final'],['final_2','Final 2'],['final_3','Final 3']]
+function wsRevLbl(k){const r=WS_REV_LABELS.find(x=>x[0]===k);return r?r[1]:k}
+function wsSnapshotLines(){
+  const out=[]
+  wsLines.forEach(l=>{
+    const v=wsVariantOf(l.variant_id); if(!v||!v.active) return
+    const m=v&&wsMealOf(v.meal_id); if(!m||!m.active) return
+    out.push({variant_id:l.variant_id,qty:Number(l.target_qty)||0})
+  })
+  return out
+}
+// jsonb re-orders object keys and line order isn't guaranteed, so compare
+// snapshots via a canonical "variant:qty" string, never raw JSON.
+function wsRevKey(lines){return (lines||[]).filter(l=>l.qty).map(l=>l.variant_id+':'+l.qty).sort().join('|')}
+function wsNextRevLabel(){
+  const used=wsRevs.map(r=>r.label)
+  for(const [k] of WS_REV_LABELS) if(!used.includes(k)) return k
+  return 'final_3'
+}
+window.wsLogRevision=async function(label){
+  if(!wsCanPlan())return
+  const lines=wsSnapshotLines()
+  const total=lines.reduce((s,l)=>s+l.qty,0)
+  if(!total){alert('Enter this week’s quantities first, then log the revision.');return}
+  const last=wsRevs[wsRevs.length-1]
+  if(last&&wsRevKey(last.lines)===wsRevKey(lines)){alert('Nothing has changed since '+wsRevLbl(last.label)+' was logged.');return}
+  const note=prompt('Note for this revision (P.O. number, "phone call"…) — optional:')
+  if(note===null)return
+  const {error}=await sb.from('sim_ws_order_revisions').insert({
+    week_id:wsWeek.id, rev_no:(last?last.rev_no:0)+1, label, lines,
+    total_meals:total, note:note.trim()||null,
+    logged_by:(profile&&(profile.full_name||profile.email))||null,
+  })
+  if(error){alert(error.message);return}
+  await loadWholesale()
+}
+window.wsDeleteRevision=async function(id){
+  if(!wsCanPlan())return
+  const r=wsRevs.find(x=>x.id===id); if(!r)return
+  if(!confirm('Delete '+wsRevLbl(r.label)+' from the log? Only do this if it was logged by mistake.'))return
+  await sb.from('sim_ws_order_revisions').delete().eq('id',id)
+  await loadWholesale()
+}
+window.wsToggleRev=function(id){ wsOpenRev=(wsOpenRev===id)?null:id; renderWs() }
+function wsRevDiff(prev,cur){
+  // per-variant changes between two snapshots (prev may be null)
+  const p={}; (prev?prev.lines:[]).forEach(l=>{p[l.variant_id]=l.qty})
+  const rows=[]
+  cur.lines.forEach(l=>{
+    const was=p[l.variant_id]||0
+    if(l.qty!==was) rows.push({variant_id:l.variant_id,was,now:l.qty})
+    delete p[l.variant_id]
+  })
+  Object.entries(p).forEach(([vid,was])=>{ if(was) rows.push({variant_id:vid,was,now:0}) })
+  return rows
+}
+function wsRevCard(){
+  if(!wsWeek&&!wsRevs.length&&!wsLines.length) return ''
+  const fmt=t=>new Date(t).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'})
+  let h='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">'
+  h+='<h2 style="margin:0">Client order log</h2>'
+  if(wsCanPlan()&&wsLines.length){
+    const next=wsNextRevLabel()
+    const cur=wsSnapshotLines()
+    const last=wsRevs[wsRevs.length-1]
+    const changed=!last||wsRevKey(last.lines)!==wsRevKey(cur)
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    WS_REV_LABELS.forEach(([k,lbl])=>{
+      const used=wsRevs.some(r=>r.label===k)
+      if(used)return
+      const hot=k===next&&changed
+      h+=`<button class="ghost sm" style="padding:4px 12px;${hot?'border-color:var(--accent);color:var(--accent);font-weight:700':''}" onclick="wsLogRevision('${k}')">\u{1F4CC} Log as ${lbl}</button>`
+    })
+    h+='</div>'
+  }
+  h+='</div>'
+  h+='<p class="muted" style="margin:0 0 10px;font-size:12.5px">Each client email = one tap: type the new numbers above, then log it. The log keeps every version and shows what changed.</p>'
+  if(!wsRevs.length){ h+='<p class="muted" style="font-size:13px;margin:0">Nothing logged yet this week. When Monday’s email arrives, enter the quantities and log it as <b>Draft</b>.</p></div>'; return h }
+  wsRevs.forEach((r,i)=>{
+    const prev=i>0?wsRevs[i-1]:null
+    const delta=prev?r.total_meals-prev.total_meals:null
+    const diffs=wsRevDiff(prev,r)
+    const open=wsOpenRev===r.id
+    const deltaTxt=delta==null?'':(delta===0?'<span style="color:var(--muted)">no change in total</span>'
+      :`<b style="color:${delta>0?'var(--green)':'var(--red)'}">${delta>0?'+':''}${wsInt(delta)} meals</b>${delta<0?' <span style="font-size:11px;color:var(--red)">↓ unusual — client orders normally only go up</span>':''}`)
+    h+=`<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;flex-wrap:wrap" onclick="wsToggleRev('${r.id}')">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span style="padding:2px 10px;border-radius:999px;font-size:12px;font-weight:700;background:${r.label==='draft'?'var(--panel2);color:var(--muted)':'rgba(34,197,94,.15);color:var(--green)'}">${wsRevLbl(r.label)}</span>
+          <span style="font-size:13px"><b>${wsInt(r.total_meals)}</b> meals</span>
+          <span style="font-size:12.5px">${deltaTxt}</span>
+        </div>
+        <span style="font-size:12px;color:var(--muted)">${fmt(r.logged_at)}${r.logged_by?' · '+esc(r.logged_by):''}${r.note?' · '+esc(r.note):''} ${open?'▾':'▸'}</span>
+      </div>`
+    if(open){
+      h+='<div style="border-top:1px solid var(--line);padding:8px 12px;background:var(--panel2)">'
+      if(!prev){
+        h+='<div style="font-size:12.5px;color:var(--muted);margin-bottom:4px">First version this week — the starting numbers:</div>'
+        r.lines.filter(l=>l.qty).forEach(l=>{const v=wsVariantOf(l.variant_id)
+          h+=`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(v?wsVarLabel(v):'?')}</span><b>${wsInt(l.qty)}</b></div>`})
+      } else if(!diffs.length){
+        h+='<div style="font-size:13px;color:var(--muted)">Identical to '+wsRevLbl(prev.label)+' — no line changed.</div>'
+      } else {
+        diffs.forEach(d=>{const v=wsVariantOf(d.variant_id);const dd=d.now-d.was
+          h+=`<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0">
+            <span>${esc(v?wsVarLabel(v):'?')}</span>
+            <span style="white-space:nowrap"><span style="color:var(--muted)">${wsInt(d.was)}</span> → <b>${wsInt(d.now)}</b> <b style="color:${dd>0?'var(--green)':'var(--red)'}">(${dd>0?'+':''}${wsInt(dd)})</b></span>
+          </div>`})
+      }
+      if(wsCanPlan()) h+=`<div style="text-align:right;margin-top:6px"><button class="ghost sm" style="padding:2px 8px;font-size:11px;color:var(--red)" onclick="event.stopPropagation();wsDeleteRevision('${r.id}')">delete (mistake)</button></div>`
+      h+='</div>'
+    }
+    h+='</div>'
+  })
+  // are the current inputs ahead of the last logged revision?
+  if(wsCanPlan()&&wsLines.length){
+    const cur=wsSnapshotLines(), last=wsRevs[wsRevs.length-1]
+    if(last&&wsRevKey(last.lines)!==wsRevKey(cur)){
+      const curTotal=cur.reduce((s,l)=>s+l.qty,0), d=curTotal-last.total_meals
+      h+=`<div style="margin-top:2px;padding:8px 12px;border-radius:10px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);font-size:12.5px">
+        ⚠ The numbers above differ from <b>${wsRevLbl(last.label)}</b> (${d>0?'+':''}${wsInt(d)} meals) but haven’t been logged — if this came from the client, log it.</div>`
+    }
+  }
+  h+='</div>'
+  return h
+}
+
 function wsTargetsCard(){
   const activeMeals=wsMeals.filter(m=>m.active)
   if(!activeMeals.length) return '<div class="card"><p class="muted">No active meals. Turn a meal on in Setup.</p></div>'
@@ -532,7 +667,7 @@ function renderWs(){
     views.map(([k,l],i)=>`<span onclick="setWsView('${k}')" style="padding:6px 14px;font-size:13px;cursor:pointer;${wsView===k?'background:var(--accent);color:#0b1220;font-weight:700':'color:var(--muted)'}${i?';border-left:1px solid var(--line)':''}">${l}</span>`).join('')+
     '</div></div>'
   let body=''
-  if(wsView==='plan') body=wsTargetsCard()+wsPlanTable()
+  if(wsView==='plan') body=wsTargetsCard()+wsRevCard()+wsPlanTable()
   else if(wsView==='stock') body=wsStockView()
   else if(wsView==='pack') body=wsPackView()
   else if(wsView==='ship') body=wsShipView()
