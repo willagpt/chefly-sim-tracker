@@ -185,7 +185,11 @@ function packReconBanner(){
     // IS the plan — the website keeps taking orders and cancellations after
     // the lock, and that churn is the office's problem, not the packers'.
     // So a locked day never compares against live orders and never warns.
-    const lockedAt=r.locked_at?new Date(r.locked_at).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit'}):'—'
+    // Rendered in UTC on purpose: the admin panel's cutoff is configured in
+    // UTC ("Sunday 10:00"), and in British Summer Time the browser's local
+    // clock printed the same instant as 11:00 — two screens naming one
+    // moment differently. James, 31 Aug: they must read the same.
+    const lockedAt=r.locked_at?new Date(r.locked_at).toLocaleString('en-GB',{weekday:'short',hour:'2-digit',minute:'2-digit',timeZone:'UTC'}):'—'
     return `<div style="margin-top:10px;padding:8px 12px;border-radius:10px;background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.35);font-size:13px">
       <b style="color:#cbd5e1">🔒 Plan locked ${esc(lockedAt)}</b> <span class="muted">— ${Number(r.plan_total_meals).toLocaleString()} meals. Pack to this list; orders placed or cancelled after the lock are handled by the office.</span></div>`
   }
