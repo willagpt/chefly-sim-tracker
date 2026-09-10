@@ -11,6 +11,8 @@
 
    Verified against three real packs: SIMCFOIUK050826 (16 pallets / 18,329
    meals / 644 trays), SIMCFCPUK120826 (1 / 79) and SIMCFIE120826 (3 / 42).
+   Those were packed at 30 meals a tray and still reprint that way, because the
+   capacity is stored on the line rather than read from the constant below.
 
    Data: sim_ws_destinations / sim_ws_shipments / sim_ws_shipment_lines.
    Lives inside the Wholesale tab as the 'Shipments' view. */
@@ -18,8 +20,16 @@
 let wsDests=[], wsShips=[], wsShipLines=[], wsShipNewOpen=false
 let wsShipSel=new Set()   // shipments ticked to print as one combined pack
 
-// [label, tray capacity]. Large trays hold fewer because the meals are bigger.
-const WS_CONFIGS=[['Standard',30],['Large',24],['Lean',30]]
+/* [label, tray capacity] for NEW shipment lines only. Every line stores the
+   capacity it was created with (sim_ws_shipment_lines.tray_capacity, NOT NULL)
+   and every shipment stores its own trays_per_pallet, so changing these numbers
+   never rewrites paperwork that has already been printed -- reprint an August
+   pack and it still comes out at the 30 a tray it was packed at.
+
+   From 10 September 2026 all three configurations are 24 a tray. The pallet is
+   5 trays a level by 9 levels = 45 trays = 1,080 meals, whatever the config.
+   Large was already 24; Standard and Lean came down from 30. */
+const WS_CONFIGS=[['Standard',24],['Large',24],['Lean',24]]
 const WS_TRAYS_PER_PALLET=45
 
 function wsShipDestOf(id){return wsDests.find(d=>d.id===id)}
@@ -27,7 +37,7 @@ function wsShipDestOf(id){return wsDests.find(d=>d.id===id)}
 // distinguishes them on screen. The full name still prints on the paperwork.
 function wsShipDestName(d){return d?(d.short_label||d.name||''):''}
 function wsShipLinesOf(id){return wsShipLines.filter(l=>l.shipment_id===id).sort((a,b)=>a.sort_order-b.sort_order)}
-function wsShipCapOf(config){const r=WS_CONFIGS.find(c=>c[0]===config);return r?r[1]:30}
+function wsShipCapOf(config){const r=WS_CONFIGS.find(c=>c[0]===config);return r?r[1]:24}
 
 /* The one piece of arithmetic in this file. Mirrors v_ws_shipment_line_calc
    in the database exactly -- if you change one, change both. */
