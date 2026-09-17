@@ -282,12 +282,34 @@ window.copyPackWall=function(){const v=$('packWallUrl').value; if(v&&!v.startsWi
 window.copyKitchenWall=function(){const v=$('kitchenWallUrl').value; if(v&&!v.startsWith('(')&&navigator.clipboard){navigator.clipboard.writeText(v); msg($('wallMsg'),'Kitchen wall link copied.',true)}}
 
 // ---- history / reports (manager/admin) ----
-let historyRows=[], histLogs=[], histProfs=[], histStaffs=[], leCurrentId=null, histView='summary'
+let historyRows=[], histLogs=[], histAllLogs=[], histProfs=[], histStaffs=[], leCurrentId=null, histView='summary'
 function initHistory(){
   if(!$('hTo').value) $('hTo').value=new Date().toISOString().slice(0,10)
   if(!$('hFrom').value) $('hFrom').value=new Date(Date.now()-6*864e5).toISOString().slice(0,10)
   loadHistory()
 }
+/* Job filter: injected here (same pattern as _poEnsureFile) so index.html
+   stays untouched. "All jobs" shows everything; picking a job filters the
+   summary, detail log, HACCP view and CSV export together — no refetch. */
+function _histEnsureJobPicker(){
+  if($('hJob')) return
+  const anchor=$('hv_summary'); if(!anchor||!anchor.parentNode) return
+  const tabs=anchor.parentNode
+  const wrap=document.createElement('div')
+  wrap.id='hJobRow'
+  wrap.innerHTML='<label for="hJob">Job</label><select id="hJob" onchange="histJobChanged()"><option value="">All jobs</option></select>'
+  tabs.parentNode.insertBefore(wrap,tabs)
+}
+function _histFillJobPicker(){
+  const sel=$('hJob'); if(!sel) return
+  const cur=sel.value
+  const counts={}
+  histAllLogs.forEach(l=>{const k=l.task_name||'(unnamed)';counts[k]=(counts[k]||0)+1})
+  const names=Object.keys(counts).sort((a,b)=>a.localeCompare(b))
+  sel.innerHTML='<option value="">All jobs ('+histAllLogs.length+')</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)} (${counts[n]})</option>`).join('')
+  if(cur && names.includes(cur)) sel.value=cur
+}
+window.histJobChanged=function(){ _renderHistAll() }
 window.loadHistory=async function(){
   if(!isManagerUp()) return
   const from=$('hFrom').value, to=$('hTo').value
@@ -296,17 +318,23 @@ window.loadHistory=async function(){
   if(error){box.innerHTML='<p class="muted">'+error.message+'</p>';return}
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
-  histLogs=logs||[]; histProfs=profs||[]; histStaffs=staffs||[]
-  const nameFor=l=>{ if(l.user_id){const p=histProfs.find(x=>x.id===l.user_id);return p?(p.full_name||p.email):'Someone'} if(l.staff_id){const s=histStaffs.find(x=>x.id===l.staff_id);return s?s.full_name:'Staff'} return 'Someone' }
-  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,start:_clock(l.start_time),finish:_clock(l.finish_time),who:nameFor(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',uom:uomFor(l),mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
+  histAllLogs=logs||[]; histProfs=profs||[]; histStaffs=staffs||[]
+  _histEnsureJobPicker(); _histFillJobPicker()
+  _renderHistAll()
+}
+function _renderHistAll(){
+  const box=$('hBody')
+  const job=$('hJob')?$('hJob').value:''
+  histLogs = job ? histAllLogs.filter(l=>(l.task_name||'(unnamed)')===job) : histAllLogs
+  historyRows=histLogs.map(l=>({id:l.id,date:l.log_date,start:_clock(l.start_time),finish:_clock(l.finish_time),who:_haccpName(l),task:l.task_name,station:l.station||'',product:l.product||'',kg:l.units??'',uom:uomFor(l),mins:l.total_minutes??'',uph:l.units_per_hour??'',waste:l.waste_kg??'',staff:l.staff_count??'',photos:(l.photos||[]).length,comments:l.comments||''}))
   const num=v=>Number(v)||0
   const totKg=historyRows.reduce((s,r)=>s+num(r.kg),0), totMin=historyRows.reduce((s,r)=>s+num(r.mins),0), totWaste=historyRows.reduce((s,r)=>s+num(r.waste),0)
-  $('hSummary').innerHTML=`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
+  $('hSummary').innerHTML=(job?'<b>'+esc(job)+'</b> · ':'')+`<b>${historyRows.length}</b> tasks · <b>${Math.round(totKg)}</b> produced · <b>${Math.round(totMin)}</b> min · <b>${totWaste.toFixed(1)}</b> waste`
   renderHistorySummary(); renderHaccp()
-  if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
+  if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range'+(job?' for '+esc(job):'')+'.</p>';return}
   const canEdit=isManagerUp()
   box.innerHTML=histLogs.map(l=>{
-    const who=nameFor(l), u=uomFor(l)
+    const who=_haccpName(l), u=uomFor(l)
     const photos=l.photos||[]
     const strip=photoThumbs(photos,54)
     const rate=l.units_per_hour!=null?` · <b style="color:var(--accent)">${l.units_per_hour} ${u}/hr</b>`:''
@@ -381,8 +409,9 @@ function renderHistorySummary(){
     const D=byDay[r.date]||(byDay[r.date]={amt:{},tasks:0});addAmt(D.amt,r.uom,kg);D.tasks++
   })
   const days=Object.keys(byDay).sort()
+  const jobSel=$('hJob'); const jobLbl=jobSel&&jobSel.value?esc(jobSel.value)+' · ':''
   const rangeLbl = from===to ? niceDate(from) : `${niceDate(from)} → ${niceDate(to)}`
-  let h=`<div style="margin-bottom:14px"><div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">${from===to?'Shift report':'Team output'} · ${rangeLbl}</div>
+  let h=`<div style="margin-bottom:14px"><div style="font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">${jobLbl}${from===to?'Shift report':'Team output'} · ${rangeLbl}</div>
     <div style="font-size:26px;font-weight:800;margin-top:4px">${fmtAmt(totMap)}</div>
     <div class="muted">${historyRows.length} tasks · ${(totMin/60).toFixed(1)} h logged · ${(totPeopleMin/60).toFixed(1)} people-h · ${totWaste?totWaste.toFixed(1)+' waste':'no waste logged'}</div></div>`
   h+=sumTable('By person', Object.entries(byPerson).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt)).map(([k,v])=>[esc(k),fmtAmt(v.amt),v.tasks,(v.mins/60).toFixed(1)+' h']), ['Name','Produced','Tasks','Time'])
@@ -534,9 +563,10 @@ window.exportCsv=function(){
   const cols=['date','start','finish','who','task','station','product','kg','uom','mins','uph','waste','staff','photos','comments']
   const head=['Date','Start','Finish','Name','Task','Station','Product','Qty','Unit','Minutes','Per hour','Waste','People','Photos','Comments']
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"'
+  const job=$('hJob')&&$('hJob').value?'_'+$('hJob').value.replace(/[^a-z0-9]+/gi,'-').toLowerCase():''
   const csv=[head.join(',')].concat(historyRows.map(r=>cols.map(c=>esc(r[c])).join(','))).join('\n')
   const blob=new Blob([csv],{type:'text/csv'}); const a=document.createElement('a')
-  a.href=URL.createObjectURL(blob); a.download=`sim-history-${$('hFrom').value}_to_${$('hTo').value}.csv`; a.click()
+  a.href=URL.createObjectURL(blob); a.download=`sim-history-${$('hFrom').value}_to_${$('hTo').value}${job}.csv`; a.click()
 }
 
 // ---- weekly packing orders importer (manager/admin) ----
