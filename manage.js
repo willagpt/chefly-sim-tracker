@@ -297,7 +297,8 @@ function _histEnsureJobPicker(){
   const tabs=anchor.parentNode
   const wrap=document.createElement('div')
   wrap.id='hJobRow'
-  wrap.innerHTML='<label for="hJob">Job</label><select id="hJob" onchange="histJobChanged()"><option value="">All jobs</option></select>'
+  wrap.style.marginTop='12px'
+  wrap.innerHTML='<label for="hJob">Job — pick one to isolate it (times, totals and rates filter with it)</label><select id="hJob" onchange="histJobChanged()"><option value="">All jobs</option></select>'
   tabs.parentNode.insertBefore(wrap,tabs)
 }
 function _histFillJobPicker(){
@@ -398,7 +399,7 @@ function renderHistorySummary(){
   const from=$('hFrom').value,to=$('hTo').value
   if(!historyRows.length){box.innerHTML='<p class="muted">No completed tasks in this range.</p>';return}
   const num=v=>Number(v)||0
-  const totMap={},byPerson={},byTask={},byProduct={},byDay={}
+  const totMap={},byPerson={},byTask={},byProduct={},byDay={},byDayTask={}
   let totMin=0,totWaste=0,totPeopleMin=0
   historyRows.forEach(r=>{
     const kg=num(r.kg),mins=num(r.mins),waste=num(r.waste),staff=num(r.staff)||1
@@ -406,7 +407,9 @@ function renderHistorySummary(){
     const P=byPerson[r.who]||(byPerson[r.who]={amt:{},mins:0,tasks:0}); addAmt(P.amt,r.uom,kg);P.mins+=mins;P.tasks++
     const T=byTask[r.task]||(byTask[r.task]={amt:{},mins:0,times:0,uom:r.uom}); addAmt(T.amt,r.uom,kg);T.mins+=mins;T.times++
     if(r.product){const Pr=byProduct[r.product]||(byProduct[r.product]={amt:{}});addAmt(Pr.amt,r.uom,kg)}
-    const D=byDay[r.date]||(byDay[r.date]={amt:{},tasks:0});addAmt(D.amt,r.uom,kg);D.tasks++
+    const D=byDay[r.date]||(byDay[r.date]={amt:{},tasks:0,mins:0,uom:r.uom});addAmt(D.amt,r.uom,kg);D.tasks++;D.mins+=mins
+    const DT=byDayTask[r.date]||(byDayTask[r.date]={})
+    const V=DT[r.task]||(DT[r.task]={amt:{},mins:0,times:0,uom:r.uom}); addAmt(V.amt,r.uom,kg);V.mins+=mins;V.times++
   })
   const days=Object.keys(byDay).sort()
   const jobSel=$('hJob'); const jobLbl=jobSel&&jobSel.value?esc(jobSel.value)+' · ':''
@@ -418,7 +421,28 @@ function renderHistorySummary(){
   h+=sumTable('By task', Object.entries(byTask).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt)).map(([k,v])=>{const hrs=v.mins/60;const rate=hrs>0?Math.round(sumOf(v.amt)/hrs):null;return [esc(k),fmtAmt(v.amt),v.times,rate!=null?rate+' '+(v.uom||'kg')+'/hr':'–']}), ['Task','Produced','Times','Avg rate'])
   const prodRows=Object.entries(byProduct).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt))
   if(prodRows.length) h+=sumTable('By product', prodRows.map(([k,v])=>[esc(k),fmtAmt(v.amt)]), ['Product','Produced'])
-  if(days.length>1) h+=sumTable('By day', days.map(d=>[niceDate(d),fmtAmt(byDay[d].amt),byDay[d].tasks]), ['Day','Produced','Tasks'])
+  // Day breakdown. One job selected: a per-day line with that job's rate each
+  // day. All jobs: every day broken down task by task, each with its own rate.
+  const jobPicked=jobSel&&jobSel.value
+  if(jobPicked){
+    h+=sumTable('By day — '+esc(jobSel.value), days.map(d=>{
+      const v=byDay[d], hrs=v.mins/60
+      const rate=hrs>0?Math.round(sumOf(v.amt)/hrs)+' '+(v.uom||'kg')+'/hr':'–'
+      return [niceDate(d),fmtAmt(v.amt),v.tasks,hrs.toFixed(1)+' h',rate]
+    }), ['Day','Produced','Runs','Time','Rate'])
+  } else {
+    const dtRows=[]
+    days.forEach(d=>{
+      const dv=byDay[d], dh=dv.mins/60
+      dtRows.push(['<b>'+niceDate(d)+'</b>','<b>'+fmtAmt(dv.amt)+'</b>','<b>'+dv.tasks+'</b>','<b>'+dh.toFixed(1)+' h</b>',''])
+      Object.entries(byDayTask[d]).sort((a,b)=>sumOf(b[1].amt)-sumOf(a[1].amt)).forEach(([t,v])=>{
+        const hrs=v.mins/60
+        const rate=hrs>0?Math.round(sumOf(v.amt)/hrs)+' '+(v.uom||'kg')+'/hr':'–'
+        dtRows.push(['&nbsp;&nbsp;&nbsp;'+esc(t),fmtAmt(v.amt),v.times,hrs.toFixed(1)+' h',rate])
+      })
+    })
+    if(dtRows.length) h+=sumTable('Each day, task by task', dtRows, ['Day / task','Produced','Runs','Time','Rate'])
+  }
   box.innerHTML=h
 }
 // ---- full log editor (manager/admin) ----
