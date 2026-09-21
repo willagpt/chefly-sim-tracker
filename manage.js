@@ -320,7 +320,7 @@ window.loadHistory=async function(){
   const {data:profs}=await sb.from('sim_profiles').select('id,full_name,email')
   const {data:staffs}=await sb.from('sim_staff').select('id,full_name')
   histAllLogs=logs||[]; histProfs=profs||[]; histStaffs=staffs||[]
-  _histEnsureJobPicker(); _histFillJobPicker()
+  _histEnsureJobPicker(); _histFillJobPicker(); _histEnsureEodBtn()
   _renderHistAll()
 }
 function _renderHistAll(){
@@ -445,6 +445,207 @@ function renderHistorySummary(){
   }
   box.innerHTML=h
 }
+
+/* ---- End-of-day report (printable) ---------------------------------------
+   One page per production day in the loaded range: every completed job with
+   its times and rate, totals by task and by person, the day's temperature
+   records, and a paperwork check that names the paper sheet each job should
+   have produced, so the office can tick the app against the folder. Rendered
+   into #printArea, which styles.css already isolates for printing. */
+const _EOD_SHEETS = [
+  { re: /brisket.*(trim|unpack|pack|bulk fat)|meat prep|vacuum (pack|tumbl)|loading cook tank/i, code: '0008', name: 'Brisket Phase 1 — Meat Room' },
+  { re: /trim machine|bulk fat|r[uü]hle|sr ?1|dicer/i,          code: '0011',  name: 'Rühle SR1 — Parts Control &amp; Cleaning' },
+  { re: /brisket unloading|cook ?tank|sous vide/i,              code: '0009',  name: 'Brisket Phase 2 — Ovens &amp; Cooktanks' },
+  { re: /mexican rice/i,                                        code: '0001',  name: 'Rice — Shift Record (0001A night · 0001B day)' },
+  { re: /fajita/i,                                              code: '0002',  name: 'Fajita Vegetables (0002A night · 0002B day)' },
+  { re: /rice ?& ?bean|rice and bean/i,                     code: '0003',  name: 'Rice &amp; Beans Mix — Tumbler' },
+  { re: /black bean/i,                                          code: '0004',  name: 'Black Beans — Shift Record' },
+  { re: /salsa/i,                                               code: '0005',  name: 'Smoky Salsa — Shift Record' },
+  { re: /cauliflower/i,                                         code: '—',     name: 'Cauliflower Rice — no sheet issued yet (tracker note only)' },
+]
+const _EOD_ALSO = [
+  ['0012',  'Proseal GT0s — Start-Up, Seal &amp; Gas Record'],
+  ['0017',  'Proseal End of Line — Seal Reject Log'],
+  ['0014',  'Unit 12 — Pre-7am Component Staging'],
+  ['0015',  'Simmer Pallet Transfer — Unit 17 to 12'],
+  ['0013B', 'Despatch Day — Pack-Out Record'],
+  ['0016',  'Weekly Packaging Stocktake'],
+]
+function _eodBox(){ return '<span style="display:inline-block;width:11px;height:11px;border:1.2px solid #000;vertical-align:-1px"></span>' }
+function _eodLine(w){ return '<span style="display:inline-block;border-bottom:1px solid #000;width:' + w + 'px"></span>' }
+function _eodTH(t, r){ return '<th style="text-align:' + (r ? 'right' : 'left') + ';border-bottom:1.5px solid #000;padding:3px 5px;font-size:8.5px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap">' + t + '</th>' }
+function _eodTD(t, r, b){ return '<td style="text-align:' + (r ? 'right' : 'left') + ';border-bottom:1px solid #ccc;padding:3px 5px' + (b ? ';font-weight:700' : '') + '">' + t + '</td>' }
+function _eodH2(t){ return '<div style="background:#111;color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:3px 7px;margin:10px 0 4px">' + t + '</div>' }
+function _eodTable(head, body){ return '<table style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table>' }
+
+function _eodDayHtml(date, logs, last){
+  const n = v => Number(v) || 0
+  const rows = logs.slice().sort((a, b) => String(a.start_time || '').localeCompare(String(b.start_time || '')))
+  const tot = {}, byTask = {}, byPerson = {}
+  let totMin = 0, totWaste = 0, totPeopleMin = 0, noQty = 0
+  rows.forEach(l => {
+    const u = uomFor(l), q = n(l.units), m = n(l.total_minutes), w = n(l.waste_kg), st = n(l.staff_count) || 1
+    if (l.units == null || l.units === '') noQty++
+    addAmt(tot, u, q); totMin += m; totWaste += w; totPeopleMin += m * st
+    const T = byTask[l.task_name] || (byTask[l.task_name] = { amt: {}, mins: 0, runs: 0, uom: u, waste: 0 })
+    addAmt(T.amt, u, q); T.mins += m; T.runs++; T.waste += w
+    const who = _haccpName(l)
+    const P = byPerson[who] || (byPerson[who] = { amt: {}, mins: 0, runs: 0, uom: u })
+    addAmt(P.amt, u, q); P.mins += m; P.runs++
+  })
+  const firstStart = rows.length ? (_clock(rows[0].start_time) || '–') : '–'
+  let lastFinish = '–'
+  rows.forEach(l => { const f = _clock(l.finish_time); if (f && (lastFinish === '–' || f > lastFinish)) lastFinish = f })
+  const rate = (amt, mins, u) => { const h = mins / 60, q = sumOf(amt); return (h > 0 && q > 0) ? Math.round(q / h) + ' ' + (u || 'kg') + '/hr' : '–' }
+
+  // header
+  let h = '<section style="' + (last ? '' : 'page-break-after:always;') + 'color:#000;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:11px">'
+  h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #000;padding-bottom:5px">'
+    + '<div><div style="font-size:17px;font-weight:700">END OF DAY PRODUCTION REPORT</div>'
+    + '<div style="font-size:10px">Willa Ltd · Chefly production &nbsp;·&nbsp; generated from SIM Tracker — check every line against the paperwork before filing</div></div>'
+    + '<div style="text-align:right;font-size:10px"><div style="border:2px solid #000;padding:2px 9px;font-weight:700;font-size:12px;display:inline-block">' + niceDate(date) + '</div>'
+    + '<div style="margin-top:3px">' + date + '</div>'
+    + '<div>Shift: ' + _eodBox() + ' Day &nbsp; ' + _eodBox() + ' Night</div></div></div>'
+
+  // KPI strip
+  const kpi = (v, l) => '<div style="flex:1;border:2px solid #000;padding:3px 5px;text-align:center"><div style="font-size:13px;font-weight:700">' + v + '</div><div style="font-size:8px;text-transform:uppercase">' + l + '</div></div>'
+  h += '<div style="display:flex;gap:5px;margin-top:7px">'
+    + kpi(fmtAmt(tot), 'Produced')
+    + kpi(rows.length, 'Jobs logged')
+    + kpi((totMin / 60).toFixed(1) + ' h', 'Time on task')
+    + kpi((totPeopleMin / 60).toFixed(1) + ' h', 'People-hours')
+    + kpi(totWaste ? totWaste.toFixed(1) : '0', 'Waste')
+    + kpi(firstStart + '–' + lastFinish, 'First start / last finish')
+    + '</div>'
+
+  // 1 · every job
+  h += _eodH2('1 · Jobs completed — in the order they were run')
+  if (!rows.length) {
+    h += '<div style="padding:6px 0;font-size:10px">No completed jobs logged on this date.</div>'
+  } else {
+    const body = rows.map(l => {
+      const u = uomFor(l)
+      const c = (l.comments || '').trim()
+      const tr = '<tr>'
+        + _eodTD((_clock(l.start_time) || '–') + ' → ' + (_clock(l.finish_time) || '–'))
+        + _eodTD(esc(l.task_name || ''), false, true)
+        + _eodTD(esc(l.product || l.station || ''))
+        + _eodTD(esc(_haccpName(l)))
+        + _eodTD(l.units == null ? '<b>—</b>' : (l.units + ' ' + u), true)
+        + _eodTD(l.total_minutes == null ? '–' : l.total_minutes, true)
+        + _eodTD(l.units_per_hour != null ? (l.units_per_hour + ' ' + u + '/hr') : '–', true)
+        + _eodTD(l.waste_kg ? l.waste_kg : '–', true)
+        + _eodTD(l.staff_count == null ? 1 : l.staff_count, true)
+        + _eodTD(l.photos && l.photos.length ? l.photos.length : '–', true)
+        + _eodTD(_eodBox(), true)
+        + '</tr>'
+      return c ? tr + '<tr><td colspan="11" style="border-bottom:1px solid #ccc;padding:1px 5px 3px 5px;font-size:9px;font-style:italic">Note: ' + esc(c) + '</td></tr>' : tr
+    }).join('')
+    h += _eodTable(
+      _eodTH('Time') + _eodTH('Job') + _eodTH('Product / station') + _eodTH('Who')
+      + _eodTH('Qty', 1) + _eodTH('Mins', 1) + _eodTH('Rate', 1) + _eodTH('Waste', 1)
+      + _eodTH('Ppl', 1) + _eodTH('Photos', 1) + _eodTH('Checked', 1), body)
+    if (noQty) h += '<div style="border:1.5px solid #000;padding:3px 6px;margin-top:4px;font-size:9px;font-weight:700">' + noQty + ' job' + (noQty > 1 ? 's have' : ' has') + ' no quantity recorded (shown as —). Find the figure on the paper sheet and add it in History → Edit.</div>'
+  }
+
+  // 2 · by job
+  h += '<div style="page-break-inside:avoid">' + _eodH2('2 · Totals by job') + _eodTable(_eodTH('Job') + _eodTH('Produced', 1) + _eodTH('Runs', 1) + _eodTH('Time', 1) + _eodTH('Rate', 1) + _eodTH('Waste', 1),
+    Object.keys(byTask).sort((a, b) => sumOf(byTask[b].amt) - sumOf(byTask[a].amt)).map(k => {
+      const v = byTask[k]
+      return '<tr>' + _eodTD(esc(k)) + _eodTD(fmtAmt(v.amt), 1, true) + _eodTD(v.runs, 1)
+        + _eodTD((v.mins / 60).toFixed(1) + ' h', 1) + _eodTD(rate(v.amt, v.mins, v.uom), 1)
+        + _eodTD(v.waste ? v.waste.toFixed(1) : '–', 1) + '</tr>'
+    }).join('')) + '</div>'
+
+  // 3 · by person
+  h += '<div style="page-break-inside:avoid">' + _eodH2('3 · Totals by person') + _eodTable(_eodTH('Name') + _eodTH('Produced', 1) + _eodTH('Jobs', 1) + _eodTH('Time', 1) + _eodTH('Rate', 1),
+    Object.keys(byPerson).sort((a, b) => sumOf(byPerson[b].amt) - sumOf(byPerson[a].amt)).map(k => {
+      const v = byPerson[k]
+      return '<tr>' + _eodTD(esc(k)) + _eodTD(fmtAmt(v.amt), 1, true) + _eodTD(v.runs, 1)
+        + _eodTD((v.mins / 60).toFixed(1) + ' h', 1) + _eodTD(rate(v.amt, v.mins, v.uom), 1) + '</tr>'
+    }).join('')) + '</div>'
+
+  // 4 · temperature records
+  const temps = rows.filter(l => { const c = catalog.find(x => x.id === l.catalog_id); return c && c.records_temp })
+  h += '<div style="page-break-inside:avoid">' + _eodH2('4 · Temperature records logged today (CCP evidence)')
+  if (!temps.length) {
+    h += '<div style="padding:4px 0;font-size:10px">No cook or chill steps with temperature recording were logged on this date. If a cook ran today, the reading is only on paper — check why it was not logged.</div>'
+  } else {
+    let fails = 0
+    const body = temps.map(l => {
+      const c = catalog.find(x => x.id === l.catalog_id)
+      const tgt = c ? c.temp_target : null, dir = c ? (c.temp_dir || 'min') : 'min', maxM = c ? c.temp_max_minutes : null
+      const dur = (l.start_temp_at && l.finish_temp_at) ? Math.round((new Date(l.finish_temp_at) - new Date(l.start_temp_at)) / 60000) : (l.total_minutes == null ? null : Number(l.total_minutes))
+      let pass = null
+      if (tgt != null && l.finish_temp != null) pass = dir === 'max' ? (Number(l.finish_temp) <= tgt && (maxM ? (dur != null && dur <= maxM) : true)) : (Number(l.finish_temp) >= tgt)
+      if (pass === false) fails++
+      const badge = pass == null ? '—' : (pass ? 'PASS' : '<b>FAIL</b>')
+      const tgtTxt = tgt != null ? ((dir === 'max' ? '≤' : '≥') + tgt + '°' + (maxM ? ' / ' + maxM + 'm' : '')) : '—'
+      return '<tr>' + _eodTD(esc(l.task_name || '')) + _eodTD(esc(_haccpName(l)))
+        + _eodTD((_clock(l.start_temp_at) || '–') + ' → ' + (_clock(l.finish_temp_at) || '–'))
+        + _eodTD((l.start_temp == null ? '–' : l.start_temp) + '° → ' + (l.finish_temp == null ? '–' : l.finish_temp) + '°', 1, true)
+        + _eodTD(dur == null ? '–' : dur + 'm', 1) + _eodTD(tgtTxt, 1) + _eodTD(badge, 1) + '</tr>'
+    }).join('')
+    h += _eodTable(_eodTH('Step') + _eodTH('Who') + _eodTH('Clock') + _eodTH('Temp', 1) + _eodTH('Time', 1) + _eodTH('Target', 1) + _eodTH('Result', 1), body)
+    if (fails) h += '<div style="border:2px solid #000;padding:3px 6px;margin-top:4px;font-size:9.5px;font-weight:700">' + fails + ' reading(s) FAILED the limit. The corrective action and product disposition must be written on the paper record and signed by the manager before this report is filed.</div>'
+  }
+  h += '</div>'
+
+  // 5 · paperwork
+  const sheets = {}
+  Object.keys(byTask).forEach(nm => _EOD_SHEETS.forEach(s => {
+    if (s.re.test(nm)) { const e = sheets[s.code] || (sheets[s.code] = { name: s.name, tasks: [] }); e.tasks.push(nm) }
+  }))
+  h += '<div style="page-break-inside:avoid">' + _eodH2('5 · Paperwork check — the sheets today’s jobs should have produced')
+  const sheetRows = Object.keys(sheets).sort().map(code => '<tr>'
+    + _eodTD('<b>' + code + '</b>') + _eodTD(sheets[code].name)
+    + _eodTD('<span style="font-size:9px">' + sheets[code].tasks.map(esc).join(' · ') + '</span>')
+    + _eodTD(_eodBox(), 1) + _eodTD(_eodBox(), 1) + _eodTD('', 1) + '</tr>').join('')
+  const alsoRows = _EOD_ALSO.filter(a => !sheets[a[0]]).map(a => '<tr>'
+    + _eodTD('<b>' + a[0] + '</b>') + _eodTD(a[1])
+    + _eodTD('<span style="font-size:9px;color:#555">if run today — else mark N/A</span>')
+    + _eodTD(_eodBox(), 1) + _eodTD(_eodBox(), 1) + _eodTD('', 1) + '</tr>').join('')
+  h += _eodTable(_eodTH('Doc') + _eodTH('Record sheet') + _eodTH('Because of') + _eodTH('Sheet complete', 1) + _eodTH('Filed', 1) + _eodTH('Init.', 1),
+    (sheetRows || '<tr>' + _eodTD('—') + _eodTD('No job today maps to a production record sheet') + _eodTD('') + _eodTD('', 1) + _eodTD('', 1) + _eodTD('', 1) + '</tr>') + alsoRows)
+  h += '</div><div style="page-break-inside:avoid"><div style="border:1.5px dashed #000;padding:3px 7px;margin-top:4px;font-size:9px">A sheet ticked <b>complete</b> means every line, temperature and signature on it is filled in — not that the sheet exists. Anything missing goes in the box below before this report is signed.</div>'
+
+  // 6 · discrepancies + sign-off
+  h += _eodH2('6 · Discrepancies, missing records and anything the numbers do not explain')
+  h += '<div style="border:1px solid #000;height:56px;margin-bottom:3px"></div>'
+  h += '<div style="display:flex;gap:18px;margin-top:9px">'
+    + '<div style="flex:1;border-top:1px solid #000;padding-top:3px;font-size:9.5px">Shift lead — report matches what was run &nbsp; sign &amp; time</div>'
+    + '<div style="flex:1;border-top:1px solid #000;padding-top:3px;font-size:9.5px">Manager — app checked against the paperwork &nbsp; sign &amp; date</div>'
+    + '</div>'
+  h += '<div style="margin-top:6px;font-size:8.5px;color:#333">Only completed jobs appear — anything still running when this was printed is not on the report. Rates are produced ÷ logged task time. Printed ' + new Date().toLocaleString('en-GB') + (me && (me.full_name || me.email) ? ' by ' + esc(me.full_name || me.email) : '') + '.</div></div>'
+  h += '</section>'
+  return h
+}
+
+window.eodReport = function(){
+  if (!isManagerUp()) return
+  if (!histAllLogs.length) { alert('Load a date range first — the report is built from the days you have loaded.'); return }
+  const byDate = {}
+  histAllLogs.forEach(l => { (byDate[l.log_date] || (byDate[l.log_date] = [])).push(l) })
+  const days = Object.keys(byDate).sort()
+  const pa = $('printArea'); if (!pa) return
+  if (!window._eodAfterPrint) {
+    window._eodAfterPrint = true
+    window.addEventListener('afterprint', () => { const p = $('printArea'); if (p) p.innerHTML = '' })
+  }
+  pa.innerHTML = '<style>@page{size:A4 landscape;margin:11mm}</style>'
+    + days.map((d, i) => _eodDayHtml(d, byDate[d], i === days.length - 1)).join('')
+  window.print()
+}
+function _histEnsureEodBtn(){
+  if ($('eodBtn')) return
+  const ex = document.querySelector('#historyTab button[onclick*="exportCsv"]')
+  if (!ex || !ex.parentNode || !ex.parentNode.parentNode) return
+  const row = document.createElement('div')
+  row.className = 'row'
+  row.innerHTML = '<button id="eodBtn" class="ghost" onclick="eodReport()">🖨 End-of-day report (print)</button>'
+  ex.parentNode.parentNode.insertBefore(row, ex.parentNode.nextSibling)
+}
+
 // ---- full log editor (manager/admin) ----
 window.leTaskChanged=function(){
   const cat=catalog.find(c=>c.id===$('leTask').value)
