@@ -122,7 +122,7 @@ async function showApp(){
   else { notifyReady=('Notification' in window)&&Notification.permission==='granted' }
 }
 
-const TAB_KEYS=['log','equip','pack','picking','kitchen','units','labels','dash','history','perf','plan','ws','trace','devhub','manage']
+const TAB_KEYS=['log','equip','pack','picking','kitchen','units','labels','dash','history','perf','plan','ws','trays','trace','devhub','manage']
 /* Two-level navigation: a few big primary groups (organised by job, not by
    feature), each with a lighter secondary row of screens beneath. Groups with
    no visible screens for this role disappear entirely; a group with a single
@@ -139,6 +139,7 @@ const NAV_GROUPS=[
   ]},
   {k:'wholesale',label:'Wholesale',screens:[
     {k:'ws',label:'Wholesale',show:()=>isManagerUp()||(profile&&profile.packing_team)},
+    {k:'trays',label:'Trays & Pallets',show:()=>isManagerUp()},
   ]},
   {k:'tracegrp',label:'Trace',screens:[
     {k:'units',label:'Batches & Units',show:()=>true},
@@ -207,6 +208,7 @@ window.showTab=function(which){
   if(which==='perf') initPerf()
   if(which==='plan') loadPlan()
   if(which==='ws') loadWholesale()
+  if(which==='trays') loadTrays()
   if(which==='trace') initTrace()
   if(which==='devhub') loadDevHub()
   if(which==='manage'){ loadJoinCode(); loadWallUrl(); loadAccess(); loadStaff(); loadProducts(); loadEquipReg(); loadPackRoster(); renderTaskList(); loadRoutes() }
