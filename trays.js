@@ -10,6 +10,7 @@
 
 let trEvents = [], trSettings = null, trShipments = [], trChannel = null
 let trEmailOpen = false, trEmailShipKey = null
+let trDrive = null, trDriveBusy = false, trDriveChecked = {}, trDriveMap = {}
 
 const TR_CAPS = { standard: 30, lean: 30, large: 24 }
 const TR_DEST_LABELS = { OIUK: 'Oakland International', CPUK: 'Coolpack Solutions (UK)', IE: 'Ireland (via Coolpack)' }
@@ -110,6 +111,8 @@ function trRender () {
 
     <div class="card"><h2>This week's shipments</h2><p class="muted" style="margin-top:-8px">Pulled from the Wholesale lane. Logging a delivery writes it to the ledger; "Log &amp; email" also sends the weekly summary to Oakland after you review it.</p>${shipCards}</div>
 
+    ${mgr ? trDriveCard() : ''}
+
     <div id="trEmailCard" class="card ${trEmailOpen ? '' : 'hidden'}">
       <h2>Email to Oakland — review before sending</h2>
       <div class="row">
@@ -162,6 +165,130 @@ function trRender () {
 
   const rd = $('trRetDate'); if (rd && !rd.value) rd.value = new Date().toISOString().slice(0, 10)
   if (trEmailOpen) trFillEmail()
+}
+
+/* ---------- Drive fetch (final orders -> tracker) ---------- */
+function trSecTotals (sec) {
+  let trays = 0, meals = 0
+  for (const l of (sec.lines || [])) {
+    trays += Math.ceil((l.Standard || 0) / 30) + Math.ceil((l.Lean || 0) / 30) + Math.ceil((l.Large || 0) / 24)
+    meals += (l.Standard || 0) + (l.Lean || 0) + (l.Large || 0)
+  }
+  return { trays, meals, pallets: Math.ceil(meals / (trSettings.meals_per_pallet || 1080)) }
+}
+
+function trDriveMatch (poName) {
+  if (!trDrive || !trDrive.meals) return null
+  const n = String(poName).trim().toLowerCase()
+  for (const m of trDrive.meals) {
+    if (String(m.name).trim().toLowerCase() === n) return m.id
+    const aliases = String(m.po_aliases || '').split('|').map(s => s.trim().toLowerCase()).filter(Boolean)
+    if (aliases.indexOf(n) !== -1) return m.id
+  }
+  return null
+}
+
+function trDriveCard () {
+  let body = ''
+  if (trDriveBusy) {
+    body = '<p class="muted">Scanning the Final Orders folder and reading the PDFs — this can take a minute…</p>'
+  } else if (!trDrive) {
+    body = '<p class="muted">Reads the Simmer PO PDFs straight from the Final Orders folder in Google Drive, shows you what it found, and only writes after you approve. Nothing is imported without the preview.</p>'
+  } else if (trDrive.error) {
+    body = `<p class="msg err">${esc(trDrive.error)}</p>`
+  } else {
+    const files = trDrive.files || []
+    const done = files.filter(f => f.status === 'applied')
+    const parsed = files.filter(f => f.status === 'parsed')
+    const bad = files.filter(f => f.status === 'unreadable' || f.status === 'error')
+    const mealOpts = (trDrive.meals || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name)))
+
+    const parsedCards = parsed.map(f => {
+      const fk = esc(f.file_id)
+      const checked = trDriveChecked[f.file_id] !== false
+      const secRows = (f.sections || []).map(sec => {
+        const t = trSecTotals(sec)
+        const already = trEvents.some(e => e.kind === 'delivery' && e.destination_code === sec.dest && e.week_start === sec.week_start)
+        return `<div class="muted" style="margin:2px 0 2px 24px">${esc(TR_DEST_LABELS[sec.dest] || sec.dest)} · PO ${esc(sec.po_number)} · w/c ${trDateGB(sec.week_start)} — <b>${trNum(t.meals)}</b> meals → <b>${trNum(t.trays)}</b> trays / <b>${trNum(t.pallets)}</b> pallets${already ? ' · ledger already has this week (won’t double-count)' : ''}</div>`
+      }).join('')
+      // one mapping row per distinct PO meal name that doesn't match a tracker meal
+      const names = []
+      ;(f.sections || []).forEach(sec => (sec.lines || []).forEach(l => { if (names.indexOf(l.meal) === -1) names.push(l.meal) }))
+      const unmatched = names.filter(n => !trDriveMatch(n) && !(trDriveMap[f.file_id] && trDriveMap[f.file_id][n]))
+      const mapRows = names.filter(n => !trDriveMatch(n)).map(n => {
+        const cur = (trDriveMap[f.file_id] && trDriveMap[f.file_id][n]) || ''
+        const opts = mealOpts.map(m => `<option value="${esc(m.id)}" ${cur === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')
+        return `<div class="row" style="margin:2px 0 2px 24px;align-items:center">
+          <span class="muted" style="min-width:220px">"${esc(n)}" =</span>
+          <select onchange="trDriveSetMap('${fk}', this.dataset.n, this.value)" data-n="${esc(n)}">
+            <option value="">— skip plan update for this meal —</option>${opts}
+          </select></div>`
+      }).join('')
+      return `<div class="task-item">
+        <label style="display:flex;gap:8px;align-items:baseline"><input type="checkbox" ${checked ? 'checked' : ''} onchange="trDriveCheck('${fk}', this.checked)" /> <b>${esc(f.name)}</b></label>
+        ${secRows}
+        ${mapRows ? `<div class="muted" style="margin-left:24px;margin-top:4px">PO meal names the tracker doesn't know yet${unmatched.length ? '' : ' (all mapped)'} — pick the matching meal so the weekly plan fills in too (imports fine either way):</div>${mapRows}` : ''}
+      </div>`
+    }).join('')
+
+    body = `
+      ${done.length ? `<p class="muted">✓ ${done.length} file${done.length === 1 ? '' : 's'} already imported — skipped.</p>` : ''}
+      ${parsed.length ? `<p style="margin:4px 0"><b>${parsed.length}</b> new or changed order${parsed.length === 1 ? '' : 's'} ready to import:</p>${parsedCards}
+        <div class="row" style="margin-top:8px">
+          <button class="green" onclick="trApplyDrive()">Import ticked orders</button>
+          <button class="ghost" onclick="trDrive=null;trRender()">Discard preview</button>
+        </div>` : '<p class="muted">Nothing new — every PDF in the folder is already in the tracker.</p>'}
+      ${bad.map(f => `<p class="msg err">${esc(f.name)}: ${esc(f.error || 'could not read this PDF — enter that week by hand')}</p>`).join('')}`
+  }
+  return `<div class="card">
+    <h2>Fetch final orders from Drive</h2>
+    ${body}
+    <div class="row" style="margin-top:6px">
+      <button class="ghost" onclick="trFetchDrive()" ${trDriveBusy ? 'disabled' : ''}>${trDrive ? 'Re-scan folder' : 'Scan Final Orders folder'}</button>
+    </div>
+    <div id="trDriveMsg" class="msg"></div>
+  </div>`
+}
+
+window.trDriveCheck = function (fileId, on) { trDriveChecked[fileId] = !!on }
+window.trDriveSetMap = function (fileId, poName, mealId) {
+  if (!trDriveMap[fileId]) trDriveMap[fileId] = {}
+  trDriveMap[fileId][poName] = mealId || null
+}
+
+window.trFetchDrive = async function () {
+  trDriveBusy = true; trDrive = null; trRender()
+  const { data, error } = await sb.functions.invoke('sim-drive-orders', { body: { action: 'scan' } })
+  trDriveBusy = false
+  trDrive = error ? { error: (data && data.error) || error.message } : (data.error ? { error: data.error } : data)
+  trRender()
+}
+
+window.trApplyDrive = async function () {
+  const el = $('trDriveMsg')
+  const parsed = ((trDrive && trDrive.files) || []).filter(f => f.status === 'parsed' && trDriveChecked[f.file_id] !== false)
+  if (!parsed.length) { msg(el, 'Nothing ticked.', false); return }
+  const weeks = parsed.map(f => {
+    const meal_map = {}
+    ;(f.sections || []).forEach(sec => (sec.lines || []).forEach(l => {
+      const picked = (trDriveMap[f.file_id] && trDriveMap[f.file_id][l.meal]) || trDriveMatch(l.meal)
+      if (picked) meal_map[l.meal] = picked
+    }))
+    return { file_id: f.file_id, name: f.name, modified_time: f.modified_time, sections: f.sections, meal_map }
+  })
+  msg(el, 'Importing ' + weeks.length + ' file' + (weeks.length === 1 ? '' : 's') + '…', true)
+  const { data, error } = await sb.functions.invoke('sim-drive-orders', { body: { action: 'apply', weeks } })
+  if (error || (data && data.error)) { msg(el, (data && data.error) || error.message, false); return }
+  // remember the hand-picked name mappings so next time they match automatically
+  for (const fid in trDriveMap) {
+    for (const n in trDriveMap[fid]) {
+      const id = trDriveMap[fid][n]
+      if (id && !trDriveMatch(n)) await sb.functions.invoke('sim-drive-orders', { body: { action: 'alias', meal_id: id, alias: n } })
+    }
+  }
+  trDrive = null; trDriveChecked = {}; trDriveMap = {}
+  msg(el, 'Imported: ' + (data.applied || []).join(', '), true)
+  loadTrays()
 }
 
 /* ---------- email ---------- */
